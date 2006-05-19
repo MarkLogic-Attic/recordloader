@@ -1,0 +1,148 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+<!--
+/*
+ * Copyright (c)2005-2006 Mark Logic Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * The use of the Apache License does not indicate that this project is
+ * affiliated with the Apache Software Foundation.
+ */
+-->
+<head>
+<title>RecordLoader README</title>
+</head>
+<body>
+<h1>RecordLoader</h1>
+
+<h2>Running RecordLoader</h2>
+<p>The entry point is the main method in the
+ com.marklogic.ps.RecordLoader class.
+It takes zero or more property files as its arguments.
+Any specified system properties will override file-based properties,
+and properties found in later files may override properties
+specified in earlier files on the command line.
+It's also possibly to specify properties as VM arguments (-DNAME=value).
+See src/recordloader.sh for a sample shell script.
+See src/config for sample property files.
+</p>
+
+<h2>Required libraries:</h2>
+<ul>
+  <li>MarkLogic <a href="http://developer.marklogic.com/">XDBC</a></li>
+  <li><a href="//http://www.extreme.indiana.edu/xgws/xsoap/xpp/">XPP3</a> XML Pull-Parser</li>
+</ul>
+
+<h2>Required inputs:</h2>
+<ul>
+  <li>ID_NAME</li>
+</ul>
+
+<h2>Available properties:</h2>
+<table>
+<tr><th>Property</th><th>default value</th><th>notes</th></tr>
+
+<tr><td>DEFAULT_NAMESPACE</td><td>null</td>
+<td>If present, all XML will default to the supplied namespace uri.</td>
+</tr>
+
+<tr><td>ERROR_EXISTING</td><td>false</td>
+<td>If true, RecordLoader will exit with an error
+  if it finds itself trying to overwrite an existing document uri.</td>
+</tr>
+
+<tr><td>ID_NAME</td><td>null</td>
+<td>Required parameter: the text value of any element with this local-name
+(or attribute value if ID_NAME starts with '@')
+will be used to compose the final document uri.
+Note that namespace is ignored: only the local-name is used.
+Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
+</tr>
+
+<tr><td>IGNORE_UNKNOWN</td><td>false</td>
+<td>If set, RecordLoader will ignore siblings of RECORD_NAME
+that are not RECORD_NAME elements.
+Otherwise, this condition causes a fatal error.</td>
+</tr>
+
+<tr>
+  <td>LOG_LEVEL</td><td>INFO</td>
+  <td>java.util.logger.Level at which to log.</td>
+</tr>
+
+<tr>
+  <td>LOG_HANDLER</td><td>CONSOLE,FILE</td>
+  <td>java.util.logger log handlers with which to log.</td>
+</tr>
+
+<tr><td>OUTPUT_COLLECTIONS</td><td>null</td>
+<td>One or more collections to apply to every new document.
+Use whitespace to separate multiple collection uris.</td>
+</tr>
+
+<tr><td>OUTPUT_FORESTS</td><td>null</td>
+<td>If set, all documents will be explicitly placed into the named forests.
+Use whitespace or the characters <code>,:;</code> to separate values.</td>
+</tr>
+
+<tr><td>OUTPUT_READ_ROLES</td><td>null</td>
+<td></td>
+</tr>
+
+<tr><td>OUTPUT_URI_PREFIX</td><td>null</td>
+<td></td>
+</tr>
+
+<tr><td>OUTPUT_URI_SUFFIX</td><td>null</td>
+<td></td>
+</tr>
+
+<tr><td>RECORD_NAME</td><td>null</td>
+<td>Element name in which each document is found. These may not nest.
+If no RECORD_NAME is set, the first child element
+of the first root element
+will be used for the entire RecordLoader run.</td>
+</tr>
+
+<tr><td>RECORD_NAMESPACE</td><td>null</td>
+<td>Element namespace in which each document is found.
+If unset, but RECORD_NAME is set, then the empty namespace is assumed.
+If unset, and RECORD_NAME is also unset,
+then then the namespace of the first child element
+of the first root element
+will be used for the entire RecordLoader run.</td>
+</tr>
+
+<tr><td>SKIP_EXISTING</td><td>false</td>
+<td>If true, existing document uris will be skipped.
+This allows RecordLoader to resume after being interrupted.
+Note that one read I/O is required per skip,
+so SKIP_EXISTING is slower than using START_ID (below).
+The two properties may be combined,
+in case the known value for START_ID already exists.
+</td>
+</tr>
+
+<tr><td>START_ID</td><td>null</td>
+<td>When set, records are skipped
+until one with an ID_NAME value equal to START_ID is found.
+This allows RecordLoader to resume after being interrupted.</td>
+</tr>
+
+<tr><td>THREADS</td><td>1</td>
+<td>Number of RecordLoader threads.
+Note that when using standard input, this value is ignored.</td>
+</tr>
+</table>
+</body>
+</html>
