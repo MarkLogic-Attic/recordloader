@@ -68,6 +68,21 @@ public class RecordLoader extends Thread {
     /**
      * 
      */
+    public static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
+
+    /**
+     * 
+     */
+    public static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
+
+    /**
+     * 
+     */
+    public static final String INPUT_PATH_KEY = "INPUT_PATH";
+
+    /**
+     * 
+     */
     public static final String DEFAULT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
 
     /**
@@ -396,7 +411,7 @@ public class RecordLoader extends Thread {
         logger.configureLogger(props);
 
         // handle multiple connection strings, for load balancing
-        String[] connString = props.getProperty("CONNECTION_STRING",
+        String[] connString = props.getProperty(CONNECTION_STRING_KEY,
                 "admin:admin@localhost:9000").split("\\s+");
         logger.info("connecting to " + Utilities.join(connString, " "));
 
@@ -409,8 +424,8 @@ public class RecordLoader extends Thread {
         Timer rlTimer;
         int threadCount = Integer.parseInt(props.getProperty(THREADS_KEY, "1"));
 
-        String inputPath = props.getProperty("INPUT_PATH");
-        String inputPattern = props.getProperty("INPUT_PATTERN", "^.+\\.xml$");
+        String inputPath = props.getProperty(INPUT_PATH_KEY);
+        String inputPattern = props.getProperty(INPUT_PATTERN_KEY, "^.+\\.xml$");
         if (inputPath != null) {
             // find all the files
             FileFinder ff = new FileFinder(inputPath, inputPattern);

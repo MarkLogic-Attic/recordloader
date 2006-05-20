@@ -52,6 +52,11 @@ See src/config for sample property files.
 <table>
 <tr><th>Property</th><th>default value</th><th>notes</th></tr>
 
+<tr><td>CONNECTION_STRING</td><td>admin:admin@localhost:9000</td>
+<td>XDBC username, password, host, and port
+to use for all queries and inserts.</td>
+</tr>
+
 <tr><td>DEFAULT_NAMESPACE</td><td>null</td>
 <td>If present, all XML will default to the supplied namespace uri.</td>
 </tr>
@@ -75,6 +80,16 @@ that are not RECORD_NAME elements.
 Otherwise, this condition causes a fatal error.</td>
 </tr>
 
+<tr><td>INPUT_PATH</td><td>null</td>
+<td>The filesystem path in which to look for XML files or zip archives.
+If unset, RecordLoader will read XML directly from standard input.</td>
+</tr>
+
+<tr><td>INPUT_PATH</td><td>^.+\\.xml$</td>
+<td>Matching pattern (regex) for files found in INPUT_PATH.
+The default value matches all filenames ending with <code>.xml</code></td>
+</tr>
+
 <tr>
   <td>LOG_LEVEL</td><td>INFO</td>
   <td>java.util.logger.Level at which to log.</td>
@@ -96,15 +111,21 @@ Use whitespace or the characters <code>,:;</code> to separate values.</td>
 </tr>
 
 <tr><td>OUTPUT_READ_ROLES</td><td>null</td>
-<td></td>
+<td>One or more existing role name, separated by whitespace.
+If set, every document inserted by RecordLoader
+will have read permission for these roles.
+If any of the supplied role-names do not exist,
+the first document insert will throw a fatal error.</td>
 </tr>
 
 <tr><td>OUTPUT_URI_PREFIX</td><td>null</td>
-<td></td>
+<td>Prefix used before the ID_NAME value, to compose all document uris.
+If the prefix does not end in '/', RecordLoader will add a '/' to it.
+</td>
 </tr>
 
 <tr><td>OUTPUT_URI_SUFFIX</td><td>null</td>
-<td></td>
+<td>Suffix used after the ID_NAME value, to compose all document uris.</td>
 </tr>
 
 <tr><td>RECORD_NAME</td><td>null</td>
