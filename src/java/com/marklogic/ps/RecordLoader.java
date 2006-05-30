@@ -153,7 +153,7 @@ public class RecordLoader extends Thread {
 
     public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
-    private static final String VERSION = "2006-05-19.1";
+    private static final String VERSION = "2006-05-30.1";
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
@@ -425,7 +425,8 @@ public class RecordLoader extends Thread {
         int threadCount = Integer.parseInt(props.getProperty(THREADS_KEY, "1"));
 
         String inputPath = props.getProperty(INPUT_PATH_KEY);
-        String inputPattern = props.getProperty(INPUT_PATTERN_KEY, "^.+\\.xml$");
+        String inputPattern = props
+                .getProperty(INPUT_PATTERN_KEY, "^.+\\.xml$");
         if (inputPath != null) {
             // find all the files
             FileFinder ff = new FileFinder(inputPath, inputPattern);
@@ -661,12 +662,16 @@ public class RecordLoader extends Thread {
 
     private static void checkEnvironment() throws IOException {
         // check for LANG env: should be LANG=en_US.UTF-8 or similar...
+        // also: en_UK.UTF-8@euro
         String envLang = System.getenv("LANG");
+        if (envLang == null) {
+            envLang = "";
+        }
         logger.info("environment variable LANG=" + envLang);
-        if (!envLang.matches(".+\\.UTF-8$")) {
-            System.err.println("bad environment: " + envLang
-                    + " does not appear to be UTF-8 compliant."
-                    + " Try LANG=en_US.UTF-8 or similar.");
+        if (!envLang.matches("^.+\\.UTF-8.*$")) {
+            System.err.println("bad environment: LANG='" + envLang
+                    + "' does not appear to be UTF-8 compliant."
+                    + " Try LANG=en_US.UTF-8 (must end with 'UTF-8').");
             System.exit(1);
         }
     }
@@ -979,7 +984,13 @@ public class RecordLoader extends Thread {
             return;
         }
 
-        // end of record:
+        // end of record: were we skipping?
+        if (skippingRecord) {
+            logger.fine("reached the end of skipped record");
+            closeRecord();
+            return;
+        }
+        
         // finish the database document, if appropriate
         if (startId != null) {
             if (uri != null) {
@@ -992,8 +1003,12 @@ public class RecordLoader extends Thread {
             closeRecord();
             return;
         }
-
+        if (current == null) {
+            logger.fine("ignoring end of record " + recordName + " for " + uri
+                    + ": START_ID " + startId + " not yet found");
+        }
         current.flush();
+
         boolean retry = true;
         while (retry) {
             try {

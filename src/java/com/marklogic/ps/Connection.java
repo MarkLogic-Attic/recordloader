@@ -158,7 +158,7 @@ public class Connection {
 
     public boolean checkFile(String _uri) throws XDBCException {
         String query = "define variable $URI as xs:string external\n"
-                + "exists(doc($URI)/node())\n";
+                + "xdmp:estimate(doc($URI)) eq 1\n";
         Hashtable vars = new Hashtable();
         vars.put(new XDBCXName("", "URI"), _uri);
 

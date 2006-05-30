@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="marklogic-ps-utils" basedir="." default="jar">
+<project name="recordloader" basedir="." default="jar">
     <property name="name" value="recordloader"/>
     <property file="build.properties"/>
 
