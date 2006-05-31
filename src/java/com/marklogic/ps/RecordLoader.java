@@ -318,13 +318,17 @@ public class RecordLoader extends Thread {
         if (docOpts == null) {
             boolean resolveEntities = false;
             XDMPPermission[] permissions = null;
-            String[] readRoles = props.getProperty(OUTPUT_READ_ROLES_KEY)
-                    .split("\\s+");
-            if (readRoles != null && readRoles.length > 0) {
-                permissions = new XDMPPermission[readRoles.length];
-                for (int i = 0; i < readRoles.length; i++) {
-                    permissions[i] = new XDMPPermission(XDMPPermission.READ,
-                            readRoles[i]);
+            String readRolesString = props.getProperty(OUTPUT_READ_ROLES_KEY,
+                    "");
+            if (readRolesString != null && readRolesString.length() > 0) {
+                String[] readRoles = readRolesString.trim().split("\\s+");
+                if (readRoles != null && readRoles.length > 0) {
+                    permissions = new XDMPPermission[readRoles.length];
+                    for (int i = 0; i < readRoles.length; i++) {
+                        if (readRoles[i] != null && !readRoles[i].equals(""))
+                            permissions[i] = new XDMPPermission(
+                                    XDMPPermission.READ, readRoles[i]);
+                    }
                 }
             }
             int format = XDMPDocInsertStream.XDMP_DOC_FORMAT_XML;
@@ -914,6 +918,8 @@ public class RecordLoader extends Thread {
             docOpts.setCollections((String[]) collections
                     .toArray(new String[0]));
         }
+        logger.fine("uri: " + uri);
+        logger.fine("docOpts: " + docOpts);
         return conn.openDocInsertStream(uri, docOpts);
     }
 
@@ -990,7 +996,7 @@ public class RecordLoader extends Thread {
             closeRecord();
             return;
         }
-        
+
         // finish the database document, if appropriate
         if (startId != null) {
             if (uri != null) {
