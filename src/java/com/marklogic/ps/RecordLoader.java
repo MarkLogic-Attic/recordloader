@@ -20,12 +20,14 @@
 package com.marklogic.ps;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.net.URI;
 import java.util.ArrayList;
@@ -153,7 +155,7 @@ public class RecordLoader extends Thread {
 
     public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
-    private static final String VERSION = "2006-05-30.1";
+    private static final String VERSION = "2006-06-01.1";
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
@@ -285,7 +287,7 @@ public class RecordLoader extends Thread {
                 IGNORE_UNKNOWN_KEY, "false"));
 
         // initialize collections
-        List collections = new ArrayList();
+        List<String> collections = new ArrayList<String>();
         collections.add(NAME + "." + System.currentTimeMillis());
         logger.info("adding extra collection: " + collections.get(0));
         String collectionsString = props.getProperty(OUTPUT_COLLECTIONS_KEY);
@@ -383,8 +385,8 @@ public class RecordLoader extends Thread {
         // using -DPROPNAME=foo
         // as a result, we no longer need any args: default to stdin
         Properties props = new Properties(System.getProperties());
-        List xmlFiles = new ArrayList();
-        List zipFiles = new ArrayList();
+        List<File> xmlFiles = new ArrayList<File>();
+        List<File> zipFiles = new ArrayList<File>();
         Iterator iter = Arrays.asList(args).iterator();
         File file = null;
         String arg = null;
@@ -596,10 +598,10 @@ public class RecordLoader extends Thread {
             // failures here are fatal
             Connection conn = new Connection(_connString);
 
-            Map externs = new Hashtable(1);
+            Map<String, String> externs = new Hashtable<String, String>(1);
             externs.put("forest-string", placeKeysString);
             rs = conn.executeQuery(query, externs);
-            List forestIds = new ArrayList();
+            List<String> forestIds = new ArrayList<String>();
             while (rs.hasNext()) {
                 rs.next();
                 forestIds.add(rs.get_String());
@@ -642,7 +644,7 @@ public class RecordLoader extends Thread {
         if (currentFileBasename == null) {
             docOpts.setCollections(baseCollections);
         } else {
-            List newCollections = new ArrayList(Arrays.asList(baseCollections));
+            List<String> newCollections = new ArrayList<String>(Arrays.asList(baseCollections));
             newCollections.add(_name);
             docOpts.setCollections((String[]) newCollections
                     .toArray(new String[0]));
@@ -665,17 +667,17 @@ public class RecordLoader extends Thread {
     }
 
     private static void checkEnvironment() throws IOException {
-        // check for LANG env: should be LANG=en_US.UTF-8 or similar...
-        // also: en_UK.UTF-8@euro
-        String envLang = System.getenv("LANG");
-        if (envLang == null) {
-            envLang = "";
-        }
-        logger.info("environment variable LANG=" + envLang);
-        if (!envLang.matches("^.+\\.UTF-8.*$")) {
-            System.err.println("bad environment: LANG='" + envLang
-                    + "' does not appear to be UTF-8 compliant."
-                    + " Try LANG=en_US.UTF-8 (must end with 'UTF-8').");
+        String encoding = (new OutputStreamWriter(new ByteArrayOutputStream())).getEncoding();
+        logger.info("encoding=" + encoding);
+        // despite the Charset javadoc, win32 JVM sets UTF8
+        if (! encoding.equals("UTF-8") && ! encoding.equals("UTF8")) {
+            System.err.println("FATAL: This Java environment is not using UTF-8.");
+            String envLang = System.getenv("LANG");
+            if (envLang == null) {
+                envLang = "";
+            }
+            logger.info("environment variable LANG=" + envLang);
+            System.err.println("On Linux or Solaris, try setting LANG=en_US.UTF-8");
             System.exit(1);
         }
     }
@@ -906,7 +908,7 @@ public class RecordLoader extends Thread {
             // in this case we have to reset the whole collection list every
             // time, to prevent any carryover from the previous call to
             // docOptions.setCollections().
-            List collections = new ArrayList(Arrays.asList(baseCollections));
+            List<String> collections = new ArrayList<String>(Arrays.asList(baseCollections));
             if (currentFileBasename != null) {
                 collections.add(currentFileBasename);
             }
