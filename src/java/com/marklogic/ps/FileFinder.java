@@ -36,7 +36,7 @@ public class FileFinder {
 
     private FileFilter filter;
 
-    private Vector list = new Vector();
+    private Vector<File> list = new Vector<File>();
 
     private String includePattern;
 
@@ -234,7 +234,7 @@ public class FileFinder {
      */
     public List listCanonicalPaths() throws IOException {
         int size = list.size();
-        List paths = new ArrayList(size);
+        List<String> paths = new ArrayList<String>(size);
         Iterator iter = list.iterator();
         File f;
         while (iter.hasNext()) {
@@ -252,7 +252,7 @@ public class FileFinder {
     public List listRelativePaths(String _root) throws IOException {
         int rootLength = _root.length();
         int size = list.size();
-        List paths = new ArrayList(size);
+        List<String> paths = new ArrayList<String>(size);
         Iterator iter = list.iterator();
         File f;
         while (iter.hasNext()) {

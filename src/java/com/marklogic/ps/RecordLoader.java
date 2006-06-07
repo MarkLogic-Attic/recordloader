@@ -20,16 +20,19 @@
 package com.marklogic.ps;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.MalformedInputException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -40,6 +43,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -155,7 +159,26 @@ public class RecordLoader extends Thread {
 
     public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
-    private static final String VERSION = "2006-06-01.1";
+    private static final String VERSION = "2006-06-07.1";
+
+    public static final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
+
+    private static final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
+
+    private static final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
+            .toString();
+
+    private static final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
+            .toString();
+
+    private static final String INPUT_MALFORMED_ACTION_REPORT = CodingErrorAction.REPORT
+            .toString();
+
+    private static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
+
+    private static final Object ID_NAME_AUTO = "#AUTO";
+
+    private static String outputEncoding = "UTF-8";
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
@@ -214,9 +237,12 @@ public class RecordLoader extends Thread {
 
     private Map collectionMap;
 
+    private boolean useAutomaticIds;
+
     /**
      * @param _connString
      * @param _idName
+     * @param _props
      * @param _reader
      * @throws XDBCException
      * @throws XmlPullParserException
@@ -224,20 +250,22 @@ public class RecordLoader extends Thread {
     public RecordLoader(String _connString, String _idName, Properties _props,
             Reader _reader) throws XDBCException, XmlPullParserException {
         idName = _idName;
-        initialize(_connString, _idName, _props, _reader, null);
+        initialize(_connString, _idName, _props, _reader, new Timer());
     }
 
     /**
      * @param _connString
      * @param _idName
+     * @param _props
      * @param _reader
      * @param _timer
      * @throws XDBCException
      * @throws XmlPullParserException
      */
-    public RecordLoader(String _connString, String _idName, Reader _reader,
-            Properties _props, Timer _timer) throws XDBCException,
+    public RecordLoader(String _connString, String _idName, Properties _props,
+            Reader _reader, Timer _timer) throws XDBCException,
             XmlPullParserException {
+        idName = _idName;
         initialize(_connString, _idName, _props, _reader, _timer);
     }
 
@@ -268,9 +296,10 @@ public class RecordLoader extends Thread {
         // error if null (later)
         idName = _idName;
         if (idName == null) {
-            throw new XmlPullParserException(
-                    "Missing required property: ID_NAME");
+            throw new XmlPullParserException("Missing required property: "
+                    + ID_NAME_KEY);
         }
+        logger.fine(ID_NAME_KEY + "=" + idName);
 
         props = _props;
         if (props == null) {
@@ -316,6 +345,9 @@ public class RecordLoader extends Thread {
                 ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
+        useAutomaticIds = ID_NAME_AUTO.equals(props.getProperty(ID_NAME_KEY));
+        logger.fine("useAutomaticIds=" + useAutomaticIds);
+
         // only initialize docOpts once
         if (docOpts == null) {
             boolean resolveEntities = false;
@@ -358,33 +390,29 @@ public class RecordLoader extends Thread {
 
         // get a new factory
         if (factory == null) {
-            factory = XmlPullParserFactory.newInstance(System
+            factory = XmlPullParserFactory.newInstance(props
                     .getProperty(XmlPullParserFactory.PROPERTY_NAME), null);
             factory.setNamespaceAware(true);
         }
         xpp = factory.newPullParser();
+        // TODO feature isn't supported by xpp3 - look at xpp5?
+        // xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
+        // TODO feature isn't supported by xpp3 - look at xpp5?
+        // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
         if (_reader != null) {
             xpp.setInput(new BufferedReader(_reader));
         }
 
         // handle timer
         timer = _timer;
-        if (timer == null) {
-            // start our own timer
-            timer = new Timer();
-        }
     }
 
     public static void main(String[] args) throws Throwable {
-        System.err.println(RecordLoader.class.getSimpleName()
-                + " starting, version " + VERSION);
-        checkEnvironment();
-
         // use system properties as a basis
         // this allows any number of properties at the command-line,
         // using -DPROPNAME=foo
         // as a result, we no longer need any args: default to stdin
-        Properties props = new Properties(System.getProperties());
+        Properties props = new Properties();
         List<File> xmlFiles = new ArrayList<File>();
         List<File> zipFiles = new ArrayList<File>();
         Iterator iter = Arrays.asList(args).iterator();
@@ -414,16 +442,35 @@ public class RecordLoader extends Thread {
             }
         }
 
+        // override with any system props
+        props.putAll(System.getProperties());
+
+        logger.info(RecordLoader.class.getSimpleName() + " starting, version "
+                + VERSION);
+
+        String idElementName = props.getProperty(ID_NAME_KEY);
+        if (idElementName == null) {
+            throw new IOException("missing required property: " + ID_NAME_KEY);
+        }
+        if (idElementName.equals(ID_NAME_AUTO)) {
+            logger.info("generating automatic ids");
+        }
+
         logger.configureLogger(props);
+
+        String inputEncoding = props.getProperty(INPUT_ENCODING_KEY,
+                outputEncoding);
+        String malformedInputAction = props.getProperty(
+                INPUT_MALFORMED_ACTION_KEY, INPUT_MALFORMED_ACTION_DEFAULT);
+        CharsetDecoder inputDecoder = getDecoder(inputEncoding,
+                malformedInputAction);
+
+        logger.info("using output encoding " + outputEncoding);
 
         // handle multiple connection strings, for load balancing
         String[] connString = props.getProperty(CONNECTION_STRING_KEY,
                 "admin:admin@localhost:9000").split("\\s+");
         logger.info("connecting to " + Utilities.join(connString, " "));
-
-        String idElementName = props.getProperty(ID_NAME_KEY, "id");
-
-        setupEncoding(props);
 
         setupProperties(connString[0], props);
 
@@ -450,129 +497,172 @@ public class RecordLoader extends Thread {
         logger.finer("zipFiles.size = " + zipFiles.size());
         logger.finer("xmlFiles.size = " + xmlFiles.size());
 
+        rlTimer = new Timer();
         if (zipFiles.size() > 0 || xmlFiles.size() > 0) {
-            int connStringIndex = 0;
-            int connStringLength = connString.length;
-            // use a global timer for all files
-            rlTimer = new Timer();
-            RecordLoader[] threads = new RecordLoader[threadCount];
-            ZipFile currentZipFile = null;
-            Enumeration currentZipEntries = null;
-            ZipEntry ze = null;
-            InputStream zis = null;
-            Reader theReader = null;
-            boolean active = true;
-            // we want to wait around whenever threads are busy,
-            // and add more work as needed.
-            while (active) {
-                logger.finest("active loop starting");
-                // spawn more threads, if needed
-                for (int i = 0; i < threadCount; i++) {
-                    logger.finest("active loop, thread " + i);
-                    // is there any work left to do?
-                    // be sure to check zis from our last iteration, too
-                    if (zis == null && zipFiles.size() < 1
-                            && xmlFiles.size() < 1) {
-                        active = false;
-                        break;
-                    }
-
-                    if (threads[i] != null && threads[i].isAlive()) {
-                        // this thread is already working: skip it
-                        continue;
-                    }
-
-                    // preferentially handle zipfiles first
-                    // as a side effect, getNextZipEntry sets 'file'
-                    zis = null;
-                    while (zis == null) {
-                        // scan for an entry to use
-                        if (currentZipFile == null || currentZipEntries == null
-                                || !currentZipEntries.hasMoreElements()) {
-                            if (zipFiles.size() < 1) {
-                                // by definition, we have no more
-                                // entries,
-                                // and no more files to check
-                                break;
-                            }
-                            file = (File) (zipFiles.remove(0));
-                            if (currentZipFile != null) {
-                                currentZipFile.close();
-                            }
-                            currentZipFile = new ZipFile(file);
-                            currentZipEntries = currentZipFile.entries();
-                            logger.fine("current zip file is "
-                                    + file.getCanonicalPath());
-                        }
-                        ze = (ZipEntry) currentZipEntries.nextElement();
-                        logger.fine("found zip entry " + ze);
-                        if (ze.isDirectory()) {
-                            // go back and try again
-                            continue;
-                        }
-                        logger.fine("opening input stream for " + ze);
-                        zis = currentZipFile.getInputStream(ze);
-                    }
-
-                    // did we get a zipentry to process?
-                    logger.fine("zis = " + zis);
-                    if (zis != null) {
-                        // now we have a valid ze that isn't a directory
-                        logger.info("loading from " + file.getCanonicalPath()
-                                + ", zip entry " + ze.getName());
-                        theReader = new InputStreamReader(zis);
-                    } else {
-                        // try for a file instead
-                        if (xmlFiles.size() < 1) {
-                            // looks like we're done... skip this thread and try
-                            // again, just to make sure.
-                            continue;
-                        }
-                        file = (File) (xmlFiles.remove(0));
-                        logger.info("loading from " + file.getCanonicalPath());
-                        theReader = new FileReader(file);
-                    }
-                    threads[i] = new RecordLoader(connString[connStringIndex],
-                            idElementName, theReader, props, rlTimer);
-                    // if multiple connString are available, we round-robin
-                    connStringIndex++;
-                    connStringIndex = connStringIndex % connStringLength;
-
-                    // strip the extension too
-                    threads[i].setFileBasename(stripExtension(file.getName()));
-                    threads[i].start();
-
-                } // for threads
-
-                // all the threads are busy: sleep a while
-                logger.fine("active loop sleeping " + SLEEP_TIME + " ms");
-                Thread.sleep(SLEEP_TIME);
-            } // while active
-
-            // wait for all threads to complete their work
-            logger.info("no files remaining");
-            for (int i = 0; i < threadCount; i++) {
-                if (threads[i] != null) {
-                    logger.info("waiting for thread " + i);
-                    threads[i].join();
-                }
-            }
+            handleFileInput(props, xmlFiles, zipFiles, inputDecoder,
+                    connString, idElementName, threadCount, rlTimer);
         } else {
-            // use stdin by default
-            // NOTE: will not use threads
-            logger.info("Reading from standard input...");
-            if (threadCount > 1) {
-                logger.warning("Will not use multiple threads!");
-            }
-            BufferedReader bin = new BufferedReader(new InputStreamReader(
-                    System.in));
-            RecordLoader rl = new RecordLoader(connString[0], idElementName,
-                    props, bin);
-            rl.process();
-            bin.close();
-            rlTimer = rl.getTimer();
+            handleStandardInput(props, inputDecoder, connString, idElementName,
+                    threadCount, rlTimer);
         }
 
+        finishMain(rlTimer);
+    }
+
+    private static CharsetDecoder getDecoder(String inputEncoding,
+            String malformedInputAction) {
+        CharsetDecoder inputDecoder;
+        logger.info("using input encoding " + inputEncoding);
+        // using an explicit decoder allows us to control the error reporting
+        inputDecoder = Charset.forName(inputEncoding).newDecoder();
+        if (malformedInputAction.equals(INPUT_MALFORMED_ACTION_IGNORE)) {
+            inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
+        } else if (malformedInputAction.equals(INPUT_MALFORMED_ACTION_REPLACE)) {
+            inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
+        } else {
+            inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
+        }
+        logger.info("using malformed input action "
+                + inputDecoder.unmappableCharacterAction().toString());
+        inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+        return inputDecoder;
+    }
+
+    private static Timer handleFileInput(Properties props, List<File> xmlFiles,
+            List<File> zipFiles, CharsetDecoder inputDecoder,
+            String[] connString, String idElementName, int threadCount,
+            Timer rlTimer) throws IOException, ZipException,
+            FileNotFoundException, XDBCException, XmlPullParserException,
+            InterruptedException {
+        File file = null;
+        int connStringIndex = 0;
+        int connStringLength = connString.length;
+        // use a global timer for all files
+        RecordLoader[] threads = new RecordLoader[threadCount];
+        ZipFile currentZipFile = null;
+        Enumeration currentZipEntries = null;
+        ZipEntry ze = null;
+        InputStream zis = null;
+        Reader theReader = null;
+        boolean active = true;
+        // we want to wait around whenever threads are busy,
+        // and add more work as needed.
+        while (active) {
+            logger.finest("active loop starting");
+            // spawn more threads, if needed
+            for (int i = 0; i < threadCount; i++) {
+                logger.finest("active loop, thread " + i);
+                // is there any work left to do?
+                // be sure to check zis from our last iteration, too
+                if (zis == null && zipFiles.size() < 1 && xmlFiles.size() < 1) {
+                    active = false;
+                    break;
+                }
+
+                if (threads[i] != null && threads[i].isAlive()) {
+                    // this thread is already working: skip it
+                    continue;
+                }
+
+                // preferentially handle zipfiles first
+                // as a side effect, getNextZipEntry sets 'file'
+                zis = null;
+                while (zis == null) {
+                    // scan for an entry to use
+                    if (currentZipFile == null || currentZipEntries == null
+                            || !currentZipEntries.hasMoreElements()) {
+                        if (zipFiles.size() < 1) {
+                            // by definition, we have no more
+                            // entries,
+                            // and no more files to check
+                            break;
+                        }
+                        file = (File) (zipFiles.remove(0));
+                        if (currentZipFile != null) {
+                            currentZipFile.close();
+                        }
+                        currentZipFile = new ZipFile(file);
+                        currentZipEntries = currentZipFile.entries();
+                        logger.fine("current zip file is "
+                                + file.getCanonicalPath());
+                    }
+                    ze = (ZipEntry) currentZipEntries.nextElement();
+                    logger.fine("found zip entry " + ze);
+                    if (ze.isDirectory()) {
+                        // go back and try again
+                        continue;
+                    }
+                    logger.fine("opening input stream for " + ze);
+                    zis = currentZipFile.getInputStream(ze);
+                }
+
+                // did we get a zipentry to process?
+                logger.fine("zis = " + zis);
+                if (zis != null) {
+                    // now we have a valid ze that isn't a directory
+                    logger.info("loading from " + file.getCanonicalPath()
+                            + ", zip entry " + ze.getName());
+                    theReader = new InputStreamReader(zis, inputDecoder);
+                } else {
+                    // try for a file instead
+                    if (xmlFiles.size() < 1) {
+                        // looks like we're done... skip this thread and try
+                        // again, just to make sure.
+                        continue;
+                    }
+                    file = (File) (xmlFiles.remove(0));
+                    logger.info("loading from " + file.getCanonicalPath());
+                    theReader = new InputStreamReader(
+                            new FileInputStream(file), inputDecoder);
+                }
+                threads[i] = new RecordLoader(connString[connStringIndex],
+                        idElementName, props, theReader, rlTimer);
+                // if multiple connString are available, we round-robin
+                connStringIndex++;
+                connStringIndex = connStringIndex % connStringLength;
+
+                // strip the extension too
+                threads[i].setFileBasename(stripExtension(file.getName()));
+                threads[i].start();
+
+            } // for threads
+
+            // all the threads are busy: sleep a while
+            logger.fine("active loop sleeping " + SLEEP_TIME + " ms");
+            Thread.sleep(SLEEP_TIME);
+        } // while active
+
+        // wait for all threads to complete their work
+        logger.info("no files remaining");
+        for (int i = 0; i < threadCount; i++) {
+            if (threads[i] != null) {
+                logger.info("waiting for thread " + i);
+                threads[i].join();
+            }
+        }
+        return rlTimer;
+    }
+
+    private static void handleStandardInput(Properties props,
+            CharsetDecoder inputDecoder, String[] connString,
+            String idElementName, int threadCount, Timer rlTimer)
+            throws XDBCException, XmlPullParserException, IOException,
+            TimerEventException {
+        // use stdin by default
+        // NOTE: will not use threads
+        logger.info("Reading from standard input...");
+        if (threadCount > 1) {
+            logger.warning("Will not use multiple threads!");
+        }
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in,
+                inputDecoder));
+        RecordLoader rl = new RecordLoader(connString[0], idElementName, props,
+                br, rlTimer);
+        rl.process();
+        br.close();
+    }
+
+    private static void finishMain(Timer rlTimer) {
         rlTimer.stop();
         logger.info("loaded " + rlTimer.getEventCount() + " records ok ("
                 + rlTimer.getDuration() + " ms, " + rlTimer.getBytes() + " B, "
@@ -644,7 +734,8 @@ public class RecordLoader extends Thread {
         if (currentFileBasename == null) {
             docOpts.setCollections(baseCollections);
         } else {
-            List<String> newCollections = new ArrayList<String>(Arrays.asList(baseCollections));
+            List<String> newCollections = new ArrayList<String>(Arrays
+                    .asList(baseCollections));
             newCollections.add(_name);
             docOpts.setCollections((String[]) newCollections
                     .toArray(new String[0]));
@@ -652,34 +743,8 @@ public class RecordLoader extends Thread {
         logger.info("using fileBasename = " + currentFileBasename);
     }
 
-    private static void setupEncoding(Properties props) {
-        // set encoding
-        logger.info("default encoding is "
-                + System.getProperty("file.encoding"));
-        System.setProperty("file.encoding", props.getProperty(
-                "DEFAULT_CHARSET", "UTF-8"));
-        logger.info("default encoding is now "
-                + System.getProperty("file.encoding"));
-    }
-
     public Timer getTimer() {
         return timer;
-    }
-
-    private static void checkEnvironment() throws IOException {
-        String encoding = (new OutputStreamWriter(new ByteArrayOutputStream())).getEncoding();
-        logger.info("encoding=" + encoding);
-        // despite the Charset javadoc, win32 JVM sets UTF8
-        if (! encoding.equals("UTF-8") && ! encoding.equals("UTF8")) {
-            System.err.println("FATAL: This Java environment is not using UTF-8.");
-            String envLang = System.getenv("LANG");
-            if (envLang == null) {
-                envLang = "";
-            }
-            logger.info("environment variable LANG=" + envLang);
-            System.err.println("On Linux or Solaris, try setting LANG=en_US.UTF-8");
-            System.exit(1);
-        }
     }
 
     public void process() throws XmlPullParserException, IOException,
@@ -723,10 +788,17 @@ public class RecordLoader extends Thread {
                 logger.info("current record:\n" + current);
             }
             throw e;
+        } catch (MalformedInputException e) {
+            // invalid character sequence, probably
+            logger.warning("input could not be decoded: try setting "
+                    + INPUT_ENCODING_KEY + " (or set "
+                    + INPUT_MALFORMED_ACTION_KEY + " to "
+                    + INPUT_MALFORMED_ACTION_IGNORE + " or "
+                    + INPUT_MALFORMED_ACTION_REPLACE + ").");
+            throw e;
         }
-    }
+    } // return true to skip, false to process
 
-    // return true to skip, false to process
     private boolean checkStartId(String id) {
         if (startId == null)
             return false;
@@ -751,8 +823,7 @@ public class RecordLoader extends Thread {
         String namespace = xpp.getNamespace();
         logger.finest(name + " in " + namespace);
 
-        // TODO preserve default namespace and prefix declarations,
-        // in any element
+        // TODO preserve default namespace and prefix declarations
         if (rootName == null) {
             // this must be the document root
             rootName = name;
@@ -777,22 +848,32 @@ public class RecordLoader extends Thread {
             recordEvent = new TimedEvent();
             skippingRecord = false;
 
-            // if the idName starts with @, it's an attribute on recordName
-            if (idName.startsWith("@")) {
-                // handle attributes as idName
-                if (xpp.getAttributeCount() < 1) {
-                    throw new XmlPullParserException(
-                            "found no attributes for recordName = "
-                                    + recordName + ", idName=" + idName
-                                    + " at " + xpp.getPositionDescription());
+            // handle automatic id generation here
+            if (useAutomaticIds || idName.startsWith("@")) {
+                String id = null;
+                if (useAutomaticIds) {
+                    // automatic ids, starting from 1
+                    id = "" + (1 + timer.getEventCount());
+                    logger.fine("automatic document id " + id);
+                } else {
+                    // if the idName starts with @, it's an attribute on
+                    // recordName
+                    // handle attributes as idName
+                    if (xpp.getAttributeCount() < 1) {
+                        throw new XmlPullParserException(
+                                "found no attributes for recordName = "
+                                        + recordName + ", idName=" + idName
+                                        + " at " + xpp.getPositionDescription());
+                    }
+                    // try with and without a namespace: first, try without
+                    id = xpp.getAttributeValue("", idName.substring(1));
+                    if (id == null) {
+                        id = xpp.getAttributeValue(recordNamespace, idName
+                                .substring(1));
+                    }
+                    logger.fine("found id " + idName + " = " + id);
                 }
-                // try with and without a namespace: first, try without
-                String id = xpp.getAttributeValue("", idName.substring(1));
-                if (id == null) {
-                    id = xpp.getAttributeValue(recordNamespace, idName
-                            .substring(1));
-                }
-                logger.fine("found id " + idName + " = " + id);
+
                 // always set the uri, since we use it as a flag too
                 uri = composeUri(id);
 
@@ -855,7 +936,7 @@ public class RecordLoader extends Thread {
 
             // write it all out
             currentPrepend.append(text);
-            current.write(currentPrepend.toString().getBytes());
+            current.write(currentPrepend.toString().getBytes(outputEncoding));
             recordEvent.increment(currentPrepend.length());
             currentPrepend = null;
             return;
@@ -885,10 +966,11 @@ public class RecordLoader extends Thread {
         }
 
         // this seems to be the only way to handle empty elements:
-        // write it as a end-element, only
-        // TODO what happens to attributes in this case?
-        if (xpp.isEmptyElementTag())
+        // write it as a end-element, only.
+        // note that attributes are still ok in this case
+        if (xpp.isEmptyElementTag()) {
             return;
+        }
 
         // that's it for the special-cases...
         // write it to current or currentPrepend
@@ -896,7 +978,7 @@ public class RecordLoader extends Thread {
             // we'll do the recordEvent accounting when we finish the prepend
             currentPrepend.append(text);
         } else {
-            current.write(text.getBytes());
+            current.write(text.getBytes(outputEncoding));
             recordEvent.increment(text.length());
         }
     }
@@ -908,7 +990,8 @@ public class RecordLoader extends Thread {
             // in this case we have to reset the whole collection list every
             // time, to prevent any carryover from the previous call to
             // docOptions.setCollections().
-            List<String> collections = new ArrayList<String>(Arrays.asList(baseCollections));
+            List<String> collections = new ArrayList<String>(Arrays
+                    .asList(baseCollections));
             if (currentFileBasename != null) {
                 collections.add(currentFileBasename);
             }
@@ -982,7 +1065,7 @@ public class RecordLoader extends Thread {
         if (current == null) {
             currentPrepend.append(text);
         } else {
-            current.write(text.getBytes());
+            current.write(text.getBytes(outputEncoding));
             recordEvent.increment(text.length());
         }
 
@@ -1012,8 +1095,9 @@ public class RecordLoader extends Thread {
             return;
         }
         if (current == null) {
-            logger.fine("ignoring end of record " + recordName + " for " + uri
-                    + ": START_ID " + startId + " not yet found");
+            throw new XmlPullParserException(
+                    "end of record element with no id found: " + ID_NAME_KEY
+                            + "=" + idName);
         }
         current.flush();
 
@@ -1039,8 +1123,8 @@ public class RecordLoader extends Thread {
                 }
             }
         }
+        logger.fine("commit ok for " + uri);
 
-        // TODO bottleneck? method is synchronized
         timer.add(recordEvent);
         if (System.currentTimeMillis() - lastDisplayMillis > DISPLAY_MILLIS) {
             lastDisplayMillis = System.currentTimeMillis();
@@ -1088,10 +1172,12 @@ public class RecordLoader extends Thread {
             text = Utilities.escapeXml(text);
 
         // logger.finest("processText = " + text);
+        // logger.finest("processText = " + Utilities.dumpHex(text,
+        // inputEncoding));
         if (current == null) {
             currentPrepend.append(text);
         } else {
-            current.write(text.getBytes());
+            current.write(text.getBytes(outputEncoding));
         }
         recordEvent.increment(text.length());
     }

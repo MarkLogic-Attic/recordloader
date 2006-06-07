@@ -159,7 +159,7 @@ public class Connection {
     public boolean checkFile(String _uri) throws XDBCException {
         String query = "define variable $URI as xs:string external\n"
                 + "xdmp:estimate(doc($URI)) eq 1\n";
-        Hashtable vars = new Hashtable();
+        Hashtable<XDBCXName, String> vars = new Hashtable<XDBCXName, String>(1);
         vars.put(new XDBCXName("", "URI"), _uri);
 
         XDBCResultSequence result = null;
@@ -715,7 +715,7 @@ public class Connection {
         // ignore documents that do not exist
         String query = "define variable $uri as xs:string external\n"
                 + "if (exists(doc($uri))) then xdmp:document-delete($uri) else ()\n";
-        Map externs = new HashMap(1);
+        Map<XDBCXName, String> externs = new HashMap<XDBCXName, String>(1);
         externs.put(new XDBCXName("", "uri"), uri);
         XDBCResultSequence rs = null;
         try {
@@ -733,7 +733,7 @@ public class Connection {
     public void deleteCollection(String uri) throws XDBCException {
         String query = "define variable $uri as xs:string external\n"
                 + "xdmp:collection-delete($uri)\n";
-        Map externs = new HashMap(1);
+        Map<XDBCXName, String> externs = new HashMap<XDBCXName, String>(1);
         externs.put(new XDBCXName("", "uri"), uri);
         XDBCResultSequence rs = null;
         try {
@@ -765,7 +765,7 @@ public class Connection {
         String query = "define variable $uri as xs:string external\n"
                 + "define variable $xml-string as xs:string external\n"
                 + "xdmp:document-set-properties($uri, xdmp:unquote($xml-string)/node())";
-        Map externals = new Hashtable(2);
+        Map<String, String> externals = new Hashtable<String, String>(2);
         externals.put("uri", _uri);
         externals.put("xml-string", _xmlString);
         logger.finest(_uri + ": " + _xmlString);
@@ -801,7 +801,7 @@ public class Connection {
                 + "then xdmp:document-set-permissions(\n"
                 + "$uri, for $r at $x in $roles return xdmp:permission($r, $capabilities[$x])\n"
                 + ")\n" + "else ()\n";
-        Map externals = new Hashtable(4);
+        Map<String, Object> externals = new Hashtable<String, Object>(5);
         externals.put("uri", uri);
         externals.put("quality", new Integer(quality));
         externals.put("collections", collections);
@@ -850,12 +850,12 @@ public class Connection {
      * @throws XDBCException
      */
     public List forestNamesToIds(String[] forestNames) throws XDBCException {
-        List list = new ArrayList();
+        List<String> list = new ArrayList<String>();
         // whitespace is ok, since forest-names can't contain whitespace
         String query = "define variable forest-names-string as xs:string external\n"
                 + "for $fn in tokenize($forest-names-string, '\\s+')[. ne '']\n"
                 + "return string(xdmp:forest($fn))\n";
-        Map args = new HashMap(1);
+        Map<String, String> args = new HashMap<String, String>(1);
         args.put("forest-names-string", Utilities.join(forestNames, " "));
 
         XDBCResultSequence rs = null;

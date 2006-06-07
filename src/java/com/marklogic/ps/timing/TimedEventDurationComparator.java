@@ -24,7 +24,7 @@ import java.util.Comparator;
 /*
  * @author Michael Blakeley <michael.blakeley@marklogic.com>
  */
-public class TimedEventDurationComparator implements Comparator {
+public class TimedEventDurationComparator implements Comparator<TimedEvent> {
 
     /**
      * 
@@ -33,24 +33,24 @@ public class TimedEventDurationComparator implements Comparator {
         super();
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     * 
      * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
      */
-    public int compare(Object o1, Object o2) {
-        // hmm - what happens if the difference is greater than MAXINT? oh well...it's unlikely
-        long diff =
-            (((TimedEvent) o1).getDuration()
-                - ((TimedEvent) o2).getDuration());
+    public int compare(TimedEvent e1, TimedEvent e2) {
+        // hmm - what happens if the difference is greater than MAXINT?
+        long diff = e1.getDuration() - e2.getDuration();
         return (int) Math.min(diff, Integer.MAX_VALUE);
     }
 
-    /* (non-Javadoc)
-     * @see java.util.Comparator#compare(java.lang.Object, java.lang.Object)
+    /*
+     * (non-Javadoc)
+     * 
+     * @see java.util.Comparator#equals(java.lang.Object, java.lang.Object)
      */
-    public boolean equals(Object o1, Object o2) {
-        return (
-            ((TimedEvent) o1).getDuration()
-                == ((TimedEvent) o2).getDuration());
+    public boolean equals(TimedEvent e1, TimedEvent e2) {
+        return e1.getDuration() == e2.getDuration();
     }
 
 }

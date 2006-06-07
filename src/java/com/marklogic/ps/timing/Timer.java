@@ -34,7 +34,7 @@ public class Timer {
 
     private long duration = -1;
 
-    private ArrayList events = new ArrayList();
+    private ArrayList<TimedEvent> events = new ArrayList<TimedEvent>();
 
     private long start;
 
@@ -119,7 +119,7 @@ public class Timer {
             return 0;
 
         double size = eventCount;
-        Comparator c = new TimedEventDurationComparator();
+        Comparator<TimedEvent> c = new TimedEventDurationComparator();
         Collections.sort(events, c);
         int pidx = (int) ((double) p * (double) size * (double) .01);
         return ((TimedEvent) events.get(pidx)).getDuration();

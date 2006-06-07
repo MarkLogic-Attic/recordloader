@@ -21,6 +21,12 @@
 -->
 <head>
 <title>RecordLoader README</title>
+<style>
+td
+{
+  vertical-align: top;
+}
+</style>
 </head>
 <body>
 <h1>RecordLoader</h1>
@@ -52,7 +58,7 @@ for sample property files.
 </ul>
 
 <h2>Available properties:</h2>
-<table>
+<table border="1">
 <tr><th>Property</th><th>default value</th><th>notes</th></tr>
 
 <tr><td>CONNECTION_STRING</td><td>admin:admin@localhost:9000</td>
@@ -74,6 +80,12 @@ to use for all queries and inserts.</td>
 (or attribute value if ID_NAME starts with '@')
 will be used to compose the final document uri.
 Note that namespace is ignored: only the local-name is used.
+<br/>
+The special value ID_NAME=#AUTO will cause RecordLoader
+to automatically generate ids, in sequence, for each input record.
+Since RecordLoader automatically includes the base filename
+in each output URI, this is safe.
+<br/>
 Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
 </tr>
 
@@ -81,6 +93,31 @@ Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
 <td>If set, RecordLoader will ignore siblings of RECORD_NAME
 that are not RECORD_NAME elements.
 Otherwise, this condition causes a fatal error.</td>
+</tr>
+
+<tr><td>INPUT_MALFORMED_ACTION</td><td>REPORT</td>
+<td>Constant values from java.nio.charset.CodingErrorAction,
+used to determine what happens if there are
+invalid character sequences in the input XML.
+<ul>
+<li/>REPORT: throws a MalformedInputException
+<li/>REPLACE: replaces invalid sequence with a '?' or similar.
+<li/>IGNORE: skips over the invalid sequence.
+</ul>
+</td>
+</tr>
+
+<tr><td>INPUT_ENCODING</td><td>UTF-8</td>
+<td>The Java Charset encoding (codepage) to use for all input XML.
+If unset, RecordLoader will use null,
+which will default to the default Locale's character encoding.
+<br/>
+Note that MarkLogic Server must receive all XML as UTF-8,
+so the output encoding is always UTF-8.
+<br/>
+<b>Example</b>: if the input XML is encoded as <code>windows-1252</code>,
+use <code>INPUT_ENCODING=Cp1252</code> to ensure correct conversion.
+</td>
 </tr>
 
 <tr><td>INPUT_PATH</td><td>null</td>
@@ -168,5 +205,17 @@ This allows RecordLoader to resume after being interrupted.</td>
 Note that when using standard input, this value is ignored.</td>
 </tr>
 </table>
+
+<h2>Troubleshooting</h2>
+<p><code>XmlPullParserException: could not resolve entity named 'foo'</code>.
+The XPP implementation used by RecordLoader, xpp3,
+does not handle unknown references,
+and does not process DTD-style document declarations.
+So if your XML includes non-XML character entities,
+RecordLoader is not for you.
+Future enhancements could include a plug-in system,
+allowing the user to substitute an XPP implementation
+that supports document declarations.
+</p>
 </body>
 </html>
