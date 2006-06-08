@@ -61,7 +61,16 @@ public class TimedEvent {
         return stop(_bytes, false);
     }
 
-    public long stop(long _bytes, boolean _error) throws TimerEventException {
+    /**
+     * @param _error
+     * @throws TimerEventException
+     */
+    public void stop(boolean _error) throws TimerEventException {
+        stop(-1, _error);
+    }
+
+    public long stop(long _bytes, boolean _error)
+            throws TimerEventException {
         // duplicate calls to stop() should be harmless
         if (duration > -1)
             return duration;
@@ -73,7 +82,9 @@ public class TimedEvent {
             duration = 1;
         }
 
-        bytes = _bytes;
+        if (_bytes > -1) {
+            bytes = _bytes;
+        }
         error = _error;
         return duration;
     }
@@ -104,6 +115,13 @@ public class TimedEvent {
 
     public void increment(long _bytes) {
         bytes += _bytes;
+    }
+
+    /**
+     * @param b
+     */
+    public void setError(boolean b) {
+        error = true;
     }
 
 }

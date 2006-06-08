@@ -82,6 +82,14 @@ to use for all queries and inserts.</td>
   if it finds itself trying to overwrite an existing document uri.</td>
 </tr>
 
+<tr><td>FATAL_ERRORS</td><td>true</td>
+<td>If true, RecordLoader will exit with an error
+  upon encountering any non-retryable XDBC error.
+  If set to false, RecordLoader will close the current record
+  and continue on to the next.
+</td>
+</tr>
+
 <tr><td>ID_NAME</td><td>null</td>
 <td>Required parameter: the text value of any element with this local-name
 (or attribute value if ID_NAME starts with '@')
@@ -211,6 +219,28 @@ This allows RecordLoader to resume after being interrupted.</td>
 <td>Number of RecordLoader threads.
 Note that when using standard input, this value is ignored.</td>
 </tr>
+
+<tr><td>UNRESOLVED_ENTITY_POLICY</td><td>REPORT</td>
+<td>What should XPP3 do with unresolved entities?
+<ul>
+<li/>REPORT: throw a fatal exception.
+<li/>REPLACE: replace with a comment, including the entity name.
+<li/>IGNORE: omit the unresolved entity from the new document.
+</ul>
+In any case, RecordLoader will log a warning.
+</td>
+</tr>
+
+<tr><td>XML_REPAIR_LEVEL</td><td>NONE</td>
+<td>To what degree should XPP3 and MarkLogic Server
+compensate for invalid XML?
+<ul>
+<li/>NONE: throw a fatal exception.
+<li/>FULL: do everything reasonable to ingest the document.
+</ul>
+</td>
+</tr>
+
 </table>
 
 <h2>Troubleshooting</h2>

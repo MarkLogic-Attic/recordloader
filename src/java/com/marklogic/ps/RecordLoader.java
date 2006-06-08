@@ -70,6 +70,19 @@ import com.marklogic.xdmp.XDMPPermission;
  */
 
 public class RecordLoader extends Thread {
+    /**
+     * 
+     */
+    private static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
+
+    public static final String VERSION = "2006-06-07.2";
+
+    /**
+     * 
+     */
+    private static final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
+
+    private static final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
 
     /**
      * 
@@ -159,8 +172,6 @@ public class RecordLoader extends Thread {
 
     public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
-    private static final String VERSION = "2006-06-07.1";
-
     public static final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
 
     private static final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
@@ -179,6 +190,16 @@ public class RecordLoader extends Thread {
     private static final Object ID_NAME_AUTO = "#AUTO";
 
     private static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
+
+    private static final String UNRESOLVED_ENTITY_POLICY_KEY = "UNRESOLVED_ENTITY_POLICY";
+
+    private static final String UNRESOLVED_ENTITY_POLICY_IGNORE = "IGNORE";
+
+    private static final String UNRESOLVED_ENTITY_POLICY_REPLACE = "REPLACE";
+
+    private static final String UNRESOLVED_ENTITY_POLICY_REPORT = "REPORT";
+
+    private static final String UNRESOLVED_ENTITY_POLICY_DEFAULT = UNRESOLVED_ENTITY_POLICY_REPORT;
 
     private static String outputEncoding = "UTF-8";
 
@@ -242,6 +263,10 @@ public class RecordLoader extends Thread {
     private boolean useAutomaticIds;
 
     private int repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_NONE;
+
+    private String entityPolicy = UNRESOLVED_ENTITY_POLICY_DEFAULT;
+
+    private boolean fatalErrors = true;
 
     /**
      * @param _connString
@@ -364,6 +389,12 @@ public class RecordLoader extends Thread {
             repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_FULL;
         }
 
+        fatalErrors = Utilities.stringToBoolean(props.getProperty(
+                FATAL_ERRORS_KEY, "true"));
+
+        entityPolicy = props.getProperty(UNRESOLVED_ENTITY_POLICY_KEY,
+                UNRESOLVED_ENTITY_POLICY_DEFAULT);
+
         // only initialize docOpts once
         if (docOpts == null) {
             boolean resolveEntities = false;
@@ -384,7 +415,6 @@ public class RecordLoader extends Thread {
             }
             int format = XDMPDocInsertStream.XDMP_DOC_FORMAT_XML;
             int quality = 0;
-            int repair = repairLevel;
             String namespace = props.getProperty(DEFAULT_NAMESPACE_KEY);
             // support placeKeys for Forest placement
             // comma-delimited string, also accept ;:\s
@@ -404,7 +434,7 @@ public class RecordLoader extends Thread {
                     .toArray(new String[0]);
             docOpts = new XDMPDocOptions(Locale.getDefault(),
                     resolveEntities, permissions, baseCollections,
-                    quality, namespace, repair, placeKeys, format,
+                    quality, namespace, repairLevel, placeKeys, format,
                     language);
         }
 
@@ -790,40 +820,86 @@ public class RecordLoader extends Thread {
             // processing-instructions automatically.
             // to catch these, use nextToken() instead.
             // nextToken() could also be used for custom entity handling.
-            while ((eventType = xpp.next()) != XmlPullParser.END_DOCUMENT) {
-                switch (eventType) {
-                case XmlPullParser.START_TAG:
-                    processStartElement();
-                    break;
-                case XmlPullParser.TEXT:
-                    processText();
-                    break;
-                case XmlPullParser.END_TAG:
-                    processEndElement();
-                    break;
-                case XmlPullParser.START_DOCUMENT:
-                    break;
-                default:
-                    throw new XmlPullParserException("UNIMPLEMENTED: "
-                            + eventType);
+            boolean c = true;
+            while (c) {
+                try {
+                    eventType = xpp.next();
+                    switch (eventType) {
+                    case XmlPullParser.START_TAG:
+                        processStartElement();
+                        break;
+                    case XmlPullParser.TEXT:
+                        processText();
+                        break;
+                    case XmlPullParser.END_TAG:
+                        processEndElement();
+                        break;
+                    case XmlPullParser.START_DOCUMENT:
+                        break;
+                    case XmlPullParser.END_DOCUMENT:
+                        c = false;
+                        break;
+                    default:
+                        throw new XmlPullParserException(
+                                "UNIMPLEMENTED: " + eventType);
+                    }
+                } catch (XmlPullParserException e) {
+                    // could be a problem entity
+                    if (e.getMessage().contains("entity")) {
+                        logger.warning("entity error: " + e.getMessage());
+                        handleUnresolvedEntity();
+                    } else if (e.getMessage().contains(
+                            "quotation or apostrophe")
+                            && repairLevel == XDMPDocOptions.XDMP_ERROR_CORRECTION_FULL) {
+                        // messed-up attribute? skip it?
+                        logger.warning("attribute error: "
+                                + e.getMessage());
+                        // all we can do is ignore it, apparently
+                    } else {
+                        throw e;
+                    }
+                } catch (XDBCException e) {
+                    if (!fatalErrors) {
+                        // keep going
+                        logger.logException("non-fatal: skipping", e);
+
+                        recordEvent.stop(true);
+                        timer.add(recordEvent);
+                        if (System.currentTimeMillis() - lastDisplayMillis > DISPLAY_MILLIS) {
+                            lastDisplayMillis = System.currentTimeMillis();
+                            displayProgress();
+                        }
+
+                        closeRecord();               
+                        continue;
+                    }
                 }
             }
 
-            if (current != null)
+            if (current != null) {
                 throw new XmlPullParserException(
                         "end of document before end of current record!\n"
                                 + "recordName = " + recordName
                                 + ", recordNamespace = "
                                 + recordNamespace + "\n" + current);
-
+            }
+            
         } catch (XDBCXQueryException e) {
+            logger.info("current uri: " + uri);
+            logger.info("current characters: "
+                    + getCurrentTextCharactersString());
             if (current != null) {
                 logger.info("current record:\n" + current);
             }
             throw e;
         } catch (XmlPullParserException e) {
             if (current != null) {
-                logger.info("current record:\n" + current);
+                logger.info("current uri: " + uri);
+                logger.info("current characters: "
+                        + getCurrentTextCharactersString());
+                if (current != null) {
+                    logger.info("current record:\n" + current);
+                }
             }
             throw e;
         } catch (MalformedInputException e) {
@@ -835,7 +911,112 @@ public class RecordLoader extends Thread {
                     + INPUT_MALFORMED_ACTION_REPLACE + ").");
             throw e;
         }
-    } // return true to skip, false to process
+    }
+
+    /**
+     * @throws IOException
+     * @throws XmlPullParserException
+     * @throws XDBCException
+     * @throws TimerEventException
+     * 
+     */
+    private void handleUnresolvedEntity() throws XmlPullParserException,
+            IOException, TimerEventException, XDBCException {
+        int type;
+        boolean c = true;
+        while (c) {
+            try {
+                type = xpp.nextToken();
+            } catch (XmlPullParserException e) {
+                if (e.getMessage().contains("quotation or apostrophe")
+                        && repairLevel == XDMPDocOptions.XDMP_ERROR_CORRECTION_FULL) {
+                    // messed-up attribute? skip it?
+                    logger.warning("attribute error: " + e.getMessage());
+                    // all we can do is ignore it, apparently
+                    return;
+                }
+                throw e;
+            }
+            logger.fine("type=" + type);
+            switch (type) {
+            case XmlPullParser.TEXT:
+                processText();
+                break;
+            case XmlPullParser.ENTITY_REF:
+                processMalformedEntityRef();
+                break;
+            case XmlPullParser.START_TAG:
+                processStartElement();
+                return;
+            // break;
+            case XmlPullParser.END_TAG:
+                processEndElement();
+                return;
+            // break;
+            case XmlPullParser.COMMENT:
+                // skip comments
+                continue;
+                //return;
+            case XmlPullParser.PROCESSING_INSTRUCTION:
+                // skip PIs
+                continue;
+                //return;
+            // break;
+            case XmlPullParser.START_DOCUMENT:
+                throw new XmlPullParserException(
+                        "Unexpected START_DOCUMENT: " + type);
+            // break;
+            case XmlPullParser.END_DOCUMENT:
+                throw new XmlPullParserException(
+                        "Unexpected END_DOCUMENT: " + type);
+            // break;
+            default:
+                throw new XmlPullParserException("UNIMPLEMENTED: " + type);
+            }
+        }
+    }
+
+    /**
+     * @throws XmlPullParserException
+     * @throws IOException
+     * 
+     */
+    private void processMalformedEntityRef()
+            throws XmlPullParserException, IOException {
+        // handle unresolved entity exceptions
+        if (UNRESOLVED_ENTITY_POLICY_IGNORE.equals(entityPolicy)) {
+            return;
+        } else if (UNRESOLVED_ENTITY_POLICY_REPLACE.equals(entityPolicy)) {
+            String name = getCurrentTextCharactersString();
+            logger.fine("name=" + name);
+            String replacement = UNRESOLVED_ENTITY_REPLACEMENT_PREFIX
+                    + name + UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX;
+            if (current == null) {
+                if (currentPrepend == null) {
+                    logger
+                            .fine("skipping entity replacement: no current record");
+                    return;
+                }
+                currentPrepend.append(replacement);
+                return;
+            }
+            current.write(replacement.getBytes(outputEncoding));
+            return;
+        }
+        throw new XmlPullParserException("Unresolved entity error at "
+                + xpp.getPositionDescription());
+    }
+
+    /**
+     * @return
+     */
+    private String getCurrentTextCharactersString() {
+        int[] sl = new int[2];
+        char[] chars = xpp.getTextCharacters(sl);
+        char[] nameChars = new char[sl[1]];
+        System.arraycopy(chars, sl[0], nameChars, 0, sl[1]);
+        return new String(nameChars);
+    }
 
     private boolean checkStartId(String id) {
         if (startId == null)
@@ -859,7 +1040,7 @@ public class RecordLoader extends Thread {
             XmlPullParserException, XDBCException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
-        logger.finest(name + " in " + namespace);
+        logger.finest(name + " in '" + namespace + "'");
 
         // TODO preserve default namespace and prefix declarations
         if (rootName == null) {
@@ -908,6 +1089,11 @@ public class RecordLoader extends Thread {
                     if (id == null) {
                         id = xpp.getAttributeValue(recordNamespace,
                                 idName.substring(1));
+                    }
+                    if (id == null) {
+                        throw new XmlPullParserException("null id "
+                                + idName + " at "
+                                + xpp.getPositionDescription());
                     }
                     logger.fine("found id " + idName + " = " + id);
                 }
