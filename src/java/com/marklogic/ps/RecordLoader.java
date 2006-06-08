@@ -178,6 +178,8 @@ public class RecordLoader extends Thread {
 
     private static final Object ID_NAME_AUTO = "#AUTO";
 
+    private static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
+
     private static String outputEncoding = "UTF-8";
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
@@ -239,6 +241,8 @@ public class RecordLoader extends Thread {
 
     private boolean useAutomaticIds;
 
+    private int repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_NONE;
+
     /**
      * @param _connString
      * @param _idName
@@ -247,8 +251,9 @@ public class RecordLoader extends Thread {
      * @throws XDBCException
      * @throws XmlPullParserException
      */
-    public RecordLoader(String _connString, String _idName, Properties _props,
-            Reader _reader) throws XDBCException, XmlPullParserException {
+    public RecordLoader(String _connString, String _idName,
+            Properties _props, Reader _reader) throws XDBCException,
+            XmlPullParserException {
         idName = _idName;
         initialize(_connString, _idName, _props, _reader, new Timer());
     }
@@ -262,9 +267,9 @@ public class RecordLoader extends Thread {
      * @throws XDBCException
      * @throws XmlPullParserException
      */
-    public RecordLoader(String _connString, String _idName, Properties _props,
-            Reader _reader, Timer _timer) throws XDBCException,
-            XmlPullParserException {
+    public RecordLoader(String _connString, String _idName,
+            Properties _props, Reader _reader, Timer _timer)
+            throws XDBCException, XmlPullParserException {
         idName = _idName;
         initialize(_connString, _idName, _props, _reader, _timer);
     }
@@ -279,11 +284,12 @@ public class RecordLoader extends Thread {
      * @throws XmlPullParserException
      */
     public RecordLoader(URI _uri, String _idName, FileReader _reader,
-            Properties _props, Timer _timer) throws XmlPullParserException,
-            XDBCException {
+            Properties _props, Timer _timer)
+            throws XmlPullParserException, XDBCException {
         // support XCC uris, for forward compatibility
         String connString = _uri.toString();
-        connString = connString.replaceFirst("^(xdbc://)?([^/]+)(/.*)?$", "$2");
+        connString = connString.replaceFirst("^(xdbc://)?([^/]+)(/.*)?$",
+                "$2");
         initialize(connString, _idName, _props, _reader, _timer);
     }
 
@@ -296,8 +302,8 @@ public class RecordLoader extends Thread {
         // error if null (later)
         idName = _idName;
         if (idName == null) {
-            throw new XmlPullParserException("Missing required property: "
-                    + ID_NAME_KEY);
+            throw new XmlPullParserException(
+                    "Missing required property: " + ID_NAME_KEY);
         }
         logger.fine(ID_NAME_KEY + "=" + idName);
 
@@ -319,9 +325,11 @@ public class RecordLoader extends Thread {
         List<String> collections = new ArrayList<String>();
         collections.add(NAME + "." + System.currentTimeMillis());
         logger.info("adding extra collection: " + collections.get(0));
-        String collectionsString = props.getProperty(OUTPUT_COLLECTIONS_KEY);
+        String collectionsString = props
+                .getProperty(OUTPUT_COLLECTIONS_KEY);
         if (collectionsString != null && !collectionsString.equals("")) {
-            collections.addAll(Arrays.asList(collectionsString.split(",")));
+            collections.addAll(Arrays
+                    .asList(collectionsString.split(",")));
         }
 
         // use prefix to set document-uri patterns
@@ -345,21 +353,30 @@ public class RecordLoader extends Thread {
                 ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
-        useAutomaticIds = ID_NAME_AUTO.equals(props.getProperty(ID_NAME_KEY));
+        useAutomaticIds = ID_NAME_AUTO.equals(props
+                .getProperty(ID_NAME_KEY));
         logger.fine("useAutomaticIds=" + useAutomaticIds);
+
+        String repairString = props.getProperty(REPAIR_LEVEL_KEY, ""
+                + "NONE");
+        if (repairString.equals("FULL")) {
+            logger.fine(REPAIR_LEVEL_KEY + "=FULL");
+            repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_FULL;
+        }
 
         // only initialize docOpts once
         if (docOpts == null) {
             boolean resolveEntities = false;
             XDMPPermission[] permissions = null;
-            String readRolesString = props.getProperty(OUTPUT_READ_ROLES_KEY,
-                    "");
+            String readRolesString = props.getProperty(
+                    OUTPUT_READ_ROLES_KEY, "");
             if (readRolesString != null && readRolesString.length() > 0) {
                 String[] readRoles = readRolesString.trim().split("\\s+");
                 if (readRoles != null && readRoles.length > 0) {
                     permissions = new XDMPPermission[readRoles.length];
                     for (int i = 0; i < readRoles.length; i++) {
-                        if (readRoles[i] != null && !readRoles[i].equals(""))
+                        if (readRoles[i] != null
+                                && !readRoles[i].equals(""))
                             permissions[i] = new XDMPPermission(
                                     XDMPPermission.READ, readRoles[i]);
                     }
@@ -367,12 +384,13 @@ public class RecordLoader extends Thread {
             }
             int format = XDMPDocInsertStream.XDMP_DOC_FORMAT_XML;
             int quality = 0;
-            int repair = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_NONE;
+            int repair = repairLevel;
             String namespace = props.getProperty(DEFAULT_NAMESPACE_KEY);
             // support placeKeys for Forest placement
             // comma-delimited string, also accept ;:\s
             String[] placeKeys = null;
-            String placeKeysString = props.getProperty(OUTPUT_FORESTS_KEY);
+            String placeKeysString = props
+                    .getProperty(OUTPUT_FORESTS_KEY);
             if (placeKeysString != null) {
                 placeKeysString = placeKeysString.trim();
                 if (!placeKeysString.equals("")) {
@@ -382,16 +400,19 @@ public class RecordLoader extends Thread {
             }
             String language = null;
             // keep a base list of collections that can be extended later
-            baseCollections = (String[]) collections.toArray(new String[0]);
-            docOpts = new XDMPDocOptions(Locale.getDefault(), resolveEntities,
-                    permissions, baseCollections, quality, namespace, repair,
-                    placeKeys, format, language);
+            baseCollections = (String[]) collections
+                    .toArray(new String[0]);
+            docOpts = new XDMPDocOptions(Locale.getDefault(),
+                    resolveEntities, permissions, baseCollections,
+                    quality, namespace, repair, placeKeys, format,
+                    language);
         }
 
         // get a new factory
         if (factory == null) {
             factory = XmlPullParserFactory.newInstance(props
-                    .getProperty(XmlPullParserFactory.PROPERTY_NAME), null);
+                    .getProperty(XmlPullParserFactory.PROPERTY_NAME),
+                    null);
             factory.setNamespaceAware(true);
         }
         xpp = factory.newPullParser();
@@ -423,11 +444,13 @@ public class RecordLoader extends Thread {
             logger.info("processing argument: " + arg);
             file = new File(arg);
             if (!file.exists()) {
-                logger.warning("skipping " + arg + ": file does not exist.");
+                logger.warning("skipping " + arg
+                        + ": file does not exist.");
                 continue;
             }
             if (!file.canRead()) {
-                logger.warning("skipping " + arg + ": file cannot be read.");
+                logger.warning("skipping " + arg
+                        + ": file cannot be read.");
                 continue;
             }
             if (arg.endsWith(".properties")) {
@@ -445,12 +468,13 @@ public class RecordLoader extends Thread {
         // override with any system props
         props.putAll(System.getProperties());
 
-        logger.info(RecordLoader.class.getSimpleName() + " starting, version "
-                + VERSION);
+        logger.info(RecordLoader.class.getSimpleName()
+                + " starting, version " + VERSION);
 
         String idElementName = props.getProperty(ID_NAME_KEY);
         if (idElementName == null) {
-            throw new IOException("missing required property: " + ID_NAME_KEY);
+            throw new IOException("missing required property: "
+                    + ID_NAME_KEY);
         }
         if (idElementName.equals(ID_NAME_AUTO)) {
             logger.info("generating automatic ids");
@@ -461,7 +485,8 @@ public class RecordLoader extends Thread {
         String inputEncoding = props.getProperty(INPUT_ENCODING_KEY,
                 outputEncoding);
         String malformedInputAction = props.getProperty(
-                INPUT_MALFORMED_ACTION_KEY, INPUT_MALFORMED_ACTION_DEFAULT);
+                INPUT_MALFORMED_ACTION_KEY,
+                INPUT_MALFORMED_ACTION_DEFAULT);
         CharsetDecoder inputDecoder = getDecoder(inputEncoding,
                 malformedInputAction);
 
@@ -475,11 +500,12 @@ public class RecordLoader extends Thread {
         setupProperties(connString[0], props);
 
         Timer rlTimer;
-        int threadCount = Integer.parseInt(props.getProperty(THREADS_KEY, "1"));
+        int threadCount = Integer.parseInt(props.getProperty(THREADS_KEY,
+                "1"));
 
         String inputPath = props.getProperty(INPUT_PATH_KEY);
-        String inputPattern = props
-                .getProperty(INPUT_PATTERN_KEY, "^.+\\.xml$");
+        String inputPattern = props.getProperty(INPUT_PATTERN_KEY,
+                "^.+\\.xml$");
         if (inputPath != null) {
             // find all the files
             FileFinder ff = new FileFinder(inputPath, inputPattern);
@@ -502,8 +528,8 @@ public class RecordLoader extends Thread {
             handleFileInput(props, xmlFiles, zipFiles, inputDecoder,
                     connString, idElementName, threadCount, rlTimer);
         } else {
-            handleStandardInput(props, inputDecoder, connString, idElementName,
-                    threadCount, rlTimer);
+            handleStandardInput(props, inputDecoder, connString,
+                    idElementName, threadCount, rlTimer);
         }
 
         finishMain(rlTimer);
@@ -517,7 +543,8 @@ public class RecordLoader extends Thread {
         inputDecoder = Charset.forName(inputEncoding).newDecoder();
         if (malformedInputAction.equals(INPUT_MALFORMED_ACTION_IGNORE)) {
             inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
-        } else if (malformedInputAction.equals(INPUT_MALFORMED_ACTION_REPLACE)) {
+        } else if (malformedInputAction
+                .equals(INPUT_MALFORMED_ACTION_REPLACE)) {
             inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
         } else {
             inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
@@ -528,12 +555,12 @@ public class RecordLoader extends Thread {
         return inputDecoder;
     }
 
-    private static Timer handleFileInput(Properties props, List<File> xmlFiles,
-            List<File> zipFiles, CharsetDecoder inputDecoder,
-            String[] connString, String idElementName, int threadCount,
-            Timer rlTimer) throws IOException, ZipException,
-            FileNotFoundException, XDBCException, XmlPullParserException,
-            InterruptedException {
+    private static Timer handleFileInput(Properties props,
+            List<File> xmlFiles, List<File> zipFiles,
+            CharsetDecoder inputDecoder, String[] connString,
+            String idElementName, int threadCount, Timer rlTimer)
+            throws IOException, ZipException, FileNotFoundException,
+            XDBCException, XmlPullParserException, InterruptedException {
         File file = null;
         int connStringIndex = 0;
         int connStringLength = connString.length;
@@ -554,7 +581,8 @@ public class RecordLoader extends Thread {
                 logger.finest("active loop, thread " + i);
                 // is there any work left to do?
                 // be sure to check zis from our last iteration, too
-                if (zis == null && zipFiles.size() < 1 && xmlFiles.size() < 1) {
+                if (zis == null && zipFiles.size() < 1
+                        && xmlFiles.size() < 1) {
                     active = false;
                     break;
                 }
@@ -569,7 +597,8 @@ public class RecordLoader extends Thread {
                 zis = null;
                 while (zis == null) {
                     // scan for an entry to use
-                    if (currentZipFile == null || currentZipEntries == null
+                    if (currentZipFile == null
+                            || currentZipEntries == null
                             || !currentZipEntries.hasMoreElements()) {
                         if (zipFiles.size() < 1) {
                             // by definition, we have no more
@@ -611,18 +640,22 @@ public class RecordLoader extends Thread {
                         continue;
                     }
                     file = (File) (xmlFiles.remove(0));
-                    logger.info("loading from " + file.getCanonicalPath());
+                    logger
+                            .info("loading from "
+                                    + file.getCanonicalPath());
                     theReader = new InputStreamReader(
                             new FileInputStream(file), inputDecoder);
                 }
-                threads[i] = new RecordLoader(connString[connStringIndex],
-                        idElementName, props, theReader, rlTimer);
+                threads[i] = new RecordLoader(
+                        connString[connStringIndex], idElementName,
+                        props, theReader, rlTimer);
                 // if multiple connString are available, we round-robin
                 connStringIndex++;
                 connStringIndex = connStringIndex % connStringLength;
 
                 // strip the extension too
-                threads[i].setFileBasename(stripExtension(file.getName()));
+                threads[i]
+                        .setFileBasename(stripExtension(file.getName()));
                 threads[i].start();
 
             } // for threads
@@ -654,10 +687,10 @@ public class RecordLoader extends Thread {
         if (threadCount > 1) {
             logger.warning("Will not use multiple threads!");
         }
-        BufferedReader br = new BufferedReader(new InputStreamReader(System.in,
-                inputDecoder));
-        RecordLoader rl = new RecordLoader(connString[0], idElementName, props,
-                br, rlTimer);
+        BufferedReader br = new BufferedReader(new InputStreamReader(
+                System.in, inputDecoder));
+        RecordLoader rl = new RecordLoader(connString[0], idElementName,
+                props, br, rlTimer);
         rl.process();
         br.close();
     }
@@ -665,8 +698,8 @@ public class RecordLoader extends Thread {
     private static void finishMain(Timer rlTimer) {
         rlTimer.stop();
         logger.info("loaded " + rlTimer.getEventCount() + " records ok ("
-                + rlTimer.getDuration() + " ms, " + rlTimer.getBytes() + " B, "
-                + Math.round(rlTimer.getEventRate()) + " tps, "
+                + rlTimer.getDuration() + " ms, " + rlTimer.getBytes()
+                + " B, " + Math.round(rlTimer.getEventRate()) + " tps, "
                 + Math.round(rlTimer.getThroughput()) + " kB/s" + ")");
     }
 
@@ -674,12 +707,13 @@ public class RecordLoader extends Thread {
      * @param props2
      * @throws XDBCException
      */
-    private static void setupProperties(String _connString, Properties _props)
-            throws XDBCException {
+    private static void setupProperties(String _connString,
+            Properties _props) throws XDBCException {
         // if we use OUTPUT_FORESTS, we have to query for it!
         String placeKeysString = _props.getProperty(OUTPUT_FORESTS_KEY);
         if (placeKeysString != null && !placeKeysString.equals("")) {
-            logger.info("sending output to forest names: " + placeKeysString);
+            logger.info("sending output to forest names: "
+                    + placeKeysString);
             logger.fine("querying for Forest ids");
             XDBCResultSequence rs = null;
             String query = "define variable $forest-string as xs:string external\n"
@@ -696,8 +730,8 @@ public class RecordLoader extends Thread {
                 rs.next();
                 forestIds.add(rs.get_String());
             }
-            _props.setProperty(OUTPUT_FORESTS_KEY, Utilities.join(forestIds,
-                    " "));
+            _props.setProperty(OUTPUT_FORESTS_KEY, Utilities.join(
+                    forestIds, " "));
             logger.info("sending output to forests ids: "
                     + _props.getProperty(OUTPUT_FORESTS_KEY));
         }
@@ -752,6 +786,10 @@ public class RecordLoader extends Thread {
         int eventType;
 
         try {
+            // NOTE: next() skips comments, document-decl, ignorable-whitespace,
+            // processing-instructions automatically.
+            // to catch these, use nextToken() instead.
+            // nextToken() could also be used for custom entity handling.
             while ((eventType = xpp.next()) != XmlPullParser.END_DOCUMENT) {
                 switch (eventType) {
                 case XmlPullParser.START_TAG:
@@ -775,8 +813,8 @@ public class RecordLoader extends Thread {
                 throw new XmlPullParserException(
                         "end of document before end of current record!\n"
                                 + "recordName = " + recordName
-                                + ", recordNamespace = " + recordNamespace
-                                + "\n" + current);
+                                + ", recordNamespace = "
+                                + recordNamespace + "\n" + current);
 
         } catch (XDBCXQueryException e) {
             if (current != null) {
@@ -807,8 +845,8 @@ public class RecordLoader extends Thread {
         // is this my cow?
         if (!startId.equals(id)) {
             // don't bother to open the database: skip this record
-            logger.info("skipping record " + (++totalSkipped) + " with id "
-                    + id + " != " + startId);
+            logger.info("skipping record " + (++totalSkipped)
+                    + " with id " + id + " != " + startId);
             return true;
         }
 
@@ -856,20 +894,20 @@ public class RecordLoader extends Thread {
                     id = "" + (1 + timer.getEventCount());
                     logger.fine("automatic document id " + id);
                 } else {
-                    // if the idName starts with @, it's an attribute on
-                    // recordName
+                    // if the idName starts with @, it's an attribute
                     // handle attributes as idName
                     if (xpp.getAttributeCount() < 1) {
                         throw new XmlPullParserException(
                                 "found no attributes for recordName = "
-                                        + recordName + ", idName=" + idName
-                                        + " at " + xpp.getPositionDescription());
+                                        + recordName + ", idName="
+                                        + idName + " at "
+                                        + xpp.getPositionDescription());
                     }
                     // try with and without a namespace: first, try without
                     id = xpp.getAttributeValue("", idName.substring(1));
                     if (id == null) {
-                        id = xpp.getAttributeValue(recordNamespace, idName
-                                .substring(1));
+                        id = xpp.getAttributeValue(recordNamespace,
+                                idName.substring(1));
                     }
                     logger.fine("found id " + idName + " = " + id);
                 }
@@ -936,7 +974,8 @@ public class RecordLoader extends Thread {
 
             // write it all out
             currentPrepend.append(text);
-            current.write(currentPrepend.toString().getBytes(outputEncoding));
+            current.write(currentPrepend.toString().getBytes(
+                    outputEncoding));
             recordEvent.increment(currentPrepend.length());
             currentPrepend = null;
             return;
@@ -961,8 +1000,8 @@ public class RecordLoader extends Thread {
                         + xpp.getName());
                 return;
             }
-            throw new XmlPullParserException("unknown non-record element: "
-                    + xpp.getName());
+            throw new XmlPullParserException(
+                    "unknown non-record element: " + xpp.getName());
         }
 
         // this seems to be the only way to handle empty elements:
@@ -983,7 +1022,8 @@ public class RecordLoader extends Thread {
         }
     }
 
-    private XDMPDocInsertStream openDocument(String _id) throws XDBCException {
+    private XDMPDocInsertStream openDocument(String _id)
+            throws XDBCException {
         // docOptions have already been initialized
         // handle collectionsMap, if present
         if (collectionMap != null) {
@@ -1026,8 +1066,8 @@ public class RecordLoader extends Thread {
                                     + uri);
                 }
                 // ok, must be skipExisting...
-                logger.info("skipping " + (++totalSkipped) + " existing uri "
-                        + uri);
+                logger.info("skipping " + (++totalSkipped)
+                        + " existing uri " + uri);
                 return true;
             }
         }
@@ -1069,8 +1109,8 @@ public class RecordLoader extends Thread {
             recordEvent.increment(text.length());
         }
 
-        if (!(recordName.equals(xpp.getName()) && recordNamespace.equals(xpp
-                .getNamespace()))) {
+        if (!(recordName.equals(xpp.getName()) && recordNamespace
+                .equals(xpp.getNamespace()))) {
             // not the end of the record: go look for more nodes
             return;
         }
@@ -1085,8 +1125,8 @@ public class RecordLoader extends Thread {
         // finish the database document, if appropriate
         if (startId != null) {
             if (uri != null) {
-                logger.fine("ignoring end of record for " + uri + ": START_ID "
-                        + startId + " not yet found");
+                logger.fine("ignoring end of record for " + uri
+                        + ": START_ID " + startId + " not yet found");
             }
             if (current != null) {
                 current.abort();
@@ -1096,8 +1136,8 @@ public class RecordLoader extends Thread {
         }
         if (current == null) {
             throw new XmlPullParserException(
-                    "end of record element with no id found: " + ID_NAME_KEY
-                            + "=" + idName);
+                    "end of record element with no id found: "
+                            + ID_NAME_KEY + "=" + idName);
         }
         current.flush();
 
@@ -1118,8 +1158,8 @@ public class RecordLoader extends Thread {
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e1) {
-                    logger.logException("interrupted while sleeping in retry",
-                            e1);
+                    logger.logException(
+                            "interrupted while sleeping in retry", e1);
                 }
             }
         }
@@ -1149,9 +1189,10 @@ public class RecordLoader extends Thread {
     }
 
     private void displayProgress() {
-        logger.info("inserted record " + timer.getEventCount() + " as " + uri
-                + " (" + timer.getDuration() + " ms, " + timer.getBytes()
-                + " B, " + Math.round(timer.getEventRate()) + " tps, "
+        logger.info("inserted record " + timer.getEventCount() + " as "
+                + uri + " (" + timer.getDuration() + " ms, "
+                + timer.getBytes() + " B, "
+                + Math.round(timer.getEventRate()) + " tps, "
                 + Math.round(timer.getThroughput()) + " kB/s" + ")");
     }
 
