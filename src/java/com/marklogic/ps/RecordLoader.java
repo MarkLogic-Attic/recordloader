@@ -75,7 +75,7 @@ public class RecordLoader extends Thread {
      */
     private static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
-    public static final String VERSION = "2006-06-07.2";
+    public static final String VERSION = "2006-06-08.1";
 
     /**
      * 
