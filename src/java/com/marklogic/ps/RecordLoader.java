@@ -604,6 +604,7 @@ public class RecordLoader extends Thread {
         boolean active = true;
         // we want to wait around whenever threads are busy,
         // and add more work as needed.
+        // TODO if START_ID was supplied, run single-threaded until found
         while (active) {
             logger.finest("active loop starting");
             // spawn more threads, if needed
