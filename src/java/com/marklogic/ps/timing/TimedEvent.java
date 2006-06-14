@@ -32,12 +32,12 @@ public class TimedEvent {
     private long start;
 
     public TimedEvent() {
-        start = System.currentTimeMillis();
+        start = System.nanoTime();
     }
 
     public TimedEvent(boolean _error) {
         error = _error;
-        start = System.currentTimeMillis();
+        start = System.nanoTime();
     }
 
     /**
@@ -50,38 +50,37 @@ public class TimedEvent {
     /**
      * 
      */
-    public long stop() throws TimerEventException {
-        if (bytes < 0)
-            return stop(0, false);
-
-        return stop(bytes, false);
+    public long stop() {
+        return stop(bytes < 0 ? 0 : bytes, false);
     }
 
-    public long stop(long _bytes) throws TimerEventException {
+    public long stop(long _bytes) {
         return stop(_bytes, false);
     }
 
     /**
      * @param _error
-     * @throws TimerEventException
      */
-    public void stop(boolean _error) throws TimerEventException {
+    public void stop(boolean _error) {
         stop(-1, _error);
     }
 
-    public long stop(long _bytes, boolean _error)
-            throws TimerEventException {
+    public long stop(long _bytes, boolean _error) {
         // duplicate calls to stop() should be harmless
-        if (duration > -1)
+        if (duration > -1) {
             return duration;
-
-        duration = System.currentTimeMillis() - start;
-        if (duration == 0) {
-            // timings of 0 are very bad for averaging
-            // is the cure worse than the disease?
-            duration = 1;
         }
 
+        duration = System.nanoTime() - start;
+        // timings of 0 are very bad for averaging,
+        // but is the cure worse than the disease?
+        assert duration > 0;
+        // alternative idea:
+        //if (duration < 1) {
+        //duration = 1;
+        //}
+
+        // bytes == -1 is a flag
         if (_bytes > -1) {
             bytes = _bytes;
         }
@@ -93,9 +92,10 @@ public class TimedEvent {
      * @return
      */
     public long getDuration() {
-        if (duration < 0)
-            return System.currentTimeMillis() - start;
-
+        if (duration < 0) {
+            return System.nanoTime() - start;
+        }
+        
         return duration;
     }
 

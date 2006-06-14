@@ -34,7 +34,8 @@ import java.util.logging.SimpleFormatter;
  * 
  * wrapper for java logging
  */
-public class SimpleLogger extends Logger implements PropertyClientInterface {
+public class SimpleLogger extends Logger implements
+        PropertyClientInterface {
     /**
      * 
      */
@@ -82,7 +83,7 @@ public class SimpleLogger extends Logger implements PropertyClientInterface {
 
     static public final String LOGGER_NAME = "com.marklogic.ps";
 
-    private static Hashtable loggers = new Hashtable();
+    private static Hashtable<String, SimpleLogger> loggers = new Hashtable<String, SimpleLogger>();
 
     SimpleLogger(String name) {
         super(name, null);
@@ -141,8 +142,8 @@ public class SimpleLogger extends Logger implements PropertyClientInterface {
         String logLevel = _prop.getProperty(LOG_LEVEL, DEFAULT_LOG_LEVEL);
 
         // support multiple handlers: comma-separated
-        String[] logHandler = _prop.getProperty(LOG_HANDLER, DEFAULT_LOG_HANDLER)
-                .split(",");
+        String[] logHandler = _prop.getProperty(LOG_HANDLER,
+                DEFAULT_LOG_HANDLER).split(",");
         String logFilePath = _prop.getProperty(LOG_FILEHANDLER_PATH,
                 DEFAULT_FILEHANDLER_PATH);
         boolean logFileAppend = Boolean.parseBoolean(_prop.getProperty(
@@ -173,12 +174,14 @@ public class SimpleLogger extends Logger implements PropertyClientInterface {
                     } catch (SecurityException e) {
                         e.printStackTrace();
                         // fatal error
-                        System.err.println("cannot configure logging: exiting");
+                        System.err
+                                .println("cannot configure logging: exiting");
                         Runtime.getRuntime().exit(-1);
                     } catch (IOException e) {
                         e.printStackTrace();
                         // fatal error
-                        System.err.println("cannot configure logging: exiting");
+                        System.err
+                                .println("cannot configure logging: exiting");
                         Runtime.getRuntime().exit(-1);
                     }
                     h.setFormatter(new SimpleFormatter());
@@ -191,14 +194,17 @@ public class SimpleLogger extends Logger implements PropertyClientInterface {
                     try {
                         Class lhc = Class.forName(logHandler[i], true,
                                 ClassLoader.getSystemClassLoader());
-                        System.err.println("logging to class " + logHandler[i]);
-                        Constructor con = lhc.getConstructor(new Class[] {});
+                        System.err.println("logging to class "
+                                + logHandler[i]);
+                        Constructor con = lhc
+                                .getConstructor(new Class[] {});
                         h = (Handler) con.newInstance(new Object[] {});
                     } catch (Exception e) {
                         System.err.println("unrecognized LOG_HANDLER: "
                                 + logHandler[i]);
                         e.printStackTrace();
-                        System.err.println("cannot configure logging: exiting");
+                        System.err
+                                .println("cannot configure logging: exiting");
                         Runtime.getRuntime().exit(-1);
                     }
                 }

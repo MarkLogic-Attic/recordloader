@@ -28,6 +28,21 @@ import java.util.Comparator;
  * 
  */
 public class Timer {
+
+    private static final int BYTES_PER_KILOBYTE = 1024;
+
+    private static final int MILLISECONDS_PER_SECOND = 1000;
+
+    private static final int NANOSECONDS_PER_MICROSECOND = MILLISECONDS_PER_SECOND;
+
+    private static final int MICROSECONDS_PER_MILLISECOND = MILLISECONDS_PER_SECOND;
+
+    private static final int NANOSECONDS_PER_MILLISECOND = NANOSECONDS_PER_MICROSECOND
+            * MICROSECONDS_PER_MILLISECOND;
+
+    private static final int NANOSECONDS_PER_SECOND = NANOSECONDS_PER_MILLISECOND
+            * MILLISECONDS_PER_SECOND;
+
     private long errors = 0;
 
     private long bytes = 0;
@@ -41,11 +56,11 @@ public class Timer {
     private long eventCount;
 
     public Timer() {
-        start = System.currentTimeMillis();
+        start = System.nanoTime();
         eventCount = 0;
     }
 
-    public void add(TimedEvent event) throws TimerEventException {
+    public void add(TimedEvent event) {
         // in case the user forgot to call stop(): note that bytes won't be
         // counted!
         event.stop();
@@ -91,7 +106,7 @@ public class Timer {
      */
     public long getDuration() {
         if (duration < 0)
-            return (System.currentTimeMillis() - start);
+            return (System.nanoTime() - start);
 
         return duration;
     }
@@ -131,7 +146,8 @@ public class Timer {
     public long getMaxDuration() {
         long max = 0;
         for (int i = 0; i < eventCount; i++)
-            max = Math.max(max, ((TimedEvent) events.get(i)).getDuration());
+            max = Math.max(max, ((TimedEvent) events.get(i))
+                    .getDuration());
         return max;
     }
 
@@ -141,7 +157,8 @@ public class Timer {
     public long getMinDuration() {
         long min = Integer.MAX_VALUE;
         for (int i = 0; i < eventCount; i++)
-            min = Math.min(min, ((TimedEvent) events.get(i)).getDuration());
+            min = Math.min(min, ((TimedEvent) events.get(i))
+                    .getDuration());
         return min;
     }
 
@@ -159,29 +176,30 @@ public class Timer {
         return start;
     }
 
-    public double getThroughput() {
-        // kB per second
-        return (((double) bytes / 1024) / ((double) getDuration() / 1000));
+    public double getKilobytesPerSecond() {
+        return ((double) bytes / BYTES_PER_KILOBYTE)
+                / getDurationSeconds();
     }
 
-    public double getEventRate() {
+    public double getEventsPerSecond() {
         // events per second
-        return (((double) eventCount) / ((double) getDuration() / 1000));
+        return ((double) eventCount) / getDurationSeconds();
     }
 
     /**
      * @param l
      */
     public long stop() {
-        return stop(System.currentTimeMillis());
+        return stop(System.nanoTime());
     }
 
     /**
      * @param l
      */
     public synchronized long stop(long l) {
-        if (duration < 0)
+        if (duration < 0) {
             duration = l - start;
+        }
 
         return duration;
     }
@@ -212,6 +230,39 @@ public class Timer {
      */
     public void incrementEventCount(int count) {
         eventCount += count;
+    }
+
+    /**
+     * @return
+     */
+    public double getDurationMilliseconds() {
+        // ns to seconds
+        return ((double) getDuration())
+                / ((double) NANOSECONDS_PER_MILLISECOND);
+    }
+
+    /**
+     * @return
+     */
+    public double getDurationSeconds() {
+        // ns to seconds
+        return ((double) getDuration())
+                / ((double) NANOSECONDS_PER_SECOND);
+    }
+
+    public String getProgressMessage(boolean rawValues) {
+        return (rawValues ? getBytes() + " B in " + getDurationSeconds()
+                + " s, " : "")
+                + Math.round(getEventsPerSecond())
+                + " tps, "
+                + Math.round(getKilobytesPerSecond()) + " kB/s";
+    }
+
+    /**
+     * @return
+     */
+    public String getProgressMessage() {
+        return getProgressMessage(false);
     }
 
 }
