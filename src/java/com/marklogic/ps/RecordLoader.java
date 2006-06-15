@@ -65,7 +65,7 @@ public class RecordLoader extends Thread {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-06-14.1";
+    public static final String VERSION = "2006-06-15.2";
 
     static final String NAME = RecordLoader.class.getName();
 
@@ -294,6 +294,9 @@ public class RecordLoader extends Thread {
         Reader theReader = null;
         boolean active = true;
         String baseName;
+        // to avoid closing zipinputstreams randomly,
+        // we have to "leak" them temporarily
+        List<ZipFile> openZipFiles = new ArrayList<ZipFile>(zipFiles.size());
         // we want to wait around whenever threads are busy,
         // and add more work as needed.
         // TODO if START_ID was supplied, run single-threaded until found
@@ -324,14 +327,17 @@ public class RecordLoader extends Thread {
                             || currentZipEntries == null
                             || !currentZipEntries.hasMoreElements()) {
                         if (zipFiles.size() < 1) {
-                            // by definition, we have no more
-                            // entries,
+                            // we have no more entries,
                             // and no more files to check
+                            // still can't close the zipfiles!
                             break;
                         }
-                        file = (File) (zipFiles.remove(0));
+                        file = (zipFiles.remove(0));
                         if (currentZipFile != null) {
-                            currentZipFile.close();
+                            // do not close: zipfile may have open streams!
+                            //currentZipFile.close();
+                            // do we have to leak it? try it...
+                            openZipFiles.add(currentZipFile);
                         }
                         currentZipFile = new ZipFile(file);
                         currentZipEntries = currentZipFile.entries();
@@ -365,7 +371,7 @@ public class RecordLoader extends Thread {
                         // again, just to make sure.
                         continue;
                     }
-                    file = (File) (xmlFiles.remove(0));
+                    file = (xmlFiles.remove(0));
                     logger
                             .info("loading from "
                                     + file.getCanonicalPath());
@@ -401,6 +407,13 @@ public class RecordLoader extends Thread {
                 threads[i].join();
             }
         }
+        
+        // clean up a little... should fall out of scope anyhow
+        Iterator<ZipFile> iter = openZipFiles.iterator();
+        while (iter.hasNext()) {
+            iter.next().close();
+        }
+
         return rlTimer;
     }
 
@@ -458,8 +471,7 @@ public class RecordLoader extends Thread {
             List<String> newCollections = new ArrayList<String>(Arrays
                     .asList(config.getBaseCollections()));
             newCollections.add(_name);
-            docOpts.setCollections((String[]) newCollections
-                    .toArray(new String[0]));
+            docOpts.setCollections(newCollections.toArray(new String[0]));
         }
         logger.info("using fileBasename = " + currentFileBasename);
     }
@@ -501,6 +513,9 @@ public class RecordLoader extends Thread {
                                 "UNIMPLEMENTED: " + eventType);
                     }
                 } catch (XmlPullParserException e) {
+                    logger.warning(e.getClass().getSimpleName() + " in "
+                            + currentFileBasename + " at "
+                            + xpp.getPositionDescription());
                     // could be a problem entity
                     if (e.getMessage().contains("entity")) {
                         logger.warning("entity error: " + e.getMessage());
@@ -852,7 +867,7 @@ public class RecordLoader extends Thread {
         current.write(text);
     }
 
-    private void composeDocOptions(String _id) throws XDBCException {
+    private void composeDocOptions(String _id) {
         // docOptions have already been initialized,
         // but may need more work:
         // handle collectionsMap, if present
@@ -873,8 +888,7 @@ public class RecordLoader extends Thread {
             collections.addAll(Arrays.asList((String[]) collectionMap
                     .get(_id)));
         }
-        docOpts.setCollections((String[]) collections
-                .toArray(new String[0]));
+        docOpts.setCollections(collections.toArray(new String[0]));
     }
 
     /**
@@ -1038,7 +1052,12 @@ public class RecordLoader extends Thread {
         try {
             process();
         } catch (Exception e) {
-            logger.logException("fatal error", e);
+            logger.logException(
+                    "fatal error in file "
+                            + currentFileBasename
+                            + " at "
+                            + (xpp == null ? null : xpp
+                                    .getPositionDescription()), e);
         }
     }
 

@@ -120,7 +120,7 @@ public class Timer {
 
         long sum = 0;
         for (int i = 0; i < eventCount; i++) {
-            sum += ((TimedEvent) events.get(i)).getDuration();
+            sum += events.get(i).getDuration();
         }
 
         return Math.round((double) sum / eventCount);
@@ -136,8 +136,8 @@ public class Timer {
         double size = eventCount;
         Comparator<TimedEvent> c = new TimedEventDurationComparator();
         Collections.sort(events, c);
-        int pidx = (int) ((double) p * (double) size * (double) .01);
-        return ((TimedEvent) events.get(pidx)).getDuration();
+        int pidx = (int) (p * size * .01);
+        return events.get(pidx).getDuration();
     }
 
     /**
@@ -146,7 +146,7 @@ public class Timer {
     public long getMaxDuration() {
         long max = 0;
         for (int i = 0; i < eventCount; i++)
-            max = Math.max(max, ((TimedEvent) events.get(i))
+            max = Math.max(max, events.get(i)
                     .getDuration());
         return max;
     }
@@ -157,7 +157,7 @@ public class Timer {
     public long getMinDuration() {
         long min = Integer.MAX_VALUE;
         for (int i = 0; i < eventCount; i++)
-            min = Math.min(min, ((TimedEvent) events.get(i))
+            min = Math.min(min, events.get(i)
                     .getDuration());
         return min;
     }
@@ -183,7 +183,7 @@ public class Timer {
 
     public double getEventsPerSecond() {
         // events per second
-        return ((double) eventCount) / getDurationSeconds();
+        return eventCount / getDurationSeconds();
     }
 
     /**

@@ -540,7 +540,7 @@ public class Utilities {
         byte[] bytes = _string.getBytes(_encoding);
         for (int i = 0; i < bytes.length; i++) {
             // bytes are signed: we want unsigned values
-            sb.append(Integer.toHexString((int) bytes[i] & 0xff));
+            sb.append(Integer.toHexString(bytes[i] & 0xff));
             if (i < bytes.length - 1) {
                 sb.append(" ");
             }

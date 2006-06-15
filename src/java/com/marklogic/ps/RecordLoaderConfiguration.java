@@ -383,7 +383,7 @@ public class RecordLoaderConfiguration {
                     .asList(collectionsString.split("[\\s,]+")));
         }
         // keep a base list of collections that can be extended later
-        baseCollections = (String[]) collections.toArray(new String[0]);
+        baseCollections = collections.toArray(new String[0]);
     }
 
     private void configurePlaceKeys() throws XDBCException {

@@ -102,7 +102,7 @@ public class SimpleLogger extends Logger implements
     }
 
     public static synchronized SimpleLogger getSimpleLogger(String name) {
-        SimpleLogger obj = (SimpleLogger) loggers.get(name);
+        SimpleLogger obj = loggers.get(name);
 
         if (obj == null)
             obj = new SimpleLogger(name);
@@ -112,7 +112,7 @@ public class SimpleLogger extends Logger implements
 
     public static synchronized SimpleLogger getSimpleLogger(String name,
             String resBundle) {
-        SimpleLogger obj = (SimpleLogger) loggers.get(name);
+        SimpleLogger obj = loggers.get(name);
 
         if (obj == null)
             obj = new SimpleLogger(name, resBundle);

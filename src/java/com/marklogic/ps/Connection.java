@@ -49,7 +49,7 @@ import com.marklogic.xdmp.util.XDMPAuthenticator;
 
 /**
  * @author Michael Blakeley <michael.blakeley@marklogic.com>
- *
+ * 
  */
 public class Connection {
     protected static SimpleLogger logger = SimpleLogger.getSimpleLogger();
@@ -76,7 +76,8 @@ public class Connection {
 
     public static final int DOC_FORMAT_TEXT = XDMPDocInsertStream.XDMP_DOC_FORMAT_TEXT;
 
-    public Connection(String _host, int _port, String _user, String _password) {
+    public Connection(String _host, int _port, String _user,
+            String _password) {
         host = _host;
         port = _port;
         user = _user;
@@ -108,7 +109,8 @@ public class Connection {
             logger.finer("connection string parsed to: "
                     + buildConnectionString(host, port));
         } else {
-            throw new XDBCException("bad connection string: " + connString);
+            throw new XDBCException("bad connection string: "
+                    + connString);
         }
     }
 
@@ -135,10 +137,10 @@ public class Connection {
      * @param _password
      * @return
      */
-    public static String buildConnectionString(String _host, String _port,
-            String _user, String _password) {
-        return buildConnectionString(_host, Integer.parseInt(_port), _user,
-                _password);
+    public static String buildConnectionString(String _host,
+            String _port, String _user, String _password) {
+        return buildConnectionString(_host, Integer.parseInt(_port),
+                _user, _password);
     }
 
     /**
@@ -159,7 +161,8 @@ public class Connection {
     public boolean checkFile(String _uri) throws XDBCException {
         String query = "define variable $URI as xs:string external\n"
                 + "xdmp:estimate(doc($URI)) eq 1\n";
-        Hashtable<XDBCXName, String> vars = new Hashtable<XDBCXName, String>(1);
+        Hashtable<XDBCXName, String> vars = new Hashtable<XDBCXName, String>(
+                1);
         vars.put(new XDBCXName("", "URI"), _uri);
 
         XDBCResultSequence result = null;
@@ -199,11 +202,8 @@ public class Connection {
             result.close();
             return count;
         } finally {
-            try {
-                if (result != null && !result.isClosed())
-                    result.close();
-            } catch (XDBCException e) {
-            }
+            if (result != null && !result.isClosed())
+                result.close();
         }
     }
 
@@ -214,8 +214,8 @@ public class Connection {
                 throw new XDBCException("must supply valid host and port");
 
             if (user != null && password != null) {
-                logger.finer("getConnection: " + user + ":" + password + "@"
-                        + host + ":" + port);
+                logger.finer("getConnection: " + user + ":" + password
+                        + "@" + host + ":" + port);
                 XDMPAuthenticator.setDefault(new XDMPAuthenticator(user,
                         password));
             } else {
@@ -236,7 +236,8 @@ public class Connection {
      * @return
      * @throws XDBCException
      */
-    public XDBCResultSequence executeQuery(String _query) throws XDBCException {
+    public XDBCResultSequence executeQuery(String _query)
+            throws XDBCException {
         return executeQuery(_query, true);
     }
 
@@ -264,8 +265,8 @@ public class Connection {
      * @return
      * @throws XDBCException
      */
-    protected XDBCResultSequence executeQuery(XDBCStatement _stmt, String _query)
-            throws XDBCException {
+    protected XDBCResultSequence executeQuery(XDBCStatement _stmt,
+            String _query) throws XDBCException {
         return executeQuery(_stmt, _query, true);
     }
 
@@ -423,8 +424,8 @@ public class Connection {
      * @return
      * @throws XDBCException
      */
-    private XDBCXName[] marshalExternalVariables(XDBCStatement _stmt, Map _args)
-            throws XDBCException {
+    private XDBCXName[] marshalExternalVariables(XDBCStatement _stmt,
+            Map _args) throws XDBCException {
         if (_args == null)
             return null;
 
@@ -450,7 +451,8 @@ public class Connection {
             } else if (key instanceof XDBCXName) {
                 name = (XDBCXName) key;
             } else {
-                throw new XDBCException("cannot cast to XDBCXName: " + key);
+                throw new XDBCException("cannot cast to XDBCXName: "
+                        + key);
             }
             args[i++] = name;
             setValue(_stmt, name, _args.get(key));
@@ -459,8 +461,8 @@ public class Connection {
         return args;
     }
 
-    public XDBCResultSequence invoke(String _module, String _database, Map _args)
-            throws XDBCException {
+    public XDBCResultSequence invoke(String _module, String _database,
+            Map _args) throws XDBCException {
         return invoke(_module, _database, _args, true);
     }
 
@@ -488,8 +490,8 @@ public class Connection {
      * @param value
      * @throws XDBCException
      */
-    private void setValue(XDBCStatement _stmt, XDBCXName _key, Object _value)
-            throws XDBCException {
+    private void setValue(XDBCStatement _stmt, XDBCXName _key,
+            Object _value) throws XDBCException {
         // NOTE: caller must have called getStatement() first
 
         if (_value == null) {
@@ -499,7 +501,8 @@ public class Connection {
             // handle all types that won't work as untypedAtomic:
             // what kind of object is this value?
             String valueType = _value.getClass().getName();
-            logger.finest("" + _key + " => " + _value + " as " + valueType);
+            logger.finest("" + _key + " => " + _value + " as "
+                    + valueType);
 
             if (valueType.equals("java.lang.Boolean")) {
                 _stmt.setBoolean(_key, ((Boolean) _value).booleanValue());
@@ -526,7 +529,7 @@ public class Connection {
     }
 
     /**
-     *
+     * 
      */
     public void commit() throws XDBCException {
         if (commitSupported && conn != null && !conn.isClosed())
@@ -562,7 +565,7 @@ public class Connection {
     }
 
     /**
-     *
+     * 
      */
     public void close() {
         try {
@@ -586,8 +589,8 @@ public class Connection {
         return conn.isClosed();
     }
 
-    public void loadFile(String filePath, String uri) throws XDBCException,
-            IOException {
+    public void loadFile(String filePath, String uri)
+            throws XDBCException, IOException {
         loadFile(filePath, uri, null);
     }
 
@@ -612,14 +615,15 @@ public class Connection {
      * @throws IOException
      * @throws IOException
      */
-    public void loadFile(String filePath, String uri, String[] collections,
-            XDMPPermission[] permissions, boolean resolveEntities, int format)
-            throws XDBCException, IOException {
+    public void loadFile(String filePath, String uri,
+            String[] collections, XDMPPermission[] permissions,
+            boolean resolveEntities, int format) throws XDBCException,
+            IOException {
         logger.finer("loading " + filePath + " as " + uri);
         FileInputStream is = null;
         is = new FileInputStream(filePath);
-        insertDocument(uri, is, collections, permissions, resolveEntities,
-                format);
+        insertDocument(uri, is, collections, permissions,
+                resolveEntities, format);
         is.close();
     }
 
@@ -646,9 +650,10 @@ public class Connection {
                 XDMPDocInsertStream.XDMP_DOC_FORMAT_NONE);
     }
 
-    public void insertDocument(String uri, Reader reader, String[] collections,
-            XDMPPermission[] permissions, boolean resolveEntities, int format)
-            throws XDBCException, IOException {
+    public void insertDocument(String uri, Reader reader,
+            String[] collections, XDMPPermission[] permissions,
+            boolean resolveEntities, int format) throws XDBCException,
+            IOException {
         logger.finer("loading " + reader + " as " + uri);
         XDMPDocInsertStream os = null;
         try {
@@ -659,9 +664,10 @@ public class Connection {
             String namespace = null;
             String[] placeKeys = null;
             String language = null;
-            XDMPDocOptions docOpts = new XDMPDocOptions(Locale.getDefault(),
-                    resolveEntities, permissions, collections, quality,
-                    namespace, repair, placeKeys, format, language);
+            XDMPDocOptions docOpts = new XDMPDocOptions(Locale
+                    .getDefault(), resolveEntities, permissions,
+                    collections, quality, namespace, repair, placeKeys,
+                    format, language);
             os = conn.openDocInsertStream(uri, docOpts);
             Utilities.copy(reader, os);
         } catch (XDBCException e) {
@@ -692,9 +698,10 @@ public class Connection {
             String namespace = null;
             String[] placeKeys = null;
             String language = null;
-            XDMPDocOptions docOpts = new XDMPDocOptions(Locale.getDefault(),
-                    resolveEntities, permissions, collections, quality,
-                    namespace, repair, placeKeys, format, language);
+            XDMPDocOptions docOpts = new XDMPDocOptions(Locale
+                    .getDefault(), resolveEntities, permissions,
+                    collections, quality, namespace, repair, placeKeys,
+                    format, language);
             os = conn.openDocInsertStream(uri, docOpts);
             Utilities.copy(is, os);
         } catch (XDBCException e) {
@@ -791,8 +798,9 @@ public class Connection {
      * @param quality
      * @throws XDBCException
      */
-    public void setDocumentMetaData(String uri, XDMPPermission[] permissions,
-            String[] collections, int quality) throws XDBCException {
+    public void setDocumentMetaData(String uri,
+            XDMPPermission[] permissions, String[] collections,
+            int quality) throws XDBCException {
         // for efficiency, set all the metadata at once
         String query = "define variable $uri as xs:string external\n"
                 + "define variable $collections as xs:string* external\n"
@@ -827,8 +835,9 @@ public class Connection {
                 capabilities[i] = "update";
                 break;
             default:
-                throw new XDBCException("unrecognized permission capability: "
-                        + capability);
+                throw new XDBCException(
+                        "unrecognized permission capability: "
+                                + capability);
             }
         }
         externals.put("roles", roles);
@@ -853,7 +862,8 @@ public class Connection {
      * @return
      * @throws XDBCException
      */
-    public List forestNamesToIds(String[] forestNames) throws XDBCException {
+    public List forestNamesToIds(String[] forestNames)
+            throws XDBCException {
         List<String> list = new ArrayList<String>();
         // whitespace is ok, since forest-names can't contain whitespace
         String query = "define variable forest-names-string as xs:string external\n"

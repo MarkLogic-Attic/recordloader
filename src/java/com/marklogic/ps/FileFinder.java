@@ -213,7 +213,7 @@ public class FileFinder {
     }
 
     public File remove() {
-        return (File) list.remove(0);
+        return list.remove(0);
     }
 
     public int size() {
@@ -247,9 +247,8 @@ public class FileFinder {
     /**
      * @param _root
      * @return
-     * @throws IOException
      */
-    public List listRelativePaths(String _root) throws IOException {
+    public List listRelativePaths(String _root) {
         int rootLength = _root.length();
         int size = list.size();
         List<String> paths = new ArrayList<String>(size);
