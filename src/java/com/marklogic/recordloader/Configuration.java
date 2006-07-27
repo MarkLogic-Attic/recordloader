@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2006 Mark Logic Corporation. All rights reserved.
  */
-package com.marklogic.ps;
+package com.marklogic.recordloader;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +16,10 @@ import java.util.Properties;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
+import com.marklogic.ps.Connection;
+import com.marklogic.ps.RecordLoader;
+import com.marklogic.ps.SimpleLogger;
+import com.marklogic.ps.Utilities;
 import com.marklogic.xdbc.XDBCException;
 import com.marklogic.xdbc.XDBCResultSequence;
 import com.marklogic.xdmp.XDMPDocInsertStream;
@@ -26,7 +30,7 @@ import com.marklogic.xdmp.XDMPPermission;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class RecordLoaderConfiguration {
+public class Configuration {
 
     private static SimpleLogger logger = null;
 
@@ -63,7 +67,7 @@ public class RecordLoaderConfiguration {
     /**
      * 
      */
-    static final String ID_NAME_KEY = "ID_NAME";
+    static public final String ID_NAME_KEY = "ID_NAME";
 
     /**
      * 
@@ -73,28 +77,28 @@ public class RecordLoaderConfiguration {
     /**
      * 
      */
-    static final int DISPLAY_MILLIS = 3000;
+    static public final int DISPLAY_MILLIS = 3000;
 
     /**
      * 
      */
-    static final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
+    static public final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
 
     /**
      * 
      */
-    static final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
+    static public final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
 
     /**
      * 
      */
-    static final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
+    static public final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
             .toString();
 
     /**
      * 
      */
-    static final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
+    static public final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
             .toString();
 
     /**
@@ -116,12 +120,12 @@ public class RecordLoaderConfiguration {
     /**
      * 
      */
-    static final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
+    static public final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
 
     /**
      * 
      */
-    static final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
+    static public final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
 
     /**
      * 
@@ -151,7 +155,7 @@ public class RecordLoaderConfiguration {
     /**
      * 
      */
-    static final int SLEEP_TIME = 500;
+    static public final int SLEEP_TIME = 500;
 
     /**
      * 
@@ -219,7 +223,7 @@ public class RecordLoaderConfiguration {
 
     private String[] connectionStrings;
 
-    private String entityPolicy = RecordLoaderConfiguration.UNRESOLVED_ENTITY_POLICY_DEFAULT;
+    private String entityPolicy = Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT;
 
     private boolean errorExisting = false;
 
@@ -269,16 +273,16 @@ public class RecordLoaderConfiguration {
      * @throws XDBCException
      * 
      */
-    void configure() throws IOException, XDBCException {
+    public void configure() throws IOException, XDBCException {
         logger.configureLogger(props);
 
         idNodeName = props
-                .getProperty(RecordLoaderConfiguration.ID_NAME_KEY);
+                .getProperty(Configuration.ID_NAME_KEY);
         if (idNodeName == null) {
             throw new IOException("missing required property: "
-                    + RecordLoaderConfiguration.ID_NAME_KEY);
+                    + Configuration.ID_NAME_KEY);
         }
-        if (idNodeName.equals(RecordLoaderConfiguration.ID_NAME_AUTO)) {
+        if (idNodeName.equals(Configuration.ID_NAME_AUTO)) {
             logger.info("generating automatic ids");
         }
 
@@ -288,7 +292,7 @@ public class RecordLoaderConfiguration {
         configureCollections();
 
         connectionStrings = props.getProperty(
-                RecordLoaderConfiguration.CONNECTION_STRING_KEY,
+                Configuration.CONNECTION_STRING_KEY,
                 "admin:admin@localhost:9000").split("\\s+");
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
@@ -299,74 +303,74 @@ public class RecordLoaderConfiguration {
 
     private void configureOptions() {
         recordName = props
-                .getProperty(RecordLoaderConfiguration.RECORD_NAME_KEY);
+                .getProperty(Configuration.RECORD_NAME_KEY);
         recordNamespace = props
-                .getProperty(RecordLoaderConfiguration.RECORD_NAMESPACE_KEY);
+                .getProperty(Configuration.RECORD_NAMESPACE_KEY);
         if (recordName != null && recordNamespace == null)
             recordNamespace = "";
 
         ignoreUnknown = Utilities.stringToBoolean(props.getProperty(
-                RecordLoaderConfiguration.IGNORE_UNKNOWN_KEY, "false"));
+                Configuration.IGNORE_UNKNOWN_KEY, "false"));
 
         // use prefix to set document-uri patterns
         uriPrefix = props.getProperty(
-                RecordLoaderConfiguration.OUTPUT_URI_PREFIX_KEY, "");
+                Configuration.OUTPUT_URI_PREFIX_KEY, "");
         if (!uriPrefix.equals("") && !uriPrefix.endsWith("/")) {
             uriPrefix += "/";
         }
         uriSuffix = props.getProperty(
-                RecordLoaderConfiguration.OUTPUT_URI_SUFFIX_KEY, "");
+                Configuration.OUTPUT_URI_SUFFIX_KEY, "");
 
         // look for startId, to skip records
         startId = props
-                .getProperty(RecordLoaderConfiguration.START_ID_KEY);
+                .getProperty(Configuration.START_ID_KEY);
         logger.fine("START_ID=" + startId);
 
         // should we check for existing docs?
         skipExisting = Utilities.stringToBoolean(props.getProperty(
-                RecordLoaderConfiguration.SKIP_EXISTING_KEY, "false"));
+                Configuration.SKIP_EXISTING_KEY, "false"));
         logger.fine("SKIP_EXISTING=" + skipExisting);
 
         // should we throw an error for existing docs?
         errorExisting = Utilities.stringToBoolean(props.getProperty(
-                RecordLoaderConfiguration.ERROR_EXISTING_KEY, "false"));
+                Configuration.ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
-        useAutomaticIds = RecordLoaderConfiguration.ID_NAME_AUTO
+        useAutomaticIds = Configuration.ID_NAME_AUTO
                 .equals(props
-                        .getProperty(RecordLoaderConfiguration.ID_NAME_KEY));
+                        .getProperty(Configuration.ID_NAME_KEY));
         logger.fine("useAutomaticIds=" + useAutomaticIds);
 
         String repairString = props.getProperty(
-                RecordLoaderConfiguration.REPAIR_LEVEL_KEY, "" + "NONE");
+                Configuration.REPAIR_LEVEL_KEY, "" + "NONE");
         if (repairString.equals("FULL")) {
-            logger.fine(RecordLoaderConfiguration.REPAIR_LEVEL_KEY
+            logger.fine(Configuration.REPAIR_LEVEL_KEY
                     + "=FULL");
             repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_FULL;
         }
 
         fatalErrors = Utilities.stringToBoolean(props.getProperty(
-                RecordLoaderConfiguration.FATAL_ERRORS_KEY, "true"));
+                Configuration.FATAL_ERRORS_KEY, "true"));
 
         entityPolicy = props
                 .getProperty(
-                        RecordLoaderConfiguration.UNRESOLVED_ENTITY_POLICY_KEY,
-                        RecordLoaderConfiguration.UNRESOLVED_ENTITY_POLICY_DEFAULT);
+                        Configuration.UNRESOLVED_ENTITY_POLICY_KEY,
+                        Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT);
 
         inputEncoding = props.getProperty(
-                RecordLoaderConfiguration.INPUT_ENCODING_KEY,
+                Configuration.INPUT_ENCODING_KEY,
                 DEFAULT_OUTPUT_ENCODING);
         malformedInputAction = props.getProperty(
-                RecordLoaderConfiguration.INPUT_MALFORMED_ACTION_KEY,
-                RecordLoaderConfiguration.INPUT_MALFORMED_ACTION_DEFAULT);
+                Configuration.INPUT_MALFORMED_ACTION_KEY,
+                Configuration.INPUT_MALFORMED_ACTION_DEFAULT);
         logger.info("using output encoding " + DEFAULT_OUTPUT_ENCODING);
 
         threadCount = Integer.parseInt(props.getProperty(
-                RecordLoaderConfiguration.THREADS_KEY, "1"));
+                Configuration.THREADS_KEY, "1"));
         inputPath = props
-                .getProperty(RecordLoaderConfiguration.INPUT_PATH_KEY);
+                .getProperty(Configuration.INPUT_PATH_KEY);
         inputPattern = props
-                .getProperty(RecordLoaderConfiguration.INPUT_PATTERN_KEY,
+                .getProperty(Configuration.INPUT_PATTERN_KEY,
                         "^.+\\.xml$");
     }
 
@@ -377,7 +381,7 @@ public class RecordLoaderConfiguration {
                 + System.currentTimeMillis());
         logger.info("adding extra collection: " + collections.get(0));
         String collectionsString = props
-                .getProperty(RecordLoaderConfiguration.OUTPUT_COLLECTIONS_KEY);
+                .getProperty(Configuration.OUTPUT_COLLECTIONS_KEY);
         if (collectionsString != null && !collectionsString.equals("")) {
             collections.addAll(Arrays
                     .asList(collectionsString.split("[\\s,]+")));
@@ -560,7 +564,7 @@ public class RecordLoaderConfiguration {
     public XDMPPermission[] getPermissions() {
         XDMPPermission[] permissions = null;
         String readRolesString = props.getProperty(
-                RecordLoaderConfiguration.OUTPUT_READ_ROLES_KEY, "");
+                Configuration.OUTPUT_READ_ROLES_KEY, "");
         if (readRolesString != null && readRolesString.length() > 0) {
             String[] readRoles = readRolesString.trim().split("\\s+");
             if (readRoles != null && readRoles.length > 0) {
@@ -580,7 +584,7 @@ public class RecordLoaderConfiguration {
      */
     public String getOutputNamespace() {
         return props
-                .getProperty(RecordLoaderConfiguration.DEFAULT_NAMESPACE_KEY);
+                .getProperty(Configuration.DEFAULT_NAMESPACE_KEY);
     }
 
     /**
@@ -591,7 +595,7 @@ public class RecordLoaderConfiguration {
         // comma-delimited string, also accept ;:\s
         String[] placeKeys = null;
         String placeKeysString = props
-                .getProperty(RecordLoaderConfiguration.OUTPUT_FORESTS_KEY);
+                .getProperty(Configuration.OUTPUT_FORESTS_KEY);
         if (placeKeysString != null) {
             placeKeysString = placeKeysString.trim();
             if (!placeKeysString.equals("")) {
@@ -615,6 +619,21 @@ public class RecordLoaderConfiguration {
             factory.setNamespaceAware(true);
         }
         return factory;
+    }
+
+    /**
+     * @return
+     */
+    public boolean hasStartId() {
+        return startId != null;
+    }
+
+    /**
+     * @param _id
+     */
+    public void setStartId(String _id) {
+        logger.finest("setting startId = " + _id);
+        startId = _id;
     }
 
 }

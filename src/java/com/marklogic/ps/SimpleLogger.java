@@ -133,8 +133,7 @@ public class SimpleLogger extends Logger implements
          * getParent() appears to fetch the first non-null ancestor, usually
          * root! So we take a cruder approach.
          */
-        // TODO support OS logging (via custom Handler?)
-        //
+
         // don't use the root settings
         setUseParentHandlers(false);
 

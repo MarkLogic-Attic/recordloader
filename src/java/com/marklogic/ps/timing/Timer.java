@@ -176,6 +176,13 @@ public class Timer {
         return start;
     }
 
+    /**
+     * @return
+     */
+    public long getKiloBytes() {
+        return (long) ((double) bytes / BYTES_PER_KILOBYTE);
+    }
+
     public double getKilobytesPerSecond() {
         return ((double) bytes / BYTES_PER_KILOBYTE)
                 / getDurationSeconds();
@@ -202,13 +209,6 @@ public class Timer {
         }
 
         return duration;
-    }
-
-    /**
-     * @return
-     */
-    public long getKiloBytes() {
-        return (long) ((double) bytes / 1024);
     }
 
     /**

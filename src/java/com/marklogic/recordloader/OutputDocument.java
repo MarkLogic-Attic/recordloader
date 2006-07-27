@@ -1,11 +1,13 @@
 /**
  * Copyright (c) 2006 Mark Logic Corporation. All rights reserved.
  */
-package com.marklogic.ps;
+package com.marklogic.recordloader;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
+import com.marklogic.ps.Connection;
+import com.marklogic.ps.SimpleLogger;
 import com.marklogic.xdbc.XDBCException;
 import com.marklogic.xdmp.XDMPDocInsertStream;
 import com.marklogic.xdmp.XDMPDocOptions;
@@ -14,14 +16,14 @@ import com.marklogic.xdmp.XDMPDocOptions;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class RecordLoaderOutputDocument {
+public class OutputDocument {
     private String uri = null;
 
     private StringBuffer prepend = null;
 
     private XDMPDocInsertStream stream = null;
 
-    private String outputEncoding = RecordLoaderConfiguration.DEFAULT_OUTPUT_ENCODING;
+    private String outputEncoding = Configuration.DEFAULT_OUTPUT_ENCODING;
 
     private SimpleLogger logger;
 
@@ -35,15 +37,14 @@ public class RecordLoaderOutputDocument {
      * @throws XDBCException
      * @throws UnsupportedEncodingException
      */
-    public RecordLoaderOutputDocument(SimpleLogger _logger,
+    public OutputDocument(SimpleLogger _logger,
             Connection _conn, String _uri, XDMPDocOptions _opts)
             throws UnsupportedEncodingException, XDBCException,
             IOException {
-        uri = _uri;
         logger = _logger;
 
         // open the docInsertStream for this attribute-id document
-        open(_conn, uri, _opts);
+        open(_conn, _uri, _opts);
     }
 
     /**
@@ -58,6 +59,7 @@ public class RecordLoaderOutputDocument {
             throws XDBCException, UnsupportedEncodingException,
             IOException {
         uri = _uri;
+        logger.finest("uri = \"" + uri + "\"");
         stream = _conn.openDocInsertStream(_uri, _opts);
         if (prepend != null && prepend.length() > 0) {
             write(prepend.toString());
@@ -68,11 +70,12 @@ public class RecordLoaderOutputDocument {
     /**
      * @param _logger
      */
-    public RecordLoaderOutputDocument(SimpleLogger _logger) {
+    public OutputDocument(SimpleLogger _logger) {
         // we don't know the URI yet, so we can't open the stream yet
         // so we'll buffer up the contents until we do...
         // note that we might simply throw this away, too
         logger = _logger;
+        logger.finest("no uri");
         prepend = new StringBuffer();
     }
 
@@ -101,7 +104,7 @@ public class RecordLoaderOutputDocument {
         }
         byte[] bytes = _string.getBytes(outputEncoding);
         stream.write(bytes);
-        bytesWritten = bytes.length;
+        bytesWritten += bytes.length;
     }
 
     public int getBytesWritten() {
@@ -121,6 +124,10 @@ public class RecordLoaderOutputDocument {
      * 
      */
     public void flush() throws IOException {
+        if (stream == null) {
+            return;
+        }
+        
         stream.flush();
     }
 
@@ -129,6 +136,9 @@ public class RecordLoaderOutputDocument {
      * 
      */
     public void commit() throws XDBCException {
+        if (stream == null) {
+            throw new XDBCException("nothing to commit");
+        }
         stream.commit();
     }
 
