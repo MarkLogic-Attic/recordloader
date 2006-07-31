@@ -93,8 +93,8 @@ public class Monitor extends Thread {
         long currentMillis;
 
         // if anything goes wrong, the futuretask knows how to stop us
+        logger.finest("looping every " + sleepMillis);
         while (running && !isInterrupted()) {
-            logger.finest("looping every " + sleepMillis);
             currentMillis = System.currentTimeMillis();
             if (lastUri != null
                     && currentMillis - lastDisplayMillis > displayMillis) {

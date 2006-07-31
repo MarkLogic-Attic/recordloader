@@ -12,8 +12,7 @@ import java.nio.charset.CharsetDecoder;
 
 import org.xmlpull.v1.XmlPullParserException;
 
-import com.marklogic.ps.SimpleLogger;
-import com.marklogic.xdbc.XDBCException;
+import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -29,25 +28,19 @@ public class LoaderFactory {
 
     private long count = 0;
 
-    private SimpleLogger logger;
-
     /**
-     * @param _logger
      * @param _monitor
      * @param _decoder
      * @param _config
      */
-    public LoaderFactory(SimpleLogger _logger, Monitor _monitor,
+    public LoaderFactory(Monitor _monitor,
             CharsetDecoder _decoder, Configuration _config) {
-        logger = _logger;
         monitor = _monitor;
         decoder = _decoder;
         config = _config;
-
-        Loader.setLogger(logger);
     }
 
-    private Loader getLoader() throws XDBCException,
+    private Loader getLoader() throws XccException,
             XmlPullParserException {
         // if multiple connString are available, we round-robin
         int x = (int) (count++ % config.getConnectionStrings().length);
@@ -63,7 +56,7 @@ public class LoaderFactory {
      * @throws XmlPullParserException
      */
     public Loader newLoader(InputStream stream, String _name)
-            throws XDBCException, XmlPullParserException {
+            throws XccException, XmlPullParserException {
         Loader loader = getLoader();
         loader.setInput(new BufferedReader(new InputStreamReader(stream,
                 decoder)));
@@ -80,7 +73,7 @@ public class LoaderFactory {
      * @throws XmlPullParserException
      * @throws FileNotFoundException
      */
-    public Loader newLoader(File file) throws XDBCException,
+    public Loader newLoader(File file) throws XccException,
             XmlPullParserException, FileNotFoundException {
         Loader loader = getLoader();
         loader.setInput(file);

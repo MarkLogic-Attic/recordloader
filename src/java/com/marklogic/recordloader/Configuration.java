@@ -5,10 +5,12 @@ package com.marklogic.recordloader;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -16,21 +18,27 @@ import java.util.Properties;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-import com.marklogic.ps.Connection;
 import com.marklogic.ps.RecordLoader;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
-import com.marklogic.xdbc.XDBCException;
-import com.marklogic.xdbc.XDBCResultSequence;
-import com.marklogic.xdmp.XDMPDocInsertStream;
-import com.marklogic.xdmp.XDMPDocOptions;
-import com.marklogic.xdmp.XDMPPermission;
+import com.marklogic.xcc.ContentPermission;
+import com.marklogic.xcc.ContentSource;
+import com.marklogic.xcc.ContentSourceFactory;
+import com.marklogic.xcc.ContentbaseMetaData;
+import com.marklogic.xcc.DocumentRepairLevel;
+import com.marklogic.xcc.Session;
+import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
 public class Configuration {
+
+    /**
+     * 
+     */
+    private static final String DEFAULT_CONNECTION_STRING = "xcc://admin:admin@localhost:9000/";
 
     private static SimpleLogger logger = null;
 
@@ -221,7 +229,7 @@ public class Configuration {
 
     private String[] baseCollections;
 
-    private String[] connectionStrings;
+    private URI[] uris;
 
     private String entityPolicy = Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT;
 
@@ -247,7 +255,7 @@ public class Configuration {
 
     private String recordNamespace;
 
-    private int repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_NONE;
+    private DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
 
     private boolean skipExisting = false;
 
@@ -261,6 +269,14 @@ public class Configuration {
 
     private boolean useAutomaticIds = false;
 
+    private BigInteger[] placeKeys;
+
+    private Object placeKeysMutex = new Object();
+
+    private Object autoIdMutex = new Object();
+
+    private int autoid = 1;
+
     /**
      * @param _props
      */
@@ -270,14 +286,13 @@ public class Configuration {
 
     /**
      * @throws IOException
-     * @throws XDBCException
+     * @throws URISyntaxException
      * 
      */
-    public void configure() throws IOException, XDBCException {
+    public void configure() throws IOException, URISyntaxException {
         logger.configureLogger(props);
 
-        idNodeName = props
-                .getProperty(Configuration.ID_NAME_KEY);
+        idNodeName = props.getProperty(Configuration.ID_NAME_KEY);
         if (idNodeName == null) {
             throw new IOException("missing required property: "
                     + Configuration.ID_NAME_KEY);
@@ -291,19 +306,19 @@ public class Configuration {
 
         configureCollections();
 
-        connectionStrings = props.getProperty(
+        String[] connectionStrings = props.getProperty(
                 Configuration.CONNECTION_STRING_KEY,
-                "admin:admin@localhost:9000").split("\\s+");
+                DEFAULT_CONNECTION_STRING).split("\\s+");
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
-
-        // some config fields require extensive setup
-        configurePlaceKeys();
+        uris = new URI[connectionStrings.length];
+        for (int i = 0; i < uris.length; i++) {
+            uris[i] = new URI(connectionStrings[i]);
+        }
     }
 
     private void configureOptions() {
-        recordName = props
-                .getProperty(Configuration.RECORD_NAME_KEY);
+        recordName = props.getProperty(Configuration.RECORD_NAME_KEY);
         recordNamespace = props
                 .getProperty(Configuration.RECORD_NAMESPACE_KEY);
         if (recordName != null && recordNamespace == null)
@@ -322,8 +337,7 @@ public class Configuration {
                 Configuration.OUTPUT_URI_SUFFIX_KEY, "");
 
         // look for startId, to skip records
-        startId = props
-                .getProperty(Configuration.START_ID_KEY);
+        startId = props.getProperty(Configuration.START_ID_KEY);
         logger.fine("START_ID=" + startId);
 
         // should we check for existing docs?
@@ -336,30 +350,27 @@ public class Configuration {
                 Configuration.ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
-        useAutomaticIds = Configuration.ID_NAME_AUTO
-                .equals(props
-                        .getProperty(Configuration.ID_NAME_KEY));
+        useAutomaticIds = Configuration.ID_NAME_AUTO.equals(props
+                .getProperty(Configuration.ID_NAME_KEY));
         logger.fine("useAutomaticIds=" + useAutomaticIds);
 
         String repairString = props.getProperty(
                 Configuration.REPAIR_LEVEL_KEY, "" + "NONE");
         if (repairString.equals("FULL")) {
-            logger.fine(Configuration.REPAIR_LEVEL_KEY
-                    + "=FULL");
-            repairLevel = XDMPDocInsertStream.XDMP_ERROR_CORRECTION_FULL;
+            logger.fine(Configuration.REPAIR_LEVEL_KEY + "=FULL");
+            repairLevel = DocumentRepairLevel.FULL;
         }
 
         fatalErrors = Utilities.stringToBoolean(props.getProperty(
                 Configuration.FATAL_ERRORS_KEY, "true"));
 
-        entityPolicy = props
-                .getProperty(
-                        Configuration.UNRESOLVED_ENTITY_POLICY_KEY,
-                        Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT);
+        entityPolicy = props.getProperty(
+                Configuration.UNRESOLVED_ENTITY_POLICY_KEY,
+                Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT);
 
-        inputEncoding = props.getProperty(
-                Configuration.INPUT_ENCODING_KEY,
-                DEFAULT_OUTPUT_ENCODING);
+        inputEncoding = props
+                .getProperty(Configuration.INPUT_ENCODING_KEY,
+                        DEFAULT_OUTPUT_ENCODING);
         malformedInputAction = props.getProperty(
                 Configuration.INPUT_MALFORMED_ACTION_KEY,
                 Configuration.INPUT_MALFORMED_ACTION_DEFAULT);
@@ -367,11 +378,9 @@ public class Configuration {
 
         threadCount = Integer.parseInt(props.getProperty(
                 Configuration.THREADS_KEY, "1"));
-        inputPath = props
-                .getProperty(Configuration.INPUT_PATH_KEY);
-        inputPattern = props
-                .getProperty(Configuration.INPUT_PATTERN_KEY,
-                        "^.+\\.xml$");
+        inputPath = props.getProperty(Configuration.INPUT_PATH_KEY);
+        inputPattern = props.getProperty(Configuration.INPUT_PATTERN_KEY,
+                "^.+\\.xml$");
     }
 
     private void configureCollections() {
@@ -383,41 +392,11 @@ public class Configuration {
         String collectionsString = props
                 .getProperty(Configuration.OUTPUT_COLLECTIONS_KEY);
         if (collectionsString != null && !collectionsString.equals("")) {
-            collections.addAll(Arrays
-                    .asList(collectionsString.split("[\\s,]+")));
+            collections.addAll(Arrays.asList(collectionsString
+                    .split("[\\s,]+")));
         }
         // keep a base list of collections that can be extended later
         baseCollections = collections.toArray(new String[0]);
-    }
-
-    private void configurePlaceKeys() throws XDBCException {
-        // if we use OUTPUT_FORESTS, we have to query for it!
-        String placeKeysString = props.getProperty(OUTPUT_FORESTS_KEY);
-        if (placeKeysString != null && !placeKeysString.equals("")) {
-            logger.info("sending output to forest names: "
-                    + placeKeysString);
-            logger.fine("querying for Forest ids");
-            XDBCResultSequence rs = null;
-            String query = "define variable $forest-string as xs:string external\n"
-                    + "for $fn in tokenize($forest-string, '[,:;\\s]+')\n"
-                    + "return xs:string(xdmp:forest($fn))\n";
-            // failures here are fatal
-            Connection conn = new Connection(connectionStrings[0]);
-
-            Map<String, String> externs = new Hashtable<String, String>(1);
-            externs.put("forest-string", placeKeysString);
-            rs = conn.executeQuery(query, externs);
-            List<String> forestIds = new ArrayList<String>();
-            while (rs.hasNext()) {
-                rs.next();
-                forestIds.add(rs.get_String());
-            }
-            props.setProperty(OUTPUT_FORESTS_KEY, Utilities.join(
-                    forestIds, " "));
-            logger.info("sending output to forests ids: "
-                    + props.getProperty(OUTPUT_FORESTS_KEY));
-        }
-
     }
 
     /**
@@ -454,7 +433,7 @@ public class Configuration {
         return startId;
     }
 
-    public int getRepairLevel() {
+    public DocumentRepairLevel getRepairLevel() {
         return repairLevel;
     }
 
@@ -482,7 +461,7 @@ public class Configuration {
      * @return
      */
     public boolean isFullRepair() {
-        return repairLevel == XDMPDocOptions.XDMP_ERROR_CORRECTION_FULL;
+        return repairLevel == DocumentRepairLevel.FULL;
     }
 
     /**
@@ -543,8 +522,8 @@ public class Configuration {
         return threadCount;
     }
 
-    public String[] getConnectionStrings() {
-        return connectionStrings;
+    public URI[] getConnectionStrings() {
+        return uris;
     }
 
     public String getIdNodeName() {
@@ -561,18 +540,18 @@ public class Configuration {
     /**
      * @return
      */
-    public XDMPPermission[] getPermissions() {
-        XDMPPermission[] permissions = null;
+    public ContentPermission[] getPermissions() {
+        ContentPermission[] permissions = null;
         String readRolesString = props.getProperty(
                 Configuration.OUTPUT_READ_ROLES_KEY, "");
         if (readRolesString != null && readRolesString.length() > 0) {
             String[] readRoles = readRolesString.trim().split("\\s+");
             if (readRoles != null && readRoles.length > 0) {
-                permissions = new XDMPPermission[readRoles.length];
+                permissions = new ContentPermission[readRoles.length];
                 for (int i = 0; i < readRoles.length; i++) {
                     if (readRoles[i] != null && !readRoles[i].equals(""))
-                        permissions[i] = new XDMPPermission(
-                                XDMPPermission.READ, readRoles[i]);
+                        permissions[i] = new ContentPermission(
+                                ContentPermission.READ, readRoles[i]);
                 }
             }
         }
@@ -583,24 +562,41 @@ public class Configuration {
      * @return
      */
     public String getOutputNamespace() {
-        return props
-                .getProperty(Configuration.DEFAULT_NAMESPACE_KEY);
+        return props.getProperty(Configuration.DEFAULT_NAMESPACE_KEY);
     }
 
     /**
      * @return
+     * @throws XccException
      */
-    public String[] getPlaceKeys() {
-        // support placeKeys for Forest placement
-        // comma-delimited string, also accept ;:\s
-        String[] placeKeys = null;
-        String placeKeysString = props
-                .getProperty(Configuration.OUTPUT_FORESTS_KEY);
-        if (placeKeysString != null) {
-            placeKeysString = placeKeysString.trim();
-            if (!placeKeysString.equals("")) {
-                // numeric keys, so whitespace is enough
-                placeKeys = placeKeysString.split("\\s+");
+    public BigInteger[] getPlaceKeys() throws XccException {
+        // lazy initialization
+        if (placeKeys == null) {
+            synchronized (placeKeysMutex) {
+                String forestNames = props
+                        .getProperty(Configuration.OUTPUT_FORESTS_KEY);
+                if (forestNames != null) {
+                    forestNames = forestNames.trim();
+                    if (!forestNames.equals("")) {
+                        logger.info("sending output to forests: "
+                                + forestNames);
+                        logger.fine("querying for Forest ids");
+                        String[] placeNames = forestNames.split("\\s+");
+                        ContentSource cs = ContentSourceFactory
+                                .newContentSource(getConnectionStrings()[0]);
+                        // be sure to use the default db
+                        Session session = cs.newSession();
+                        ContentbaseMetaData meta = session
+                                .getContentbaseMetaData();
+                        Map forestMap = meta.getForestMap();
+                        for (int i = 0; i < placeNames.length; i++) {
+                            placeKeys[i] = (BigInteger) forestMap
+                                    .get(placeNames[i]);
+                            logger.fine("mapping " + placeNames[i]
+                                    + " to " + placeKeys[i]);
+                        }
+                    }
+                }
             }
         }
         return placeKeys;
@@ -608,9 +604,11 @@ public class Configuration {
 
     /**
      * 
-     * @throws XmlPullParserException @return
+     * @throws XmlPullParserException
+     * @return
      */
-    public XmlPullParserFactory getXppFactory() throws XmlPullParserException {
+    public XmlPullParserFactory getXppFactory()
+            throws XmlPullParserException {
         // get a new factory
         if (factory == null) {
             factory = XmlPullParserFactory.newInstance(props
@@ -634,6 +632,15 @@ public class Configuration {
     public void setStartId(String _id) {
         logger.finest("setting startId = " + _id);
         startId = _id;
+    }
+
+    /**
+     * @return
+     */
+    public String getAutoId() {
+        synchronized (autoIdMutex) {
+            return "" + (autoid++);
+        }
     }
 
 }

@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
@@ -45,7 +46,7 @@ import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.Loader;
 import com.marklogic.recordloader.LoaderFactory;
 import com.marklogic.recordloader.Monitor;
-import com.marklogic.xdbc.XDBCException;
+import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
@@ -57,14 +58,15 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-07-27.1";
+    public static final String VERSION = "2006-07-28.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
     public static void main(String[] args) throws FileNotFoundException,
-            IOException, XDBCException, XmlPullParserException {
+            IOException, XccException, XmlPullParserException,
+            URISyntaxException {
         // use system properties as a basis
         // this allows any number of properties at the command-line,
         // using -DPROPNAME=foo
@@ -147,11 +149,15 @@ public class RecordLoader {
         monitor.setConfig(config);
         monitor.start();
 
+        LoaderFactory factory = new LoaderFactory(monitor, inputDecoder,
+                config);
+
         if (zipFiles.size() > 0 || xmlFiles.size() > 0) {
             handleFileInput(config, xmlFiles, zipFiles, inputDecoder,
-                    monitor, pool);
+                    monitor, pool, factory);
         } else {
-            handleStandardInput(config, inputDecoder, monitor, pool);
+            handleStandardInput(config, inputDecoder, monitor, pool,
+                    factory);
         }
 
         pool.shutdown();
@@ -189,11 +195,9 @@ public class RecordLoader {
     private static void handleFileInput(Configuration _config,
             List<File> _xmlFiles, List<File> _zipFiles,
             CharsetDecoder _inputDecoder, Monitor _monitor,
-            ThreadPoolExecutor _pool) throws IOException, ZipException,
-            FileNotFoundException, XDBCException, XmlPullParserException {
-
-        LoaderFactory factory = new LoaderFactory(logger, _monitor,
-                _inputDecoder, _config);
+            ThreadPoolExecutor _pool, LoaderFactory _factory)
+            throws IOException, ZipException, FileNotFoundException,
+            XccException, XmlPullParserException {
         Loader loader;
         Iterator<File> iter;
         File file;
@@ -225,8 +229,8 @@ public class RecordLoader {
                         // skip it
                         continue;
                     }
-                    loader = factory.newLoader(
-                            zipFile.getInputStream(ze), file.getName());
+                    loader = _factory.newLoader(zipFile
+                            .getInputStream(ze), file.getName());
                     submitLoader(_monitor, _pool, loader);
                     count++;
                 }
@@ -240,7 +244,7 @@ public class RecordLoader {
         while (iter.hasNext()) {
             file = iter.next();
             logger.fine("queuing file " + file.getCanonicalPath());
-            loader = factory.newLoader(file);
+            loader = _factory.newLoader(file);
             submitLoader(_monitor, _pool, loader);
         }
 
@@ -250,8 +254,8 @@ public class RecordLoader {
 
     private static void handleStandardInput(Configuration _config,
             CharsetDecoder _inputDecoder, Monitor _monitor,
-            ThreadPoolExecutor _pool) throws XDBCException,
-            XmlPullParserException {
+            ThreadPoolExecutor _pool, LoaderFactory _factory)
+            throws XccException, XmlPullParserException {
         // use stdin by default
         // NOTE: will not use threads
         logger.info("Reading from standard input...");
@@ -260,14 +264,14 @@ public class RecordLoader {
             _pool.setMaximumPoolSize(1);
         }
 
-        LoaderFactory factory = new LoaderFactory(logger, _monitor,
-                _inputDecoder, _config);
-        Loader loader = factory.newLoader(System.in, null);
+        Loader loader = _factory.newLoader(System.in, null);
         submitLoader(_monitor, _pool, loader);
     }
 
+    @SuppressWarnings("unchecked")
     private static Future submitLoader(Monitor _monitor,
             ThreadPoolExecutor pool, Loader loader) {
+        // anyone know how to fix this line, without suppressing warnings?
         Future future = pool.submit(new FutureTask(loader));
         return future;
     }

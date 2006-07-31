@@ -23,58 +23,57 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.net.URI;
 import java.nio.charset.MalformedInputException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
-import com.marklogic.ps.Connection;
 import com.marklogic.ps.SimpleLogger;
-import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
-import com.marklogic.xdbc.XDBCException;
-import com.marklogic.xdbc.XDBCXQueryException;
-import com.marklogic.xdmp.XDMPDocInsertStream;
-import com.marklogic.xdmp.XDMPDocOptions;
+import com.marklogic.xcc.ContentCreateOptions;
+import com.marklogic.xcc.ContentSource;
+import com.marklogic.xcc.ContentSourceFactory;
+import com.marklogic.xcc.DocumentFormat;
+import com.marklogic.xcc.Request;
+import com.marklogic.xcc.ResultItem;
+import com.marklogic.xcc.ResultSequence;
+import com.marklogic.xcc.Session;
+import com.marklogic.xcc.exceptions.RequestException;
+import com.marklogic.xcc.exceptions.XccException;
+import com.marklogic.xcc.types.XSBoolean;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
 public class Loader implements Callable {
-    private static SimpleLogger logger;
+    private SimpleLogger logger;
 
     private XmlPullParser xpp = null;
 
-    private String rootName;
-
-    private String rootNamespace;
-
     // local cache for hot-loop config info
     private String idName;
+
+    private String startId = null;
 
     private String recordName;
 
     private String recordNamespace;
 
-    private String startId = null;
-
     // actual fields
-    private Connection conn;
+    private ContentSource conn;
 
-    private boolean skippingRecord = false;
+    private Session session;
 
     private TimedEvent event;
 
-    private XDMPDocOptions docOpts;
-
-    private OutputDocument current = null;
+    private ContentCreateOptions docOpts;
 
     private String currentFileBasename = null;
 
@@ -86,19 +85,29 @@ public class Loader implements Callable {
 
     private Monitor monitor;
 
+    private OutputStreamContent currentContent;
+
+    private ProducerThread producer;
+
+    private ProducerThreadFactory factory;
+
+    private boolean foundRoot = false;
+
     /**
      * @param _monitor
-     * @param _connectionString
+     * @param _uri
      * @param _config
      * @throws XDBCException
      * @throws XmlPullParserException
      */
-    public Loader(Monitor _monitor, String _connectionString,
-            Configuration _config) throws XDBCException,
-            XmlPullParserException {
+    public Loader(Monitor _monitor, URI _uri, Configuration _config)
+            throws XccException, XmlPullParserException {
         monitor = _monitor;
         config = _config;
-        conn = new Connection(_connectionString);
+        conn = ContentSourceFactory.newContentSource(_uri);
+        session = conn.newSession();
+
+        logger = config.getLogger();
 
         // error if null
         idName = config.getIdNodeName();
@@ -112,15 +121,17 @@ public class Loader implements Callable {
         // only initialize docOpts once
         if (docOpts == null) {
             boolean resolveEntities = false;
-            int format = XDMPDocInsertStream.XDMP_DOC_FORMAT_XML;
+            DocumentFormat format = DocumentFormat.XML;
             int quality = 0;
-            String language = null;
-            docOpts = new XDMPDocOptions(Locale.getDefault(),
-                    resolveEntities, config.getPermissions(), config
-                            .getBaseCollections(), quality, config
-                            .getOutputNamespace(), config
-                            .getRepairLevel(), config.getPlaceKeys(),
-                    format, language);
+            docOpts = new ContentCreateOptions();
+            docOpts.setResolveEntities(resolveEntities);
+            docOpts.setPermissions(config.getPermissions());
+            docOpts.setCollections(config.getBaseCollections());
+            docOpts.setQuality(quality);
+            docOpts.setNamespace(config.getOutputNamespace());
+            docOpts.setRepairLevel(config.getRepairLevel());
+            docOpts.setPlaceKeys(config.getPlaceKeys());
+            docOpts.setFormat(format);
         }
 
         xpp = config.getXppFactory().newPullParser();
@@ -129,6 +140,8 @@ public class Loader implements Callable {
         // TODO feature isn't supported by xpp3 - look at xpp5?
         // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+
+        factory = new ProducerThreadFactory(this, config);
     }
 
     /*
@@ -138,20 +151,19 @@ public class Loader implements Callable {
      */
     public Object call() throws Exception {
         // cache certain info locally
+        startId = config.getStartId();
         recordName = config.getRecordName();
         recordNamespace = config.getRecordNamespace();
-        startId = config.getStartId();
 
         try {
             process();
             return null;
         } catch (Exception e) {
-            if (current != null) {
-                logger.info("current uri: \"" + current.getUri() + "\"");
-                logger.info("current characters: \""
-                        + getCurrentTextCharactersString() + "\"");
-                if (current != null) {
-                    logger.info("current record:\n" + current);
+            if (currentContent != null) {
+                logger.info("current uri: \"" + currentContent.getUri()
+                        + "\"");
+                if (producer != null) {
+                    logger.info("current record:\n" + producer);
                 }
             }
             if (e instanceof MalformedInputException) {
@@ -208,8 +220,7 @@ public class Loader implements Callable {
         logger.info("using fileBasename = " + currentFileBasename);
     }
 
-    public void process() throws XmlPullParserException, IOException,
-            XDBCException {
+    public void process() throws Exception {
         int eventType;
 
         // NOTE: next() skips comments, document-decl, ignorable-whitespace,
@@ -218,6 +229,8 @@ public class Loader implements Callable {
         // nextToken() could also be used for custom entity handling.
         boolean c = true;
         while (c) {
+            // We *only* care about finding records,
+            // then passing them off a new producer
             try {
                 eventType = xpp.next();
                 switch (eventType) {
@@ -225,10 +238,10 @@ public class Loader implements Callable {
                     processStartElement();
                     break;
                 case XmlPullParser.TEXT:
-                    processText();
+                    // text in an unknown element, or otherwise a no-op
                     break;
                 case XmlPullParser.END_TAG:
-                    processEndElement();
+                    // end of an unknown element, or otherwise a no-op
                     break;
                 case XmlPullParser.START_DOCUMENT:
                     break;
@@ -239,32 +252,15 @@ public class Loader implements Callable {
                     throw new XmlPullParserException("UNIMPLEMENTED: "
                             + eventType);
                 }
-            } catch (XmlPullParserException e) {
-                logger.warning(e.getClass().getSimpleName() + " in "
-                        + currentFileBasename + " at "
-                        + xpp.getPositionDescription());
-                // could be a problem entity
-                if (e.getMessage().contains("entity")) {
-                    logger.warning("entity error: " + e.getMessage());
-                    handleUnresolvedEntity();
-                } else if (e.getMessage().contains(
-                        "quotation or apostrophe")
-                        && config.isFullRepair()) {
-                    // messed-up attribute? skip it?
-                    logger.warning("attribute error: " + e.getMessage());
-                    // all we can do is ignore it, apparently
-                } else {
-                    throw e;
-                }
-            } catch (XDBCException e) {
+            } catch (Exception e) {
                 if (!config.isFatalErrors()) {
                     // keep going
                     logger.logException("non-fatal: skipping", e);
 
                     event.stop(true);
-                    monitor.add(current.getUri(), event);
+                    monitor.add(currentContent.getUri(), event);
 
-                    closeCurrentRecord();
+                    // closeCurrentRecord();
                     continue;
                 }
 
@@ -273,145 +269,27 @@ public class Loader implements Callable {
             }
         }
 
-        if (current != null) {
+        if (currentContent != null || producer != null) {
             throw new XmlPullParserException(
                     "end of document before end of current record!\n"
                             + "recordName = " + recordName
                             + ", recordNamespace = " + recordNamespace
                             + " at " + xpp.getPositionDescription()
-                            + "\n" + current.getUri());
+                            + "\n" + currentContent.getUri());
         }
     }
 
-    /**
-     * @throws IOException
-     * @throws XmlPullParserException
-     * @throws XDBCException
-     * 
-     */
-    private void handleUnresolvedEntity() throws XmlPullParserException,
-            IOException, XDBCException {
-        int type;
-        boolean c = true;
-        while (c) {
-            try {
-                type = xpp.nextToken();
-            } catch (XmlPullParserException e) {
-                if (e.getMessage().contains("quotation or apostrophe")
-                        && config.isFullRepair()) {
-                    // messed-up attribute? skip it?
-                    logger.warning("attribute error: " + e.getMessage());
-                    // all we can do is ignore it, apparently
-                    return;
-                }
-                throw e;
-            }
-            logger.fine("type=" + type);
-            switch (type) {
-            case XmlPullParser.TEXT:
-                processText();
-                break;
-            case XmlPullParser.ENTITY_REF:
-                processMalformedEntityRef();
-                break;
-            case XmlPullParser.START_TAG:
-                processStartElement();
-                return;
-            // break;
-            case XmlPullParser.END_TAG:
-                processEndElement();
-                return;
-            // break;
-            case XmlPullParser.COMMENT:
-                // skip comments
-                continue;
-            // return;
-            case XmlPullParser.PROCESSING_INSTRUCTION:
-                // skip PIs
-                continue;
-            // return;
-            // break;
-            case XmlPullParser.START_DOCUMENT:
-                throw new XmlPullParserException(
-                        "Unexpected START_DOCUMENT: " + type);
-            // break;
-            case XmlPullParser.END_DOCUMENT:
-                throw new XmlPullParserException(
-                        "Unexpected END_DOCUMENT: " + type);
-            // break;
-            default:
-                throw new XmlPullParserException("UNIMPLEMENTED: " + type);
-            }
-        }
-    }
-
-    /**
-     * @throws XmlPullParserException
-     * @throws IOException
-     * 
-     */
-    private void processMalformedEntityRef()
-            throws XmlPullParserException, IOException {
-        // handle unresolved entity exceptions
-        if (config.isUnresolvedEntityIgnore()) {
-            return;
-        } else if (config.isUnresolvedEntityReplace()) {
-            String name = getCurrentTextCharactersString();
-            logger.fine("name=" + name);
-            String replacement = Configuration.UNRESOLVED_ENTITY_REPLACEMENT_PREFIX
-                    + name
-                    + Configuration.UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX;
-            current.write(replacement);
-            return;
-        }
-        throw new XmlPullParserException("Unresolved entity error at "
-                + xpp.getPositionDescription());
-    }
-
-    /**
-     * @return
-     */
-    private String getCurrentTextCharactersString() {
-        int[] sl = new int[2];
-        char[] chars = xpp.getTextCharacters(sl);
-        char[] nameChars = new char[sl[1]];
-        System.arraycopy(chars, sl[0], nameChars, 0, sl[1]);
-        return new String(nameChars);
-    }
-
-    private boolean checkStartId(String id) {
-        if (startId == null)
-            return false;
-
-        // we're still scanning for the startid:
-        // is this my cow?
-        if (!startId.equals(id)) {
-            // don't bother to open the stream: skip this record
-            logger.info("skipping record " + (++totalSkipped)
-                    + " with id " + id + " != " + startId);
-            return true;
-        }
-
-        logger.info("found START_ID " + id);
-        startId = null;
-        config.setStartId(null);
-        monitor.resetThreadPool();
-        return false;
-    }
-
-    private void processStartElement() throws IOException,
-            XmlPullParserException, XDBCException {
+    private void processStartElement() throws Exception {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
         logger.finest(name + " in '" + namespace + "'");
 
         // TODO preserve default namespace and prefix declarations
-        if (rootName == null) {
+        if (!foundRoot) {
             // this must be the document root
-            rootName = name;
-            rootNamespace = namespace;
-            logger.fine("found document root: '" + rootName + "' in '"
-                    + rootNamespace + "'");
+            logger.fine("found document root: '" + name + "' in '"
+                    + namespace + "'");
+            foundRoot = true;
             return;
         }
 
@@ -439,127 +317,75 @@ public class Loader implements Callable {
             logger.fine("found record element: '" + recordName + "' in '"
                     + recordNamespace + "'");
             event = new TimedEvent();
-            skippingRecord = false;
 
-            // handle automatic id generation here
-            boolean useAutomaticIds = config.isUseAutomaticIds();
-            if (useAutomaticIds || idName.startsWith("@")) {
-                String id = null;
-                if (useAutomaticIds) {
-                    // automatic ids, starting from 1
-                    // monitor uses a synchronized timer
-                    id = "" + (1 + monitor.getEventCount());
-                    logger.fine("automatic document id " + id);
-                } else {
-                    // if the idName starts with @, it's an attribute
-                    // handle attributes as idName
-                    if (xpp.getAttributeCount() < 1) {
-                        throw new XmlPullParserException(
-                                "found no attributes for recordName = "
-                                        + recordName + ", idName="
-                                        + idName + " at "
-                                        + xpp.getPositionDescription());
+            // hand it off to a new producer thread
+            producer = factory.newProducerThread();
+            producer.setLoaderThread(Thread.currentThread());
+            producer.start();
+            while (producer.isAlive()) {
+                try {
+                    producer.join();
+                } catch (InterruptedException e) {
+                    logger.finer("interrupted");
+                    if (producer.isAlive()) {
+                        String id = producer.getCurrentId();
+                        if (id != null) {
+                            logger.fine("found id " + id);
+                            composeDocOptions(id);
+                            String uri = composeUri(id);
+                            currentContent = new OutputStreamContent(uri,
+                                    docOpts);
+
+                            producer.setOutputStream(currentContent
+                                    .getOutputStream());
+                            // start inserting now, so we don't block
+                            session.insertContent(currentContent);
+                        }
+                    } else {
+                        logger.logException("interrupted", e);
                     }
-                    // try with and without a namespace: first, try without
-                    id = xpp.getAttributeValue("", idName.substring(1));
-                    if (id == null) {
-                        id = xpp.getAttributeValue(recordNamespace,
-                                idName.substring(1));
-                    }
-                    if (id == null) {
-                        throw new XmlPullParserException("null id "
-                                + idName + " at "
-                                + xpp.getPositionDescription());
-                    }
-                    logger.fine("found id " + idName + " = " + id);
                 }
-
-                String uri = composeUri(id);
-                if (checkStartId(id)) {
-                    skippingRecord = true;
-                    return;
-                }
-
-                if (checkExistingUri(uri)) {
-                    skippingRecord = true;
-                    return;
-                }
-
-                composeDocOptions(id);
-                current = new OutputDocument(logger, conn, uri, docOpts);
-            } else {
-                // no known uri, as yet
-                current = new OutputDocument(logger);
             }
-        }
 
-        // allow for repeated idName elements: use the first one we see, for
-        // each recordName
-        String text = xpp.getText();
-        if (current != null && !current.hasUri() && name.equals(idName)) {
-            // pick out the contents and use it for the uri
-            if (xpp.next() != XmlPullParser.TEXT)
+            // check for exceptions
+            Exception e = producer.getException();
+            if (e != null) {
+                throw e;
+            }
+
+            if (producer.getCurrentId() == null) {
                 throw new XmlPullParserException(
-                        "badly formed xml: missing id at "
-                                + xpp.getPositionDescription());
-            String id = xpp.getText();
-            String uri = composeUri(id);
-
-            if (checkStartId(id) || checkExistingUri(uri)) {
-                skippingRecord = true;
-                return;
+                        "producer returned without finding an id");
+            }
+            
+            if (currentContent == null) {
+                throw new IOException("unexpected null currentContent");
             }
 
-            composeDocOptions(id);
-            current.open(conn, uri, docOpts);
+            // finish content insertion
+            session.commit();
 
-            // now we know that we'll use this content and id
-            current.write(text);
-            current.write(id);
+            logger.fine("commit ok for " + currentContent.getUri());
 
-            // advance xpp to the END_ELEMENT - brittle?
-            if (xpp.next() != XmlPullParser.END_TAG) {
-                throw new XmlPullParserException(
-                        "badly formed xml: no END_TAG after id text"
-                                + xpp.getPositionDescription());
-            }
-            text = xpp.getText();
-            logger.finest("END_TAG = " + text);
-            current.write(text);
+            // handle monitor accounting
+            event.increment(producer.getBytesWritten());
+            monitor.add(currentContent.getUri(), event);
+
+            // clean up
+            currentContent.close();
+            producer = null;
+            currentContent = null;
+
             return;
         }
 
-        // if the startId is still defined, and the uri has been found,
-        // we should skip as much of this work as possible
-        // this avoids OutOfMemory errors, too
-        if (startId != null && current != null && current.hasUri()) {
+        // handle unknown element
+        if (config.isIgnoreUnknown()) {
+            logger
+                    .warning("skipping unknown non-record element: "
+                            + name);
             return;
         }
-
-        // ok, we seem to be inside a record
-        // check to make sure!
-        if (current == null) {
-            // silently skip element in a skipped record
-            if (skippingRecord) {
-                return;
-            }
-            if (config.isIgnoreUnknown()) {
-                logger.warning("skipping unknown non-record element: "
-                        + xpp.getName());
-                return;
-            }
-            throw new XmlPullParserException(
-                    "unknown non-record element: " + xpp.getName());
-        }
-
-        // this seems to be the only way to handle empty elements:
-        // write it as a end-element, only.
-        // note that attributes are still ok in this case
-        if (xpp.isEmptyElementTag()) {
-            return;
-        }
-
-        current.write(text);
     }
 
     private void composeDocOptions(String _id) {
@@ -587,19 +413,52 @@ public class Loader implements Callable {
     }
 
     /**
+     * @param _uri
+     * @return
+     */
+    private boolean checkFile(String _uri) throws XccException {
+        // TODO this is a common pattern: should be in a reusable class
+        String query = "define variable $URI as xs:string external\n"
+                + "xdmp:exists(doc($URI))\n";
+        ResultSequence result = null;
+        boolean exists = false;
+        try {
+            Request request = session.newAdhocQuery(query);
+            request.setNewStringVariable("URI", _uri);
+
+            result = session.submitRequest(request);
+
+            if (!result.hasNext()) {
+                throw new RequestException("unexpected null result",
+                        request);
+            }
+
+            ResultItem item = result.next();
+
+            exists = ((XSBoolean) item.getItem()).asPrimitiveBoolean();
+        } finally {
+            if (result != null && !result.isClosed())
+                result.close();
+        }
+        return exists;
+    }
+
+    /**
      * @param uri
      * @return
+     * @throws IOException
      * @throws XDBCException
      */
-    private boolean checkExistingUri(String uri) throws XDBCException {
+    private boolean checkExistingUri(String uri) throws XccException,
+            IOException {
         // return true if we're supposed to check,
         // and if the document already exists
         if (config.isSkipExisting() || config.isErrorExisting()) {
-            boolean exists = conn.checkFile(uri);
+            boolean exists = checkFile(uri);
             logger.fine("checking for uri " + uri + " = " + exists);
             if (exists) {
                 if (config.isErrorExisting()) {
-                    throw new XDBCException(
+                    throw new IOException(
                             "ERROR_EXISTING=true, cannot overwrite existing document: "
                                     + uri);
                 }
@@ -612,14 +471,14 @@ public class Loader implements Callable {
         return false;
     }
 
-    private String composeUri(String id) throws XmlPullParserException {
+    private String composeUri(String id) throws IOException {
         if (id == null) {
-            throw new XmlPullParserException("id may not be null");
+            throw new IOException("id may not be null");
         }
 
         String cleanId = id.trim();
         if (cleanId.length() < 1) {
-            throw new XmlPullParserException("id may not be empty");
+            throw new IOException("id may not be empty");
         }
 
         // automatically use the current file, if available
@@ -629,134 +488,70 @@ public class Loader implements Callable {
                 + cleanId + config.getUriSuffix();
     }
 
-    private void processEndElement() throws IOException,
-            XmlPullParserException, XDBCException {
-        String name = xpp.getName();
-        // ignore if no current element has been set
-        if (current == null) {
-            logger.finest("skipping end element "
-                    + name
-                    + ": no current record");
-            return;
-        }
-
-        String namespace = xpp.getNamespace();
-        // we should never get this far unless recordName has been set
-        if (recordName == null) {
-            throw new XmlPullParserException(
-                    "end of element before recordName was set");
-        }
-
-        // record the element text
-        current.write(xpp.getText());
-
-        if (!(recordName.equals(name) && recordNamespace
-                .equals(namespace))) {
-            // not the end of the record: go look for more nodes
-            return;
-        }
-
-        // end of record: were we skipping?
-        if (skippingRecord) {
-            logger.fine("reached the end of skipped record");
-            // count it anyway
-            monitor.add(null, event);
-            closeCurrentRecord();
-            return;
-        }
-
-        // finish the database document, if appropriate
-        if (startId != null) {
-            if (current != null) {
-                logger.fine("ignoring end of record for "
-                        + current.getUri() + ": START_ID " + startId
-                        + " not yet found");
-            }
-            if (current != null) {
-                current.abort();
-            }
-            closeCurrentRecord();
-            return;
-        }
-        if (current == null || !current.hasUri()) {
-            throw new XmlPullParserException(
-                    "end of record element with no id found: "
-                            + Configuration.ID_NAME_KEY + "=" + idName);
-        }
-        current.flush();
-
-        while (true) {
-            try {
-                current.commit();
-                break;
-            } catch (XDBCXQueryException e) {
-                e.printStackTrace();
-                logger.logException(e.getMessage(), e);
-                if (!e.getRetryable()) {
-                    logger.warning("non-retryable exception!");
-                    throw e;
-                }
-                logger.warning("sleeping before retry");
-                try {
-                    Thread.sleep(500);
-                } catch (InterruptedException e1) {
-                    logger.logException(
-                            "interrupted while sleeping in retry", e1);
-                }
-            }
-        }
-        logger.fine("commit ok for " + current.getUri());
-
-        // done: clean up for the next record
-        event.increment(current.getBytesWritten());
-        monitor.add(current.getUri(), event);
-        closeCurrentRecord();
-    }
-
-    private void closeCurrentRecord() throws IOException {
-        if (current != null) {
-            current.close();
-        }
-        current = null;
-        event = null;
-        skippingRecord = false;
-    }
-
-    private void processText() throws XmlPullParserException, IOException {
-        if (current == null) {
-            return;
-        }
-
-        // if the startId is still defined, and the uri has been found,
-        // we should skip as much of this work as possible
-        // this avoids OutOfMemory too
-        if (startId != null && current.getUri() != null) {
-            return;
-        }
-
-        String text = xpp.getText();
-
-        if (xpp.getEventType() == XmlPullParser.TEXT)
-            text = Utilities.escapeXml(text);
-
-        // logger.finest("processText = " + text);
-        // logger.finest("processText = " + Utilities.dumpHex(text,
-        // inputEncoding));
-        current.write(text);
-    }
-
-    /**
-     * @param _logger
-     */
-    public static void setLogger(SimpleLogger _logger) {
-        logger = _logger;
-    }
+    // private void closeCurrentRecord() throws IOException {
+    // // if (current != null) {
+    // // current.close();
+    // // }
+    // if (currentContent != null) {
+    // currentContent.close();
+    // }
+    // currentContent = null;
+    // // current = null;
+    // event = null;
+    // //skippingRecord = false;
+    // }
 
     /**
      * @param _map
      */
     public void setCollectionMap(Map _map) {
         collectionMap = _map;
+    }
+
+    /**
+     * @return
+     */
+    public XmlPullParser getParser() {
+        return xpp;
+    }
+
+    private boolean checkStartId(String id) {
+        if (startId == null)
+            return false;
+
+        // we're still scanning for the startid:
+        // is this my cow?
+        if (!startId.equals(id)) {
+            // don't bother to open the stream: skip this record
+            logger.info("skipping record " + (++totalSkipped)
+                    + " with id " + id + " != " + startId);
+            return true;
+        }
+
+        logger.info("found START_ID " + id);
+        startId = null;
+        config.setStartId(null);
+        monitor.resetThreadPool();
+        return false;
+    }
+
+    /**
+     * @param id
+     * @return
+     * @throws IOException
+     * @throws XccException
+     */
+    public boolean checkId(String id) throws XccException, IOException {
+        if (checkStartId(id)) {
+            return true;
+        }
+
+        String uri = composeUri(id);
+        if (checkExistingUri(uri)) {
+            return true;
+        }
+
+        return false;
     }
 
 }
