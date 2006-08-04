@@ -103,6 +103,7 @@ public class ProducerThread extends Thread {
      */
     private void handleRecordStart() throws XmlPullParserException,
             XccException, IOException {
+
         // handle automatic id generation here
         boolean useAutomaticIds = config.isUseAutomaticIds();
         if (useAutomaticIds || idName.startsWith("@")) {
@@ -145,7 +146,7 @@ public class ProducerThread extends Thread {
         }
 
         // write the current tag
-        processStartElement();
+        processStartElement(true);
     }
 
     public void process() throws XmlPullParserException, IOException,
@@ -226,10 +227,10 @@ public class ProducerThread extends Thread {
         write(text);
     }
 
-    private void processStartElement() throws IOException,
-            XmlPullParserException, XccException {
+    private void processStartElement(boolean copyNamespaceDeclarations)
+            throws IOException, XmlPullParserException, XccException {
         String name = xpp.getName();
-        // String namespace = xpp.getNamespace();
+        String namespace = xpp.getNamespace();
         String text = xpp.getText();
 
         // allow for repeated idName elements: use the first one we see, for
@@ -280,14 +281,47 @@ public class ProducerThread extends Thread {
         // this seems to be the only way to handle empty elements:
         // write it as a end-element, only.
         // note that attributes are still ok in this case
-        if (xpp.isEmptyElementTag()) {
+        boolean isEmpty = xpp.isEmptyElementTag();
+        if (isEmpty) {
             return;
         }
 
-        write(text);
-    }
+        if (copyNamespaceDeclarations) {
+            // preserve namespace declarations into this element
+            int stop = xpp.getNamespaceCount(xpp.getDepth());
+            if (stop > 0) {
+                StringBuffer decl = null;
+                String nsDeclPrefix, nsDeclUri;
+                logger.finer("checking namespace declarations");
+                for (int i = 0; i < stop; i++) {
+                    if (decl == null) {
+                        decl = new StringBuffer();
+                    } else {
+                        decl.append(" ");
+                    }
+                    nsDeclPrefix = xpp.getNamespacePrefix(i);
+                    nsDeclUri = xpp.getNamespaceUri(i);
+                    logger.finest("found namespace declaration "
+                            + nsDeclPrefix + " = " + nsDeclUri);
+                    decl.append("xmlns"
+                            + (nsDeclPrefix == null ? ""
+                                    : (":" + nsDeclPrefix)) + "=\""
+                            + nsDeclUri + "\"");
+                }
+                // copy the namespace decls to the end of the tag
+                if (decl != null) {
+                    logger.finer("copying namespace declarations");
+                    text = text.replaceFirst(">$", decl.toString()
+                            + (isEmpty ? "/" : "") + ">");
+                }
+            } else {
+                logger.finer("no namespace declarations to copy");
+            }
+        }
 
-    // NOTE: must return false when the record end-element is found
+        write(text);
+    } // NOTE: must return false when the record end-element is found
+
     private boolean processEndElement() throws IOException,
             XmlPullParserException {
         String name = xpp.getName();
@@ -379,7 +413,7 @@ public class ProducerThread extends Thread {
             }
 
             if (stream != null) {
-                //logger.finest("writing to stream " + bytesWritten);
+                // logger.finest("writing to stream " + bytesWritten);
                 byte[] bytes = string.getBytes(outputEncoding);
                 stream.write(bytes);
                 bytesWritten += bytes.length;
@@ -398,7 +432,7 @@ public class ProducerThread extends Thread {
     /**
      * @throws IOException
      * @throws XmlPullParserException
-     * @throws XDBCException
+     * @throws XccException
      * 
      */
     private void handleUnresolvedEntity() throws XmlPullParserException,
@@ -455,6 +489,17 @@ public class ProducerThread extends Thread {
                 throw new XmlPullParserException("UNIMPLEMENTED: " + type);
             }
         }
+    }
+
+    /**
+     * @throws XccException
+     * @throws XmlPullParserException
+     * @throws IOException
+     * 
+     */
+    private void processStartElement() throws IOException,
+            XmlPullParserException, XccException {
+        processStartElement(false);
     }
 
     /**

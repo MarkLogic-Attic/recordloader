@@ -51,7 +51,7 @@ for sample property files.
 <h2>Required libraries:</h2>
 <ul>
   <li/>RecordLoader <a href="../releases/recordloader.jar">recordloader.jar</a>
-  <li/>MarkLogic <a href="http://developer.marklogic.com/">XDBC</a>
+  <li/>MarkLogic <a href="http://developer.marklogic.com/">XCC</a>
   <li/><a href="http://www.extreme.indiana.edu/xgws/xsoap/xpp/">XPP3</a>
   XML Pull-Parser
   (here's a link to the
@@ -68,9 +68,10 @@ for sample property files.
 <table border="1">
 <tr><th>Property</th><th>default value</th><th>notes</th></tr>
 
-<tr><td>CONNECTION_STRING</td><td>admin:admin@localhost:9000</td>
-<td>XDBC username, password, host, and port
-to use for all queries and inserts.</td>
+<tr><td>CONNECTION_STRING</td><td>xcc://admin:admin@localhost:9000/</td>
+<td>XCC URI, including username, password, host, and port,
+to use for all queries and inserts.
+  If desired, a database name may also be supplied.</td>
 </tr>
 
 <tr><td>DEFAULT_NAMESPACE</td><td>null</td>
@@ -84,7 +85,7 @@ to use for all queries and inserts.</td>
 
 <tr><td>FATAL_ERRORS</td><td>true</td>
 <td>If true, RecordLoader will exit with an error
-  upon encountering any non-retryable XDBC error.
+  upon encountering any non-retryable error.
   If set to false, RecordLoader will close the current record
   and continue on to the next.
 </td>

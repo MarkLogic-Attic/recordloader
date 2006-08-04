@@ -97,7 +97,7 @@ public class Loader implements Callable {
      * @param _monitor
      * @param _uri
      * @param _config
-     * @throws XDBCException
+     * @throws XccException
      * @throws XmlPullParserException
      */
     public Loader(Monitor _monitor, URI _uri, Configuration _config)
@@ -284,7 +284,6 @@ public class Loader implements Callable {
         String namespace = xpp.getNamespace();
         logger.finest(name + " in '" + namespace + "'");
 
-        // TODO preserve default namespace and prefix declarations
         if (!foundRoot) {
             // this must be the document root
             logger.fine("found document root: '" + name + "' in '"
@@ -447,7 +446,7 @@ public class Loader implements Callable {
      * @param uri
      * @return
      * @throws IOException
-     * @throws XDBCException
+     * @throws XccException
      */
     private boolean checkExistingUri(String uri) throws XccException,
             IOException {

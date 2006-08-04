@@ -2,8 +2,7 @@
 #
 
 CP=../lib/recordloader.jar
-CP=$CP:$HOME/lib/java/xdbc.jar
-CP=$CP:$HOME/lib/java/xdmp.jar
+CP=$CP:$HOME/lib/java/xcc.jar
 CP=$CP:$HOME/lib/java/xpp3.jar
 
 $JAVA_HOME/bin/java -cp $CP com.marklogic.ps.RecordLoader $*

@@ -52,7 +52,7 @@ public class LoaderFactory {
      * @param stream
      * @param _name
      * @return
-     * @throws XDBCException
+     * @throws XccException
      * @throws XmlPullParserException
      */
     public Loader newLoader(InputStream stream, String _name)
@@ -69,7 +69,7 @@ public class LoaderFactory {
     /**
      * @param file
      * @return
-     * @throws XDBCException
+     * @throws XccException
      * @throws XmlPullParserException
      * @throws FileNotFoundException
      */
