@@ -26,6 +26,7 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
+import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 import com.marklogic.xcc.exceptions.XccException;
 
 /**
@@ -34,7 +35,7 @@ import com.marklogic.xcc.exceptions.XccException;
  */
 public class ProducerThread extends Thread {
 
-    private String outputEncoding = Configuration.DEFAULT_OUTPUT_ENCODING;
+    private String outputEncoding = Configuration.OUTPUT_ENCODING_DEFAULT;
 
     private SimpleLogger logger;
 
@@ -121,12 +122,20 @@ public class ProducerThread extends Thread {
 
         // handle automatic id generation here
         boolean useAutomaticIds = config.isUseAutomaticIds();
-        if (useAutomaticIds || idName.startsWith("@")) {
+        boolean useFileNameIds = config.isUseFileNameIds();
+        if (useAutomaticIds || useFileNameIds || idName.startsWith("@")) {
             if (useAutomaticIds) {
                 // automatic ids, starting from 1
                 // config uses a synchronized sequence of long
                 currentId = config.getAutoId();
                 logger.fine("automatic document id " + currentId);
+            } else if (useFileNameIds) {
+                // the constructor had better have set our id!
+                if (currentId == null) {
+                    throw new UnimplementedFeatureException(
+                            "Cannot use filename ids unless the constructor sets currentId");
+                }
+                logger.fine("using filename id " + currentId);
             } else {
                 // if the idName starts with @, it's an attribute
                 // handle attributes as idName
@@ -157,7 +166,10 @@ public class ProducerThread extends Thread {
                 return;
             }
 
-            loader.notify();
+            logger.finer("notifying loader of currentId = " + currentId);
+            synchronized (loader) {
+                loader.notify();
+            }
         }
 
         // write the current tag
@@ -176,6 +188,7 @@ public class ProducerThread extends Thread {
         while (c) {
             try {
                 eventType = xpp.next();
+                logger.finer("eventType = " + eventType);
                 switch (eventType) {
                 case XmlPullParser.START_TAG:
                     processStartElement();
@@ -245,7 +258,8 @@ public class ProducerThread extends Thread {
     private void processStartElement(boolean copyNamespaceDeclarations)
             throws IOException, XmlPullParserException, XccException {
         String name = xpp.getName();
-        //String namespace = xpp.getNamespace();
+        // String namespace = xpp.getNamespace();
+        logger.finest("name = " + name);
         String text = xpp.getText();
 
         // allow for repeated idName elements: use the first one we see, for
@@ -298,6 +312,7 @@ public class ProducerThread extends Thread {
         // note that attributes are still ok in this case
         boolean isEmpty = xpp.isEmptyElementTag();
         if (isEmpty) {
+            logger.finest("empty element");
             return;
         }
 
@@ -334,6 +349,7 @@ public class ProducerThread extends Thread {
             }
         }
 
+        logger.finer("writing text");
         write(text);
     } // NOTE: must return false when the record end-element is found
 
@@ -341,10 +357,14 @@ public class ProducerThread extends Thread {
             XmlPullParserException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
+        logger.finest("name = " + name);
 
         // record the element text
         write(xpp.getText());
         while (currentId != null && stream == null) {
+            synchronized (loader) {
+                loader.notify();
+            }
             yield();
         }
         if (stream != null) {
@@ -550,6 +570,10 @@ public class ProducerThread extends Thread {
      */
     public void setLoaderThread(Thread thread) {
         loaderThread = thread;
+    }
+
+    public void setCurrentId(String currentId) {
+        this.currentId = currentId;
     }
 
 }

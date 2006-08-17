@@ -53,7 +53,27 @@ public class Configuration {
     /**
      * 
      */
-    private static final String DEFAULT_CONNECTION_STRING = "xcc://admin:admin@localhost:9000/";
+    private static final String OUTPUT_URI_PREFIX_DEFAULT = "";
+
+    /**
+     * 
+     */
+    private static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
+
+    /**
+     * 
+     */
+    private static final String FATAL_ERRORS_DEFAULT = "true";
+
+    /**
+     * 
+     */
+    private static final String INPUT_PATTERN_DEFAULT = "^.+\\.xml$";
+
+    /**
+     * 
+     */
+    private static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
     private static SimpleLogger logger = null;
 
@@ -127,18 +147,20 @@ public class Configuration {
     /**
      * 
      */
-    static final String INPUT_MALFORMED_ACTION_REPORT = CodingErrorAction.REPORT
+    public static final String INPUT_MALFORMED_ACTION_REPORT = CodingErrorAction.REPORT
             .toString();
 
     /**
      * 
      */
-    static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
+    public static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
 
     /**
      * 
      */
-    static final Object ID_NAME_AUTO = "#AUTO";
+    public static final String ID_NAME_AUTO = "#AUTO";
+
+    public static final String ID_NAME_FILENAME = "#FILENAME";
 
     /**
      * 
@@ -238,7 +260,7 @@ public class Configuration {
     /**
      * 
      */
-    static final String DEFAULT_OUTPUT_ENCODING = "UTF-8";
+    static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
 
     private Properties props = new Properties();
 
@@ -246,7 +268,7 @@ public class Configuration {
 
     private URI[] uris;
 
-    private String entityPolicy = Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT;
+    private String entityPolicy = UNRESOLVED_ENTITY_POLICY_DEFAULT;
 
     private boolean errorExisting = false;
 
@@ -278,11 +300,13 @@ public class Configuration {
 
     private int threadCount;
 
-    private String uriPrefix = "";
+    private String uriPrefix = OUTPUT_URI_SUFFIX_DEFAULT;
 
-    private String uriSuffix = "";
+    private String uriSuffix = OUTPUT_URI_SUFFIX_DEFAULT;
 
     private boolean useAutomaticIds = false;
+
+    private boolean useFileNameIds = false;
 
     private BigInteger[] placeKeys;
 
@@ -307,13 +331,10 @@ public class Configuration {
     public void configure() throws IOException, URISyntaxException {
         logger.configureLogger(props);
 
-        idNodeName = props.getProperty(Configuration.ID_NAME_KEY);
+        idNodeName = props.getProperty(ID_NAME_KEY);
         if (idNodeName == null) {
             throw new IOException("missing required property: "
-                    + Configuration.ID_NAME_KEY);
-        }
-        if (idNodeName.equals(Configuration.ID_NAME_AUTO)) {
-            logger.info("generating automatic ids");
+                    + ID_NAME_KEY);
         }
 
         // some or all of these may be null
@@ -322,8 +343,8 @@ public class Configuration {
         configureCollections();
 
         String[] connectionStrings = props.getProperty(
-                Configuration.CONNECTION_STRING_KEY,
-                DEFAULT_CONNECTION_STRING).split("\\s+");
+                CONNECTION_STRING_KEY, CONNECTION_STRING_DEFAULT).split(
+                "\\s+");
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
         uris = new URI[connectionStrings.length];
@@ -333,69 +354,78 @@ public class Configuration {
     }
 
     private void configureOptions() {
-        recordName = props.getProperty(Configuration.RECORD_NAME_KEY);
-        recordNamespace = props
-                .getProperty(Configuration.RECORD_NAMESPACE_KEY);
+        recordName = props.getProperty(RECORD_NAME_KEY);
+        recordNamespace = props.getProperty(RECORD_NAMESPACE_KEY);
         if (recordName != null && recordNamespace == null)
-            recordNamespace = "";
+            recordNamespace = OUTPUT_URI_SUFFIX_DEFAULT;
 
         ignoreUnknown = Utilities.stringToBoolean(props.getProperty(
-                Configuration.IGNORE_UNKNOWN_KEY, "false"));
+                IGNORE_UNKNOWN_KEY, "false"));
 
         // use prefix to set document-uri patterns
-        uriPrefix = props.getProperty(
-                Configuration.OUTPUT_URI_PREFIX_KEY, "");
-        if (!uriPrefix.equals("") && !uriPrefix.endsWith("/")) {
+        uriPrefix = props.getProperty(OUTPUT_URI_PREFIX_KEY,
+                OUTPUT_URI_PREFIX_DEFAULT);
+        if (!uriPrefix.equals(OUTPUT_URI_PREFIX_DEFAULT)
+                && !uriPrefix.endsWith("/")) {
             uriPrefix += "/";
         }
-        uriSuffix = props.getProperty(
-                Configuration.OUTPUT_URI_SUFFIX_KEY, "");
+        logger.fine(OUTPUT_URI_PREFIX_KEY + " = " + uriPrefix);
+
+        uriSuffix = props.getProperty(OUTPUT_URI_SUFFIX_KEY,
+                OUTPUT_URI_SUFFIX_DEFAULT);
+        logger.fine(OUTPUT_URI_SUFFIX_KEY + " = " + uriSuffix);
 
         // look for startId, to skip records
-        startId = props.getProperty(Configuration.START_ID_KEY);
+        startId = props.getProperty(START_ID_KEY);
         logger.fine("START_ID=" + startId);
 
         // should we check for existing docs?
         skipExisting = Utilities.stringToBoolean(props.getProperty(
-                Configuration.SKIP_EXISTING_KEY, "false"));
+                SKIP_EXISTING_KEY, "false"));
         logger.fine("SKIP_EXISTING=" + skipExisting);
 
         // should we throw an error for existing docs?
         errorExisting = Utilities.stringToBoolean(props.getProperty(
-                Configuration.ERROR_EXISTING_KEY, "false"));
+                ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
-        useAutomaticIds = Configuration.ID_NAME_AUTO.equals(props
-                .getProperty(Configuration.ID_NAME_KEY));
-        logger.fine("useAutomaticIds=" + useAutomaticIds);
+        if (idNodeName.equals(ID_NAME_AUTO)) {
+            logger.info("generating automatic ids");
+            useAutomaticIds = true;
+        }
 
-        String repairString = props.getProperty(
-                Configuration.REPAIR_LEVEL_KEY, "" + "NONE");
+        if (idNodeName.equals(ID_NAME_FILENAME)) {
+            logger.info("generating ids from file names");
+            useFileNameIds = true;
+        }
+
+        String repairString = props.getProperty(REPAIR_LEVEL_KEY,
+                OUTPUT_URI_SUFFIX_DEFAULT + "NONE");
         if (repairString.equals("FULL")) {
-            logger.fine(Configuration.REPAIR_LEVEL_KEY + "=FULL");
+            logger.fine(REPAIR_LEVEL_KEY + "=FULL");
             repairLevel = DocumentRepairLevel.FULL;
         }
 
         fatalErrors = Utilities.stringToBoolean(props.getProperty(
-                Configuration.FATAL_ERRORS_KEY, "true"));
+                FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
 
-        entityPolicy = props.getProperty(
-                Configuration.UNRESOLVED_ENTITY_POLICY_KEY,
-                Configuration.UNRESOLVED_ENTITY_POLICY_DEFAULT);
+        entityPolicy = props.getProperty(UNRESOLVED_ENTITY_POLICY_KEY,
+                UNRESOLVED_ENTITY_POLICY_DEFAULT);
 
-        inputEncoding = props
-                .getProperty(Configuration.INPUT_ENCODING_KEY,
-                        DEFAULT_OUTPUT_ENCODING);
+        inputEncoding = props.getProperty(INPUT_ENCODING_KEY,
+                OUTPUT_ENCODING_DEFAULT);
         malformedInputAction = props.getProperty(
-                Configuration.INPUT_MALFORMED_ACTION_KEY,
-                Configuration.INPUT_MALFORMED_ACTION_DEFAULT);
-        logger.info("using output encoding " + DEFAULT_OUTPUT_ENCODING);
+                INPUT_MALFORMED_ACTION_KEY,
+                INPUT_MALFORMED_ACTION_DEFAULT);
+        logger.info("using output encoding " + OUTPUT_ENCODING_DEFAULT);
 
-        threadCount = Integer.parseInt(props.getProperty(
-                Configuration.THREADS_KEY, "1"));
-        inputPath = props.getProperty(Configuration.INPUT_PATH_KEY);
-        inputPattern = props.getProperty(Configuration.INPUT_PATTERN_KEY,
-                "^.+\\.xml$");
+        threadCount = Integer.parseInt(props
+                .getProperty(THREADS_KEY, "1"));
+        inputPath = props.getProperty(INPUT_PATH_KEY);
+        logger.fine(INPUT_PATH_KEY + " = " + inputPath);
+        inputPattern = props.getProperty(INPUT_PATTERN_KEY,
+                INPUT_PATTERN_DEFAULT);
+        logger.fine(INPUT_PATTERN_KEY + " = " + inputPattern);
     }
 
     private void configureCollections() {
@@ -405,8 +435,9 @@ public class Configuration {
                 + System.currentTimeMillis());
         logger.info("adding extra collection: " + collections.get(0));
         String collectionsString = props
-                .getProperty(Configuration.OUTPUT_COLLECTIONS_KEY);
-        if (collectionsString != null && !collectionsString.equals("")) {
+                .getProperty(OUTPUT_COLLECTIONS_KEY);
+        if (collectionsString != null
+                && !collectionsString.equals(OUTPUT_URI_SUFFIX_DEFAULT)) {
             collections.addAll(Arrays.asList(collectionsString
                     .split("[\\s,]+")));
         }
@@ -557,14 +588,16 @@ public class Configuration {
      */
     public ContentPermission[] getPermissions() {
         ContentPermission[] permissions = null;
-        String readRolesString = props.getProperty(
-                Configuration.OUTPUT_READ_ROLES_KEY, "");
+        String readRolesString = props.getProperty(OUTPUT_READ_ROLES_KEY,
+                OUTPUT_URI_SUFFIX_DEFAULT);
         if (readRolesString != null && readRolesString.length() > 0) {
             String[] readRoles = readRolesString.trim().split("\\s+");
             if (readRoles != null && readRoles.length > 0) {
                 permissions = new ContentPermission[readRoles.length];
                 for (int i = 0; i < readRoles.length; i++) {
-                    if (readRoles[i] != null && !readRoles[i].equals(""))
+                    if (readRoles[i] != null
+                            && !readRoles[i]
+                                    .equals(OUTPUT_URI_SUFFIX_DEFAULT))
                         permissions[i] = new ContentPermission(
                                 ContentPermission.READ, readRoles[i]);
                 }
@@ -577,7 +610,7 @@ public class Configuration {
      * @return
      */
     public String getOutputNamespace() {
-        return props.getProperty(Configuration.DEFAULT_NAMESPACE_KEY);
+        return props.getProperty(DEFAULT_NAMESPACE_KEY);
     }
 
     /**
@@ -589,10 +622,10 @@ public class Configuration {
         if (placeKeys == null) {
             synchronized (placeKeysMutex) {
                 String forestNames = props
-                        .getProperty(Configuration.OUTPUT_FORESTS_KEY);
+                        .getProperty(OUTPUT_FORESTS_KEY);
                 if (forestNames != null) {
                     forestNames = forestNames.trim();
-                    if (!forestNames.equals("")) {
+                    if (!forestNames.equals(OUTPUT_URI_SUFFIX_DEFAULT)) {
                         logger.info("sending output to forests: "
                                 + forestNames);
                         logger.fine("querying for Forest ids");
@@ -654,8 +687,12 @@ public class Configuration {
      */
     public String getAutoId() {
         synchronized (autoIdMutex) {
-            return "" + (autoid++);
+            return OUTPUT_URI_SUFFIX_DEFAULT + (autoid++);
         }
+    }
+
+    public boolean isUseFileNameIds() {
+        return useFileNameIds;
     }
 
 }

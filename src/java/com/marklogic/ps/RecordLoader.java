@@ -58,7 +58,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-08-04.1";
+    public static final String VERSION = "2006-08-16.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -271,7 +271,7 @@ public class RecordLoader {
     @SuppressWarnings("unchecked")
     private static Future submitLoader(Monitor _monitor,
             ThreadPoolExecutor pool, Loader loader) {
-        // anyone know how to fix this line, without suppressing warnings?
+        // TODO how to fix this line, without suppressing warnings?
         Future future = pool.submit(new FutureTask(loader));
         return future;
     }

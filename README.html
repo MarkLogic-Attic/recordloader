@@ -97,10 +97,15 @@ to use for all queries and inserts.
 will be used to compose the final document uri.
 Note that namespace is ignored: only the local-name is used.
 <br/>
-The special value ID_NAME=#AUTO will cause RecordLoader
+The special value <code>ID_NAME=#AUTO</code> will cause RecordLoader
 to automatically generate ids, in sequence, for each input record.
 Since RecordLoader automatically includes the base filename
 in each output URI, this is safe.
+<br/>
+The special value <code>ID_NAME=#FILENAME</code> will cause RecordLoader
+to automatically load each input file into
+a single document per input file, using the file's basename
+as the record id.
 <br/>
 Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
 </tr>

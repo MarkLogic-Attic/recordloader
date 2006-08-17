@@ -20,7 +20,6 @@ package com.marklogic.recordloader;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.CharsetDecoder;
@@ -86,10 +85,9 @@ public class LoaderFactory {
      * @return
      * @throws XccException
      * @throws XmlPullParserException
-     * @throws FileNotFoundException
      */
     public Loader newLoader(File file) throws XccException,
-            XmlPullParserException, FileNotFoundException {
+            XmlPullParserException {
         Loader loader = getLoader();
         loader.setInput(file);
         loader.setFileBasename(stripExtension(file.getName()));

@@ -19,7 +19,6 @@
 package com.marklogic.recordloader;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
@@ -45,6 +44,7 @@ import com.marklogic.xcc.ResultItem;
 import com.marklogic.xcc.ResultSequence;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
+import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 import com.marklogic.xcc.exceptions.XccException;
 import com.marklogic.xcc.types.XSBoolean;
 
@@ -92,6 +92,8 @@ public class Loader implements Callable {
     private ProducerThreadFactory factory;
 
     private boolean foundRoot = false;
+
+    private File inputFile;
 
     /**
      * @param _monitor
@@ -155,7 +157,17 @@ public class Loader implements Callable {
         recordName = config.getRecordName();
         recordNamespace = config.getRecordNamespace();
 
+        if (config.isUseFileNameIds()) {
+            // every file is its own root record
+            logger.finer("treating input as a record");
+            foundRoot = true;
+        }
+
         try {
+            if (inputFile != null) {
+                // time to instantiate the reader
+                setInput(new FileReader(inputFile));
+            }
             process();
             return null;
         } catch (Exception e) {
@@ -195,12 +207,10 @@ public class Loader implements Callable {
 
     /**
      * @param _file
-     * @throws XmlPullParserException
-     * @throws FileNotFoundException
      */
-    public void setInput(File _file) throws FileNotFoundException,
-            XmlPullParserException {
-        setInput(new FileReader(_file));
+    public void setInput(File _file) {
+        // defer until we actually need to open it
+        inputFile = _file;
     }
 
     /**
@@ -253,6 +263,9 @@ public class Loader implements Callable {
                             + eventType);
                 }
             } catch (Exception e) {
+                if (currentFileBasename != null) {
+                    logger.info("error in " + currentFileBasename);
+                }
                 if (!config.isFatalErrors()) {
                     // keep going
                     logger.logException("non-fatal: skipping", e);
@@ -260,22 +273,33 @@ public class Loader implements Callable {
                     event.stop(true);
                     monitor.add(currentContent.getUri(), event);
 
-                    // closeCurrentRecord();
+                    if (currentContent != null) {
+                        currentContent.close();
+                    }
+
+                    if (config.isUseFileNameIds()) {
+                        c = false;
+                    }
                     continue;
                 }
 
                 // fatal
+                logger.fine("re-throwing fatal error");
                 throw e;
             }
         }
 
         if (currentContent != null || producer != null) {
-            throw new XmlPullParserException(
+            XmlPullParserException e = new XmlPullParserException(
                     "end of document before end of current record!\n"
                             + "recordName = " + recordName
                             + ", recordNamespace = " + recordNamespace
                             + " at " + xpp.getPositionDescription()
                             + "\n" + currentContent.getUri());
+            if (config.isFatalErrors()) {
+                throw e;
+            }
+            logger.logException("non-fatal", e);
         }
     }
 
@@ -320,29 +344,38 @@ public class Loader implements Callable {
             // hand it off to a new producer thread
             producer = factory.newProducerThread();
             producer.setLoaderThread(Thread.currentThread());
+            if (config.isUseFileNameIds()) {
+                logger.fine("setting currentId = " + currentFileBasename);
+                producer.setCurrentId(currentFileBasename);
+            }
             producer.start();
+
+            while (producer.isAlive() && producer.getCurrentId() == null) {
+                logger.finer("waiting for producer to find its id");
+                wait();
+            }
+            String id = producer.getCurrentId();
+            if (id != null) {
+                logger.fine("found id " + id);
+                composeDocOptions(id);
+                String uri = composeUri(id);
+                currentContent = new OutputStreamContent(uri, docOpts);
+
+                producer
+                        .setOutputStream(currentContent.getOutputStream());
+                // start inserting now, so we don't block
+                session.insertContent(currentContent);
+            } else {
+                throw new UnimplementedFeatureException(
+                        "notify received without currentId");
+            }
+
             while (producer.isAlive()) {
                 try {
+                    logger.finer("joining producer");
                     producer.join();
                 } catch (InterruptedException e) {
-                    logger.finer("interrupted");
-                    if (producer.isAlive()) {
-                        String id = producer.getCurrentId();
-                        if (id != null) {
-                            logger.fine("found id " + id);
-                            composeDocOptions(id);
-                            String uri = composeUri(id);
-                            currentContent = new OutputStreamContent(uri,
-                                    docOpts);
-
-                            producer.setOutputStream(currentContent
-                                    .getOutputStream());
-                            // start inserting now, so we don't block
-                            session.insertContent(currentContent);
-                        }
-                    } else {
-                        logger.logException("interrupted", e);
-                    }
+                    logger.logException("interrupted", e);
                 }
             }
 
@@ -356,7 +389,7 @@ public class Loader implements Callable {
                 throw new XmlPullParserException(
                         "producer returned without finding an id");
             }
-            
+
             if (currentContent == null) {
                 throw new IOException("unexpected null currentContent");
             }
@@ -481,24 +514,18 @@ public class Loader implements Callable {
         }
 
         // automatically use the current file, if available
-        return config.getUriPrefix()
-                + ((currentFileBasename == null || currentFileBasename
-                        .equals("")) ? "" : currentFileBasename + "/")
-                + cleanId + config.getUriSuffix();
+        StringBuffer baseName = new StringBuffer(config.getUriPrefix());
+        baseName.append((currentFileBasename == null
+                || currentFileBasename.equals("") || config
+                .isUseFileNameIds()) ? "" : currentFileBasename);
+        if (baseName != null && !baseName.equals("")
+                && '/' != baseName.charAt(baseName.length() - 1)) {
+            baseName.append("/");
+        }
+        baseName.append(cleanId);
+        baseName.append(config.getUriSuffix());
+        return baseName.toString();
     }
-
-    // private void closeCurrentRecord() throws IOException {
-    // // if (current != null) {
-    // // current.close();
-    // // }
-    // if (currentContent != null) {
-    // currentContent.close();
-    // }
-    // currentContent = null;
-    // // current = null;
-    // event = null;
-    // //skippingRecord = false;
-    // }
 
     /**
      * @param _map
