@@ -262,6 +262,10 @@ public class Configuration {
      */
     static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
 
+    private static final String ZIP_INPUT_PATTERN_KEY = "ZIP_INPUT_PATTERN";
+
+    private static final String ZIP_INPUT_PATTERN_DEFAULT = null;
+
     private Properties props = new Properties();
 
     private String[] baseCollections;
@@ -315,6 +319,8 @@ public class Configuration {
     private Object autoIdMutex = new Object();
 
     private int autoid = 1;
+
+    private String zipInputPattern;
 
     /**
      * @param _props
@@ -426,6 +432,10 @@ public class Configuration {
         inputPattern = props.getProperty(INPUT_PATTERN_KEY,
                 INPUT_PATTERN_DEFAULT);
         logger.fine(INPUT_PATTERN_KEY + " = " + inputPattern);
+
+        zipInputPattern = props.getProperty(ZIP_INPUT_PATTERN_KEY,
+                ZIP_INPUT_PATTERN_DEFAULT);
+        logger.fine(ZIP_INPUT_PATTERN_KEY + " = " + zipInputPattern);
     }
 
     private void configureCollections() {
@@ -693,6 +703,13 @@ public class Configuration {
 
     public boolean isUseFileNameIds() {
         return useFileNameIds;
+    }
+
+    /**
+     * @return
+     */
+    public String getZipInputPattern() {
+        return zipInputPattern;
     }
 
 }

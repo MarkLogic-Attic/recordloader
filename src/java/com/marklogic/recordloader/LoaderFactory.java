@@ -47,8 +47,8 @@ public class LoaderFactory {
      * @param _decoder
      * @param _config
      */
-    public LoaderFactory(Monitor _monitor,
-            CharsetDecoder _decoder, Configuration _config) {
+    public LoaderFactory(Monitor _monitor, CharsetDecoder _decoder,
+            Configuration _config) {
         monitor = _monitor;
         decoder = _decoder;
         config = _config;
@@ -69,7 +69,7 @@ public class LoaderFactory {
      * @throws XccException
      * @throws XmlPullParserException
      */
-    public Loader newLoader(InputStream stream, String _name)
+    public Loader newLoader(InputStream stream, String _name, String _path)
             throws XccException, XmlPullParserException {
         Loader loader = getLoader();
         loader.setInput(new BufferedReader(new InputStreamReader(stream,
@@ -77,6 +77,7 @@ public class LoaderFactory {
         if (_name != null) {
             loader.setFileBasename(stripExtension(_name));
         }
+        loader.setRecordPath(_path);
         return loader;
     }
 
@@ -91,6 +92,7 @@ public class LoaderFactory {
         Loader loader = getLoader();
         loader.setInput(file);
         loader.setFileBasename(stripExtension(file.getName()));
+        loader.setRecordPath(file.getPath());
         return loader;
     }
 
@@ -109,6 +111,17 @@ public class LoaderFactory {
         }
 
         return name.substring(0, i);
+    }
+
+    /**
+     * @param _in
+     * @return
+     * @throws XmlPullParserException
+     * @throws XccException
+     */
+    public Loader newLoader(InputStream _in) throws XccException,
+            XmlPullParserException {
+        return newLoader(_in, null, null);
     }
 
 }

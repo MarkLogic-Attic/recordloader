@@ -95,6 +95,8 @@ public class Loader implements Callable {
 
     private File inputFile;
 
+    private String currentRecordPath;
+
     /**
      * @param _monitor
      * @param _uri
@@ -227,7 +229,7 @@ public class Loader implements Callable {
             newCollections.add(_name);
             docOpts.setCollections(newCollections.toArray(new String[0]));
         }
-        logger.info("using fileBasename = " + currentFileBasename);
+        logger.fine("using fileBasename = " + currentFileBasename);
     }
 
     public void process() throws Exception {
@@ -264,7 +266,10 @@ public class Loader implements Callable {
                 }
             } catch (Exception e) {
                 if (currentFileBasename != null) {
-                    logger.info("error in " + currentFileBasename);
+                    logger.info("error in "
+                            + currentFileBasename
+                            + (currentRecordPath == null ? ""
+                                    : (" at " + currentRecordPath)));
                 }
                 if (!config.isFatalErrors()) {
                     // keep going
@@ -300,6 +305,13 @@ public class Loader implements Callable {
                 throw e;
             }
             logger.logException("non-fatal", e);
+            if (currentContent != null) {
+                currentContent.close();
+            }
+            if (producer != null) {
+                producer.interrupt();
+            }
+            producer = null;
         }
     }
 
@@ -345,8 +357,11 @@ public class Loader implements Callable {
             producer = factory.newProducerThread();
             producer.setLoaderThread(Thread.currentThread());
             if (config.isUseFileNameIds()) {
-                logger.fine("setting currentId = " + currentFileBasename);
-                producer.setCurrentId(currentFileBasename);
+                // this form of URI() does escaping nicely
+                String id = new URI(null, currentRecordPath, null)
+                        .toString();
+                logger.fine("setting currentId = " + id);
+                producer.setCurrentId(id);
             }
             producer.start();
 
@@ -578,6 +593,13 @@ public class Loader implements Callable {
         }
 
         return false;
+    }
+
+    /**
+     * @param _path
+     */
+    public void setRecordPath(String _path) {
+        currentRecordPath = _path;
     }
 
 }

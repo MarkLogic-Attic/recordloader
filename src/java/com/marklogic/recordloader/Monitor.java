@@ -59,9 +59,10 @@ public class Monitor extends Thread {
             logger.fine("starting");
             timer = new Timer();
             monitor();
-            logger.info("loaded " + timer.getEventCount()
+            logger.info("loaded " + timer.getSuccessfulEventCount()
+                    + " of " + timer.getEventCount()
                     + " records ok (" + timer.getProgressMessage(true)
-                    + ")");
+                    + "), with " + timer.getErrorCount() + " error(s)");
         } catch (Exception e) {
             logger.logException("fatal error", e);
         } finally {
@@ -100,8 +101,10 @@ public class Monitor extends Thread {
                     && currentMillis - lastDisplayMillis > displayMillis) {
                 lastDisplayMillis = currentMillis;
                 logger.info("inserted record " + timer.getEventCount()
+                        + " of " + pool.getTaskCount()
                         + " as " + lastUri + " ("
-                        + timer.getProgressMessage() + ")");
+                        + timer.getProgressMessage() + "), with "
+                        + timer.getErrorCount() + " error(s)");
                 logger.fine("thread count: core="
                         + pool.getCorePoolSize() + ", active="
                         + pool.getActiveCount());

@@ -104,6 +104,20 @@ public class Timer {
     /**
      * @return
      */
+    public long getSuccessfulEventCount() {
+        return eventCount - errors;
+    }
+
+    /**
+     * @return
+     */
+    public long getErrorCount() {
+        return errors;
+    }
+
+    /**
+     * @return
+     */
     public long getDuration() {
         if (duration < 0)
             return (System.nanoTime() - start);
@@ -209,13 +223,6 @@ public class Timer {
         }
 
         return duration;
-    }
-
-    /**
-     * @return
-     */
-    public long getErrorCount() {
-        return errors;
     }
 
     /**

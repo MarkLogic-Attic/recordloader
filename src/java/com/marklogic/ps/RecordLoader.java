@@ -58,7 +58,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-08-16.1";
+    public static final String VERSION = "2006-08-17.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -142,6 +142,8 @@ public class RecordLoader {
         }
         ThreadPoolExecutor pool = (ThreadPoolExecutor) Executors
                 .newFixedThreadPool(threadCount);
+        // this seems to avoid intermittent errors on submit?
+        pool.prestartAllCoreThreads();
 
         Monitor monitor = new Monitor();
         monitor.setLogger(logger);
@@ -198,9 +200,13 @@ public class RecordLoader {
             ThreadPoolExecutor _pool, LoaderFactory _factory)
             throws IOException, ZipException, FileNotFoundException,
             XccException, XmlPullParserException {
+        String zipInputPattern = _config.getZipInputPattern();
         Loader loader;
         Iterator<File> iter;
         File file;
+        ZipFile zipFile;
+        ZipEntry ze;
+        String entryName;
 
         logger.info("populating queue");
 
@@ -208,9 +214,7 @@ public class RecordLoader {
         // NOTE this technique will intentionally leak zipfile objects!
         iter = _zipFiles.iterator();
         if (iter.hasNext()) {
-            ZipFile zipFile;
             Enumeration<? extends ZipEntry> entries;
-            ZipEntry ze;
             while (iter.hasNext()) {
                 file = iter.next();
                 zipFile = new ZipFile(file);
@@ -229,8 +233,16 @@ public class RecordLoader {
                         // skip it
                         continue;
                     }
+                    entryName = ze.getName();
+                    if (zipInputPattern != null
+                            && !entryName.matches(zipInputPattern)) {
+                        // skip it
+                        logger.finer("skipping " + entryName);
+                        continue;
+                    }
                     loader = _factory.newLoader(zipFile
-                            .getInputStream(ze), file.getName());
+                            .getInputStream(ze), file.getName(),
+                            entryName);
                     submitLoader(_monitor, _pool, loader);
                     count++;
                 }
@@ -264,7 +276,7 @@ public class RecordLoader {
             _pool.setMaximumPoolSize(1);
         }
 
-        Loader loader = _factory.newLoader(System.in, null);
+        Loader loader = _factory.newLoader(System.in);
         submitLoader(_monitor, _pool, loader);
     }
 
