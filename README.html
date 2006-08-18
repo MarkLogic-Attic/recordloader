@@ -260,5 +260,10 @@ Future enhancements could include a plug-in system,
 allowing the user to substitute an XPP implementation
 that supports document declarations.
 </p>
+<p><code>java.util.concurrent.RejectedExecutionException</code>.
+If you're using RecordLoader with thousands of files or zipfile entries,
+you may need to increase the JVM heap space. Try <code>-Xmx256m</code>
+as one of your command-line JVM arguments.
+</p>
 </body>
 </html>
