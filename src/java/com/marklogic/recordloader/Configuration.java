@@ -647,7 +647,9 @@ public class Configuration {
                         ContentbaseMetaData meta = session
                                 .getContentbaseMetaData();
                         Map forestMap = meta.getForestMap();
+                        placeKeys = new BigInteger[placeNames.length];
                         for (int i = 0; i < placeNames.length; i++) {
+                            logger.finest("looking up " + placeNames[i]);
                             placeKeys[i] = (BigInteger) forestMap
                                     .get(placeNames[i]);
                             logger.fine("mapping " + placeNames[i]

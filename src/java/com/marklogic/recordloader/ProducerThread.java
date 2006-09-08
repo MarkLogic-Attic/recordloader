@@ -359,16 +359,20 @@ public class ProducerThread extends Thread {
         String namespace = xpp.getNamespace();
         logger.finest("name = " + name);
 
-        // record the element text
-        write(xpp.getText());
+        // TODO rewrite to use synch queue?
         while (currentId != null && stream == null) {
             synchronized (loader) {
                 loader.notify();
             }
             yield();
         }
-        if (stream != null) {
-            stream.flush();
+
+        // record the element text
+        if (!skippingRecord) {
+            write(xpp.getText());
+            if (stream != null) {
+                stream.flush();
+            }
         }
 
         if (!(recordName.equals(name) && recordNamespace
@@ -574,6 +578,10 @@ public class ProducerThread extends Thread {
 
     public void setCurrentId(String currentId) {
         this.currentId = currentId;
+    }
+
+    public boolean isSkippingRecord() {
+        return skippingRecord;
     }
 
 }

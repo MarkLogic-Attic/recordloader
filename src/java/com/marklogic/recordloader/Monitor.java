@@ -60,7 +60,6 @@ public class Monitor extends Thread {
             timer = new Timer();
             monitor();
             logger.info("loaded " + timer.getSuccessfulEventCount()
-                    + " of " + timer.getEventCount()
                     + " records ok (" + timer.getProgressMessage(true)
                     + "), with " + timer.getErrorCount() + " error(s)");
         } catch (Exception e) {
@@ -101,7 +100,6 @@ public class Monitor extends Thread {
                     && currentMillis - lastDisplayMillis > displayMillis) {
                 lastDisplayMillis = currentMillis;
                 logger.info("inserted record " + timer.getEventCount()
-                        + " of " + pool.getTaskCount()
                         + " as " + lastUri + " ("
                         + timer.getProgressMessage() + "), with "
                         + timer.getErrorCount() + " error(s)");

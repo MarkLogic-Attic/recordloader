@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
@@ -58,7 +59,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-08-17.1";
+    public static final String VERSION = "2006-09-07.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -140,6 +141,7 @@ public class RecordLoader {
                     + startId + "\" is reached");
             threadCount = 1;
         }
+        logger.info("thread count = " + threadCount);
         ThreadPoolExecutor pool = (ThreadPoolExecutor) Executors
                 .newFixedThreadPool(threadCount);
         // this seems to avoid intermittent errors on submit?
@@ -201,7 +203,6 @@ public class RecordLoader {
             throws IOException, ZipException, FileNotFoundException,
             XccException, XmlPullParserException {
         String zipInputPattern = _config.getZipInputPattern();
-        Loader loader;
         Iterator<File> iter;
         File file;
         ZipFile zipFile;
@@ -240,10 +241,9 @@ public class RecordLoader {
                         logger.finer("skipping " + entryName);
                         continue;
                     }
-                    loader = _factory.newLoader(zipFile
-                            .getInputStream(ze), file.getName(),
-                            entryName);
-                    submitLoader(_monitor, _pool, loader);
+                    submitLoader(_monitor, _pool, _factory.newLoader(
+                            zipFile.getInputStream(ze), file.getName(),
+                            entryName));
                     count++;
                 }
                 logger.fine("queued " + count + " entries from zip file "
@@ -256,8 +256,7 @@ public class RecordLoader {
         while (iter.hasNext()) {
             file = iter.next();
             logger.fine("queuing file " + file.getCanonicalPath());
-            loader = _factory.newLoader(file);
-            submitLoader(_monitor, _pool, loader);
+            submitLoader(_monitor, _pool, _factory.newLoader(file));
         }
 
         // wait for all threads to complete their work
@@ -276,16 +275,37 @@ public class RecordLoader {
             _pool.setMaximumPoolSize(1);
         }
 
-        Loader loader = _factory.newLoader(System.in);
-        submitLoader(_monitor, _pool, loader);
+        submitLoader(_monitor, _pool, _factory.newLoader(System.in));
     }
 
     @SuppressWarnings("unchecked")
     private static Future submitLoader(Monitor _monitor,
-            ThreadPoolExecutor pool, Loader loader) {
+            ThreadPoolExecutor _pool, Loader _loader) {
         // TODO how to fix this line, without suppressing warnings?
-        Future future = pool.submit(new FutureTask(loader));
-        return future;
+        int retries = 0;
+        int maxRetries = 3;
+        while (true) {
+            try {
+                return _pool.submit(new FutureTask(_loader));
+            } catch (RejectedExecutionException e) {
+                logger.info("pool active=" + _pool.getActiveCount()
+                        + ", completed=" + _pool.getCompletedTaskCount()
+                        + ", total=" + _pool.getTaskCount()
+                        + ", pool-threads=" + _pool.getPoolSize()
+                        + ", core-threads=" + _pool.getCorePoolSize());
+                retries++;
+                if (retries < maxRetries) {
+                    logger.logException("retrying " + retries, e);
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e1) {
+                        logger.logException("interrupted", e);
+                    }
+                } else {
+                    throw e;
+                }
+            }
+        }
     }
 
 }

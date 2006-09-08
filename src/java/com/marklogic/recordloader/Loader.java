@@ -365,25 +365,25 @@ public class Loader implements Callable {
             }
             producer.start();
 
-            while (producer.isAlive() && producer.getCurrentId() == null) {
-                logger.finer("waiting for producer to find its id");
-                wait();
-            }
+            // TODO fix this to use SynchronousQueue?
             String id = producer.getCurrentId();
-            if (id != null) {
-                logger.fine("found id " + id);
-                composeDocOptions(id);
-                String uri = composeUri(id);
-                currentContent = new OutputStreamContent(uri, docOpts);
-
-                producer
-                        .setOutputStream(currentContent.getOutputStream());
-                // start inserting now, so we don't block
-                session.insertContent(currentContent);
-            } else {
-                throw new UnimplementedFeatureException(
-                        "notify received without currentId");
+            while (id == null && producer.isAlive()) {
+                logger.finer("waiting for producer to find its id");
+                Thread.sleep(100);
+                id = producer.getCurrentId();
             }
+            if (id == null) {
+                throw new UnimplementedFeatureException(
+                        "producer exited without currentId");
+            }
+            logger.fine("found id " + id);
+            composeDocOptions(id);
+            String uri = composeUri(id);
+            currentContent = new OutputStreamContent(uri, docOpts);
+
+            producer.setOutputStream(currentContent.getOutputStream());
+            // start inserting now, so we don't block
+            session.insertContent(currentContent);
 
             while (producer.isAlive()) {
                 try {
@@ -410,9 +410,13 @@ public class Loader implements Callable {
             }
 
             // finish content insertion
-            session.commit();
-
-            logger.fine("commit ok for " + currentContent.getUri());
+            if (producer.isSkippingRecord()) {
+                session.rollback();
+                logger.fine("skipped " + currentContent.getUri());
+            } else {
+                session.commit();
+                logger.fine("commit ok for " + currentContent.getUri());
+            }
 
             // handle monitor accounting
             event.increment(producer.getBytesWritten());
