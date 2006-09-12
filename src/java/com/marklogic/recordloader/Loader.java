@@ -355,7 +355,6 @@ public class Loader implements Callable {
 
             // hand it off to a new producer thread
             producer = factory.newProducerThread();
-            producer.setLoaderThread(Thread.currentThread());
             if (config.isUseFileNameIds()) {
                 // this form of URI() does escaping nicely
                 String id = new URI(null, currentRecordPath, null)
@@ -382,9 +381,12 @@ public class Loader implements Callable {
             currentContent = new OutputStreamContent(uri, docOpts);
 
             producer.setOutputStream(currentContent.getOutputStream());
-            // start inserting now, so we don't block
-            session.insertContent(currentContent);
 
+            if (! producer.isSkippingRecord()) {
+                // start inserting now, so we don't block
+                session.insertContent(currentContent);
+            }
+            
             while (producer.isAlive()) {
                 try {
                     logger.finer("joining producer");
@@ -514,6 +516,7 @@ public class Loader implements Callable {
                                     + uri);
                 }
                 // ok, must be skipExisting...
+                // count it and log the message
                 logger.info("skipping " + (++totalSkipped)
                         + " existing uri " + uri);
                 return true;
@@ -581,17 +584,17 @@ public class Loader implements Callable {
     }
 
     /**
-     * @param id
+     * @param _id
      * @return
      * @throws IOException
      * @throws XccException
      */
-    public boolean checkId(String id) throws XccException, IOException {
-        if (checkStartId(id)) {
+    public boolean checkId(String _id) throws XccException, IOException {
+        if (checkStartId(_id)) {
             return true;
         }
 
-        String uri = composeUri(id);
+        String uri = composeUri(_id);
         if (checkExistingUri(uri)) {
             return true;
         }

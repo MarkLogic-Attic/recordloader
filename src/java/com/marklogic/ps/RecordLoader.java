@@ -59,11 +59,16 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-09-07.1";
+    public static final String VERSION = "2006-09-12.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
+
+    // 34464 entries max
+    // ref: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4418997
+    // (supposed to be closed, but isn't)
+    private static final int MAX_ENTRIES = 34464;
 
     public static void main(String[] args) throws FileNotFoundException,
             IOException, XccException, XmlPullParserException,
@@ -214,6 +219,7 @@ public class RecordLoader {
         // queue any zip-entries first
         // NOTE this technique will intentionally leak zipfile objects!
         iter = _zipFiles.iterator();
+        int size;
         if (iter.hasNext()) {
             Enumeration<? extends ZipEntry> entries;
             while (iter.hasNext()) {
@@ -224,8 +230,14 @@ public class RecordLoader {
                 // tell the monitor about them, for later cleanup
                 _monitor.add(zipFile);
                 entries = zipFile.entries();
+                size = zipFile.size();
                 logger.fine("queuing entries from zip file "
                         + file.getCanonicalPath());
+                if (size >= MAX_ENTRIES) {
+                    logger.warning("too many entries in input-package: "
+                            + size + " >= " + MAX_ENTRIES + "("
+                            + file.getCanonicalPath() + ")");
+                }
                 int count = 0;
                 while (entries.hasMoreElements()) {
                     ze = entries.nextElement();

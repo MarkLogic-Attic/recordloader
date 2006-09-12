@@ -63,8 +63,6 @@ public class ProducerThread extends Thread {
 
     private String currentId;
 
-    private Thread loaderThread;
-
     private Object outputMutex = new Object();
 
     /**
@@ -121,21 +119,24 @@ public class ProducerThread extends Thread {
             XccException, IOException {
 
         // handle automatic id generation here
+        String newId;
         boolean useAutomaticIds = config.isUseAutomaticIds();
         boolean useFileNameIds = config.isUseFileNameIds();
         if (useAutomaticIds || useFileNameIds || idName.startsWith("@")) {
             if (useAutomaticIds) {
                 // automatic ids, starting from 1
                 // config uses a synchronized sequence of long
-                currentId = config.getAutoId();
-                logger.fine("automatic document id " + currentId);
+                newId = config.getAutoId();
+                logger.fine("automatic document id " + newId);
             } else if (useFileNameIds) {
                 // the constructor had better have set our id!
+                // note that skipping won't work for this case
                 if (currentId == null) {
                     throw new UnimplementedFeatureException(
                             "Cannot use filename ids unless the constructor sets currentId");
                 }
                 logger.fine("using filename id " + currentId);
+                newId = currentId;
             } else {
                 // if the idName starts with @, it's an attribute
                 // handle attributes as idName
@@ -147,28 +148,32 @@ public class ProducerThread extends Thread {
                                     + xpp.getPositionDescription());
                 }
                 // try with and without a namespace: first, try without
-                currentId = xpp
+                newId = xpp
                         .getAttributeValue("", idName.substring(1));
-                if (currentId == null) {
-                    currentId = xpp.getAttributeValue(recordNamespace,
+                if (newId == null) {
+                    newId = xpp.getAttributeValue(recordNamespace,
                             idName.substring(1));
                 }
-                if (currentId == null) {
+                if (newId == null) {
                     throw new XmlPullParserException("null id " + idName
                             + " at " + xpp.getPositionDescription());
                 }
-                logger.fine("found id " + idName + " = " + currentId);
+                logger.fine("found id " + idName + " = " + newId);
             }
 
-            if (loader.checkId(currentId)) {
+            if (loader.checkId(newId)) {
                 // for whatever reason, the loader wants us to skip this id
                 skippingRecord = true;
-                return;
             }
 
+            currentId = newId;
             logger.finer("notifying loader of currentId = " + currentId);
             synchronized (loader) {
                 loader.notify();
+            }
+            
+            if (skippingRecord) {
+                return;
             }
         }
 
@@ -273,16 +278,24 @@ public class ProducerThread extends Thread {
                                 + xpp.getPositionDescription());
             }
 
-            currentId = xpp.getText();
-            logger.fine("found id " + idName + " = " + currentId);
+            String newId = xpp.getText();
+            logger.fine("found id " + idName + " = " + newId);
 
-            if (loader.checkId(currentId)) {
+            if (loader.checkId(newId)) {
                 // for whatever reason, the loader wants us to skip this id
                 skippingRecord = true;
-                return;
             }
 
-            loaderThread.interrupt();
+            // now we can set currentId and signal the loaderThread
+            currentId = newId;
+            logger.finer("notifying loader of currentId = " + currentId);
+            synchronized (loader) {
+                loader.notify();
+            }
+
+            if (skippingRecord) {
+                return;
+            }
 
             // now we know that we'll use this content and id
             write(text);
@@ -351,10 +364,12 @@ public class ProducerThread extends Thread {
 
         logger.finer("writing text");
         write(text);
-    } // NOTE: must return false when the record end-element is found
-
+    } 
+    
     private boolean processEndElement() throws IOException,
             XmlPullParserException {
+        // NOTE: must return false when the record end-element is found
+
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
         logger.finest("name = " + name);
@@ -569,14 +584,11 @@ public class ProducerThread extends Thread {
         }
     }
 
-    /**
-     * @param thread
-     */
-    public void setLoaderThread(Thread thread) {
-        loaderThread = thread;
-    }
-
-    public void setCurrentId(String currentId) {
+    public void setCurrentId(String currentId) throws XccException, IOException {
+        if (loader.checkId(currentId)) {
+            // for whatever reason, the loader wants us to skip this id
+            skippingRecord = true;
+        }
         this.currentId = currentId;
     }
 
