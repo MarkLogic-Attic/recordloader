@@ -342,6 +342,7 @@ public class Configuration {
             throw new IOException("missing required property: "
                     + ID_NAME_KEY);
         }
+        logger.fine(ID_NAME_KEY + " = " + idNodeName);
 
         // some or all of these may be null
         configureOptions();

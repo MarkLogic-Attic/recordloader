@@ -59,16 +59,16 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-09-12.1";
+    public static final String VERSION = "2006-09-18.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
-    // 34464 entries max
-    // ref: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4418997
-    // (supposed to be closed, but isn't)
-    private static final int MAX_ENTRIES = 34464;
+    // number of entries overflows at 2^16 = 65536
+    // ref: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4828461
+    // (supposed to be fixed, but isn't)
+    private static final int MAX_ENTRIES = 65536 - 1;
 
     public static void main(String[] args) throws FileNotFoundException,
             IOException, XccException, XmlPullParserException,

@@ -18,41 +18,37 @@
  */
 package com.marklogic.recordloader;
 
-import org.xmlpull.v1.XmlPullParser;
+import java.io.IOException;
 
-import com.marklogic.ps.SimpleLogger;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class ProducerThreadFactory {
-
-    private Loader loader;
+public class ProducerFactory {
 
     private Configuration config;
-
-    private SimpleLogger logger;
 
     private XmlPullParser xpp;
 
     /**
-     * @param _loader
      * @param _config
+     * @param _xpp 
      */
-    public ProducerThreadFactory(Loader _loader, Configuration _config) {
-        loader = _loader;
+    public ProducerFactory(Configuration _config, XmlPullParser _xpp) {
         config = _config;
-        
-        logger = config.getLogger();
-        xpp = loader.getParser();
+        xpp = _xpp;
     }
 
     /**
      * @return
+     * @throws IOException 
+     * @throws XmlPullParserException 
      */
-    public ProducerThread newProducerThread() {
-        return new ProducerThread(loader, config, logger, xpp);
+    public Producer newProducer() throws XmlPullParserException, IOException {
+        return new Producer(config, xpp);
     }
 
 }

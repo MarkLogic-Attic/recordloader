@@ -35,7 +35,9 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.timing.TimedEvent;
+import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
+import com.marklogic.xcc.ContentFactory;
 import com.marklogic.xcc.ContentSource;
 import com.marklogic.xcc.ContentSourceFactory;
 import com.marklogic.xcc.DocumentFormat;
@@ -85,17 +87,17 @@ public class Loader implements Callable {
 
     private Monitor monitor;
 
-    private OutputStreamContent currentContent;
+    private Producer producer;
 
-    private ProducerThread producer;
-
-    private ProducerThreadFactory factory;
+    private ProducerFactory factory;
 
     private boolean foundRoot = false;
 
     private File inputFile;
 
     private String currentRecordPath;
+
+    private Content currentContent;
 
     /**
      * @param _monitor
@@ -145,7 +147,7 @@ public class Loader implements Callable {
         // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
 
-        factory = new ProducerThreadFactory(this, config);
+        factory = new ProducerFactory(config, xpp);
     }
 
     /*
@@ -236,9 +238,9 @@ public class Loader implements Callable {
         int eventType;
 
         // NOTE: next() skips comments, document-decl, ignorable-whitespace,
-        // processing-instructions automatically.
-        // to catch these, use nextToken() instead.
-        // nextToken() could also be used for custom entity handling.
+        // and processing-instructions automatically.
+        // To catch these, use nextToken() instead.
+        // For custom entity handling, nextToken() could also be used.
         boolean c = true;
         while (c) {
             // We *only* care about finding records,
@@ -308,9 +310,6 @@ public class Loader implements Callable {
             if (currentContent != null) {
                 currentContent.close();
             }
-            if (producer != null) {
-                producer.interrupt();
-            }
             producer = null;
         }
     }
@@ -353,75 +352,39 @@ public class Loader implements Callable {
                     + recordNamespace + "'");
             event = new TimedEvent();
 
-            // hand it off to a new producer thread
-            producer = factory.newProducerThread();
+            // hand off the work to a new producer
+            producer = factory.newProducer();
+            String id = null;
             if (config.isUseFileNameIds()) {
                 // this form of URI() does escaping nicely
-                String id = new URI(null, currentRecordPath, null)
-                        .toString();
+                id = new URI(null, currentRecordPath, null).toString();
                 logger.fine("setting currentId = " + id);
                 producer.setCurrentId(id);
-            }
-            producer.start();
-
-            // TODO fix this to use SynchronousQueue?
-            String id = producer.getCurrentId();
-            while (id == null && producer.isAlive()) {
-                logger.finer("waiting for producer to find its id");
-                Thread.sleep(100);
+            } else {
                 id = producer.getCurrentId();
+                logger.fine("found id " + id);
             }
+
             if (id == null) {
                 throw new UnimplementedFeatureException(
                         "producer exited without currentId");
             }
-            logger.fine("found id " + id);
+            
+            producer.setSkippingRecord(checkId(id));
+            
             composeDocOptions(id);
             String uri = composeUri(id);
-            currentContent = new OutputStreamContent(uri, docOpts);
+            currentContent = ContentFactory.newUnBufferedContent(uri,
+                    producer, docOpts);
 
-            producer.setOutputStream(currentContent.getOutputStream());
-
-            if (! producer.isSkippingRecord()) {
-                // start inserting now, so we don't block
+            if (!producer.isSkippingRecord()) {
+                logger.fine("inserting " + uri);
                 session.insertContent(currentContent);
-            }
-            
-            while (producer.isAlive()) {
-                try {
-                    logger.finer("joining producer");
-                    producer.join();
-                } catch (InterruptedException e) {
-                    logger.logException("interrupted", e);
-                }
-            }
-
-            // check for exceptions
-            Exception e = producer.getException();
-            if (e != null) {
-                throw e;
-            }
-
-            if (producer.getCurrentId() == null) {
-                throw new XmlPullParserException(
-                        "producer returned without finding an id");
-            }
-
-            if (currentContent == null) {
-                throw new IOException("unexpected null currentContent");
-            }
-
-            // finish content insertion
-            if (producer.isSkippingRecord()) {
-                session.rollback();
-                logger.fine("skipped " + currentContent.getUri());
-            } else {
-                session.commit();
-                logger.fine("commit ok for " + currentContent.getUri());
             }
 
             // handle monitor accounting
-            event.increment(producer.getBytesWritten());
+            // note that we count skipped records, too
+            event.increment(producer.getBytesRead());
             monitor.add(currentContent.getUri(), event);
 
             // clean up
@@ -536,11 +499,12 @@ public class Loader implements Callable {
         }
 
         // automatically use the current file, if available
+        // note that config.getUriPrefix() will ensure that the uri ends in '/'
         StringBuffer baseName = new StringBuffer(config.getUriPrefix());
         baseName.append((currentFileBasename == null
                 || currentFileBasename.equals("") || config
                 .isUseFileNameIds()) ? "" : currentFileBasename);
-        if (baseName != null && !baseName.equals("")
+        if (baseName != null && baseName.length() > 0
                 && '/' != baseName.charAt(baseName.length() - 1)) {
             baseName.append("/");
         }
@@ -564,8 +528,9 @@ public class Loader implements Callable {
     }
 
     private boolean checkStartId(String id) {
-        if (startId == null)
+        if (startId == null) {
             return false;
+        }
 
         // we're still scanning for the startid:
         // is this my cow?
@@ -590,16 +555,7 @@ public class Loader implements Callable {
      * @throws XccException
      */
     public boolean checkId(String _id) throws XccException, IOException {
-        if (checkStartId(_id)) {
-            return true;
-        }
-
-        String uri = composeUri(_id);
-        if (checkExistingUri(uri)) {
-            return true;
-        }
-
-        return false;
+        return checkStartId(_id) && checkExistingUri(composeUri(_id));
     }
 
     /**

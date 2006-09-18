@@ -19,7 +19,7 @@
 package com.marklogic.recordloader;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.InputStream;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -27,13 +27,12 @@ import org.xmlpull.v1.XmlPullParserException;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
 import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
-import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class ProducerThread extends Thread {
+public class Producer extends InputStream {
 
     private String outputEncoding = Configuration.OUTPUT_ENCODING_DEFAULT;
 
@@ -41,15 +40,13 @@ public class ProducerThread extends Thread {
 
     private XmlPullParser xpp;
 
-    private OutputStream stream;
-
     private String recordName;
 
     private String recordNamespace;
 
-    private StringBuffer prepend;
+    private StringBuffer buffer;
 
-    private Loader loader;
+    private byte[] byteBuffer;
 
     private Configuration config;
 
@@ -57,66 +54,41 @@ public class ProducerThread extends Thread {
 
     private boolean skippingRecord = false;
 
-    private Exception lastException;
-
-    private long bytesWritten = 0;
+    private long bytesRead = 0;
 
     private String currentId;
 
-    private Object outputMutex = new Object();
+    private int byteIndex = 0;
+
+    private boolean keepGoing = true;
 
     /**
-     * @param _loader
      * @param _config
-     * @param _logger
      * @param _xpp
+     * @throws XmlPullParserException
+     * @throws IOException
      */
-    public ProducerThread(Loader _loader, Configuration _config,
-            SimpleLogger _logger, XmlPullParser _xpp) {
-        loader = _loader;
+    public Producer(Configuration _config, XmlPullParser _xpp)
+            throws XmlPullParserException, IOException {
         config = _config;
-        logger = _logger;
         xpp = _xpp;
 
+        idName = config.getIdNodeName();
         recordNamespace = config.getRecordNamespace();
         recordName = config.getRecordName();
+
+        logger = _config.getLogger();
         logger.fine("recordName=" + recordName);
 
-        prepend = new StringBuffer();
-    }
-
-    public void run() {
-        try {
-            // by definition, we are at the start of an element:
-            // keep processing until we reach its end.
-            idName = config.getIdNodeName();
-            handleRecordStart();
-            process();
-            if (currentId == null) {
-                throw new XmlPullParserException("no id found");
-            }
-            if (stream != null) {
-                logger.fine("cleaning up");
-                stream.flush();
-                stream.close();
-            }
-        } catch (Exception e) {
-            logger.logException("caught exception", e);
-            lastException = e;
-        }
-        logger.fine("exiting");
-        // loader.notify();
-        return;
+        // by definition, we are at the start of an element
+        processStartElement();
     }
 
     /**
      * @throws XmlPullParserException
-     * @throws IOException
-     * @throws XccException
      * 
      */
-    private void handleRecordStart() throws XmlPullParserException,
-            XccException, IOException {
+    private void handleRecordStart() throws XmlPullParserException {
 
         // handle automatic id generation here
         String newId;
@@ -148,11 +120,10 @@ public class ProducerThread extends Thread {
                                     + xpp.getPositionDescription());
                 }
                 // try with and without a namespace: first, try without
-                newId = xpp
-                        .getAttributeValue("", idName.substring(1));
+                newId = xpp.getAttributeValue("", idName.substring(1));
                 if (newId == null) {
-                    newId = xpp.getAttributeValue(recordNamespace,
-                            idName.substring(1));
+                    newId = xpp.getAttributeValue(recordNamespace, idName
+                            .substring(1));
                 }
                 if (newId == null) {
                     throw new XmlPullParserException("null id " + idName
@@ -161,89 +132,11 @@ public class ProducerThread extends Thread {
                 logger.fine("found id " + idName + " = " + newId);
             }
 
-            if (loader.checkId(newId)) {
-                // for whatever reason, the loader wants us to skip this id
-                skippingRecord = true;
-            }
-
-            currentId = newId;
-            logger.finer("notifying loader of currentId = " + currentId);
-            synchronized (loader) {
-                loader.notify();
-            }
-            
-            if (skippingRecord) {
-                return;
-            }
+            setCurrentId(newId);
         }
-
-        // write the current tag
-        processStartElement(true);
     }
 
-    public void process() throws XmlPullParserException, IOException,
-            XccException {
-        int eventType;
-
-        // NOTE: next() skips comments, document-decl, ignorable-whitespace,
-        // processing-instructions automatically.
-        // to catch these, use nextToken() instead.
-        // nextToken() could also be used for custom entity handling.
-        boolean c = true;
-        while (c) {
-            try {
-                eventType = xpp.next();
-                logger.finer("eventType = " + eventType);
-                switch (eventType) {
-                case XmlPullParser.START_TAG:
-                    processStartElement();
-                    break;
-                case XmlPullParser.TEXT:
-                    processText();
-                    break;
-                case XmlPullParser.END_TAG:
-                    c = processEndElement();
-                    break;
-                case XmlPullParser.START_DOCUMENT:
-                    throw new XmlPullParserException(
-                            "unexpected start of document within record!\n"
-                                    + "recordName = " + recordName
-                                    + ", recordNamespace = "
-                                    + recordNamespace + " at "
-                                    + xpp.getPositionDescription());
-                case XmlPullParser.END_DOCUMENT:
-                    throw new XmlPullParserException(
-                            "end of document before end of current record!\n"
-                                    + "recordName = " + recordName
-                                    + ", recordNamespace = "
-                                    + recordNamespace + " at "
-                                    + xpp.getPositionDescription());
-                default:
-                    throw new XmlPullParserException("UNIMPLEMENTED: "
-                            + eventType);
-                }
-            } catch (XmlPullParserException e) {
-                logger.warning(e.getClass().getSimpleName() + " at "
-                        + xpp.getPositionDescription());
-                // could be a problem entity
-                if (e.getMessage().contains("entity")) {
-                    logger.warning("entity error: " + e.getMessage());
-                    handleUnresolvedEntity();
-                } else if (e.getMessage().contains(
-                        "quotation or apostrophe")
-                        && config.isFullRepair()) {
-                    // messed-up attribute? skip it?
-                    logger.warning("attribute error: " + e.getMessage());
-                    // all we can do is ignore it, apparently
-                } else {
-                    throw e;
-                }
-            }
-        }
-
-    }
-
-    private void processText() throws XmlPullParserException, IOException {
+    private void processText() throws XmlPullParserException {
         // if the startId is still defined, and the uri has been found,
         // we should skip as much of this work as possible
         // this avoids OutOfMemory too
@@ -261,11 +154,15 @@ public class ProducerThread extends Thread {
     }
 
     private void processStartElement(boolean copyNamespaceDeclarations)
-            throws IOException, XmlPullParserException, XccException {
+            throws IOException, XmlPullParserException {
         String name = xpp.getName();
-        // String namespace = xpp.getNamespace();
+        String namespace = xpp.getNamespace();
         logger.finest("name = " + name);
         String text = xpp.getText();
+
+        if (name.equals(recordName) && namespace.equals(recordNamespace)) {
+            handleRecordStart();
+        }
 
         // allow for repeated idName elements: use the first one we see, for
         // each recordName
@@ -281,21 +178,8 @@ public class ProducerThread extends Thread {
             String newId = xpp.getText();
             logger.fine("found id " + idName + " = " + newId);
 
-            if (loader.checkId(newId)) {
-                // for whatever reason, the loader wants us to skip this id
-                skippingRecord = true;
-            }
-
-            // now we can set currentId and signal the loaderThread
-            currentId = newId;
-            logger.finer("notifying loader of currentId = " + currentId);
-            synchronized (loader) {
-                loader.notify();
-            }
-
-            if (skippingRecord) {
-                return;
-            }
+            // now we can set currentId
+            setCurrentId(newId);
 
             // now we know that we'll use this content and id
             write(text);
@@ -317,6 +201,7 @@ public class ProducerThread extends Thread {
         // we should skip as much of this work as possible
         // this avoids OutOfMemory errors, too
         if (skippingRecord) {
+            logger.finest("skipping record");
             return;
         }
 
@@ -364,30 +249,19 @@ public class ProducerThread extends Thread {
 
         logger.finer("writing text");
         write(text);
-    } 
-    
-    private boolean processEndElement() throws IOException,
-            XmlPullParserException {
+        return;
+    }
+
+    private boolean processEndElement() throws XmlPullParserException {
         // NOTE: must return false when the record end-element is found
 
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
         logger.finest("name = " + name);
 
-        // TODO rewrite to use synch queue?
-        while (currentId != null && stream == null) {
-            synchronized (loader) {
-                loader.notify();
-            }
-            yield();
-        }
-
         // record the element text
         if (!skippingRecord) {
             write(xpp.getText());
-            if (stream != null) {
-                stream.flush();
-            }
         }
 
         if (!(recordName.equals(name) && recordNamespace
@@ -417,13 +291,6 @@ public class ProducerThread extends Thread {
     /**
      * @return
      */
-    public Exception getException() {
-        return lastException;
-    }
-
-    /**
-     * @return
-     */
     private String getCurrentTextCharactersString() {
         int[] sl = new int[2];
         char[] chars = xpp.getTextCharacters(sl);
@@ -434,11 +301,10 @@ public class ProducerThread extends Thread {
 
     /**
      * @throws XmlPullParserException
-     * @throws IOException
      * 
      */
     private void processMalformedEntityRef()
-            throws XmlPullParserException, IOException {
+            throws XmlPullParserException {
         // handle unresolved entity exceptions
         if (config.isUnresolvedEntityIgnore()) {
             return;
@@ -457,40 +323,26 @@ public class ProducerThread extends Thread {
 
     /**
      * @param string
-     * @throws IOException
      */
-    private void write(String string) throws IOException {
-        synchronized (outputMutex) {
-            if (stream != null && prepend != null) {
-                throw new IOException(
-                        "prepend and stream are both active");
-            }
-
-            if (stream != null) {
-                // logger.finest("writing to stream " + bytesWritten);
-                byte[] bytes = string.getBytes(outputEncoding);
-                stream.write(bytes);
-                bytesWritten += bytes.length;
-                return;
-            }
-
-            if (prepend != null) {
-                prepend.append(string);
-                return;
-            }
+    private void write(String string) {
+        if (skippingRecord) {
+            return;
         }
 
-        throw new IOException("prepend and stream are both null");
+        if (buffer == null) {
+            buffer = new StringBuffer();
+        }
+
+        buffer.append(string);
     }
 
     /**
      * @throws IOException
      * @throws XmlPullParserException
-     * @throws XccException
      * 
      */
-    private void handleUnresolvedEntity() throws XmlPullParserException,
-            IOException, XccException {
+    private boolean handleUnresolvedEntity()
+            throws XmlPullParserException, IOException {
         int type;
         boolean c = true;
         while (c) {
@@ -502,7 +354,7 @@ public class ProducerThread extends Thread {
                     // messed-up attribute? skip it?
                     logger.warning("attribute error: " + e.getMessage());
                     // all we can do is ignore it, apparently
-                    return;
+                    return true;
                 }
                 throw e;
             }
@@ -516,11 +368,11 @@ public class ProducerThread extends Thread {
                 break;
             case XmlPullParser.START_TAG:
                 processStartElement();
-                return;
+                return true;
             // break;
             case XmlPullParser.END_TAG:
                 processEndElement();
-                return;
+                return true;
             // break;
             case XmlPullParser.COMMENT:
                 // skip comments
@@ -543,57 +395,189 @@ public class ProducerThread extends Thread {
                 throw new XmlPullParserException("UNIMPLEMENTED: " + type);
             }
         }
+        return true;
     }
 
     /**
-     * @throws XccException
      * @throws XmlPullParserException
      * @throws IOException
      * 
      */
     private void processStartElement() throws IOException,
-            XmlPullParserException, XccException {
+            XmlPullParserException {
         processStartElement(false);
     }
 
     /**
      * @return
      */
-    public long getBytesWritten() {
-        return bytesWritten;
+    public long getBytesRead() {
+        return bytesRead;
     }
 
-    public String getCurrentId() {
+    public String getCurrentId() throws XmlPullParserException,
+            IOException {
+        if (currentId == null) {
+            logger.finer("parsing for id");
+            while (keepGoing && currentId == null) {
+                processNext();
+            }
+        }
+
+        logger.fine(currentId);
         return currentId;
     }
 
-    /**
-     * @param outputStream
-     * @throws IOException
-     */
-    public void setOutputStream(OutputStream outputStream)
-            throws IOException {
-        synchronized (outputMutex) {
-            stream = outputStream;
-            // handle any prepend
-            if (prepend != null) {
-                String prependString = prepend.toString();
-                prepend = null;
-                write(prependString);
-            }
-        }
-    }
-
-    public void setCurrentId(String currentId) throws XccException, IOException {
-        if (loader.checkId(currentId)) {
-            // for whatever reason, the loader wants us to skip this id
-            skippingRecord = true;
-        }
-        this.currentId = currentId;
+    public void setCurrentId(String _id) {
+        currentId = _id;
     }
 
     public boolean isSkippingRecord() {
         return skippingRecord;
+    }
+    
+    private int prepareByteBuffer() throws IOException {
+        // do we have something ready to read?
+        if (byteBuffer != null) {
+            if (byteIndex >= byteBuffer.length) {
+                byteBuffer = null;
+                buffer = null;
+            }
+        }
+
+        if (buffer == null) {
+            byteBuffer = null;
+            // must wrap any non-IOException in an IOException
+            try {
+                if (keepGoing) {
+                    processNext();
+                }
+            } catch (XmlPullParserException e) {
+                IOException ioe = new IOException();
+                ioe.initCause(e);
+                throw ioe;
+            }
+        }
+
+        if (buffer == null || buffer.length() < 1) {
+            // indicate EOF
+            return -1;
+        }
+
+        if (byteBuffer == null) {
+            byteBuffer = buffer.toString().getBytes(outputEncoding);
+            byteIndex = 0;
+        }
+        
+        return byteBuffer.length - byteIndex;
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see java.io.InputStream#read()
+     */
+    @Override
+    public int read() throws IOException {
+        // read and return the next byte
+        int available = prepareByteBuffer();
+        
+        if (available < 0) {
+            return available;
+        }
+
+        bytesRead++;
+        return byteBuffer[byteIndex++];
+    }
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        int available = prepareByteBuffer();
+        
+        if (available < 0) {
+            return available;
+        }
+
+        // copy byte buffer into target buffer
+        int copyLen = Math.min (available, len);
+        System.arraycopy(byteBuffer, off, b, off, copyLen);
+        byteIndex += copyLen;
+        bytesRead += copyLen;
+        
+        return copyLen;
+    }
+
+    /**
+     * @return
+     * @throws XmlPullParserException
+     * @throws IOException
+     * 
+     */
+    private void processNext() throws XmlPullParserException, IOException {
+        if (!keepGoing) {
+            return;
+        }
+
+        int eventType;
+        try {
+            // NOTE: next() skips comments, document-decl, ignorable-whitespace,
+            // processing-instructions automatically.
+            // to catch these, use nextToken() instead.
+            // nextToken() could also be used for custom entity handling.
+            eventType = xpp.next();
+            logger.finer("eventType = " + eventType);
+            switch (eventType) {
+            case XmlPullParser.START_TAG:
+                processStartElement();
+                break;
+            case XmlPullParser.TEXT:
+                processText();
+                break;
+            case XmlPullParser.END_TAG:
+                keepGoing = processEndElement();
+                break;
+            case XmlPullParser.START_DOCUMENT:
+                throw new XmlPullParserException(
+                        "unexpected start of document within record!\n"
+                                + "recordName = " + recordName
+                                + ", recordNamespace = "
+                                + recordNamespace + " at "
+                                + xpp.getPositionDescription());
+            case XmlPullParser.END_DOCUMENT:
+                throw new XmlPullParserException(
+                        "end of document before end of current record!\n"
+                                + "recordName = " + recordName
+                                + ", recordNamespace = "
+                                + recordNamespace + " at "
+                                + xpp.getPositionDescription());
+            default:
+                throw new XmlPullParserException("UNIMPLEMENTED: "
+                        + eventType);
+            }
+        } catch (XmlPullParserException e) {
+            logger.warning(e.getClass().getSimpleName() + " at "
+                    + xpp.getPositionDescription());
+            // could be a problem entity
+            if (e.getMessage().contains("entity")) {
+                logger.warning("entity error: " + e.getMessage());
+                handleUnresolvedEntity();
+            } else if (e.getMessage().contains("quotation or apostrophe")
+                    && config.isFullRepair()) {
+                // messed-up attribute? skip it?
+                logger.warning("attribute error: " + e.getMessage());
+                // all we can do is ignore it, apparently
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    /**
+     * @param b
+     */
+    public void setSkippingRecord(boolean b) {
+        skippingRecord = b;
+        logger.finest("skippingRecord = " + skippingRecord);
     }
 
 }
