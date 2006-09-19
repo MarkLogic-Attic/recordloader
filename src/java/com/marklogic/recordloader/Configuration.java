@@ -428,6 +428,7 @@ public class Configuration {
 
         threadCount = Integer.parseInt(props
                 .getProperty(THREADS_KEY, "1"));
+        
         inputPath = props.getProperty(INPUT_PATH_KEY);
         logger.fine(INPUT_PATH_KEY + " = " + inputPath);
         inputPattern = props.getProperty(INPUT_PATTERN_KEY,
