@@ -120,7 +120,7 @@ public class Configuration {
     /**
      * 
      */
-    static public final int DISPLAY_MILLIS = 3000;
+    static public final int DISPLAY_MILLIS = 15000;
 
     /**
      * 

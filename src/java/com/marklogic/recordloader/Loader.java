@@ -195,6 +195,10 @@ public class Loader implements Callable {
 			logger.logException("fatal - halting monitor", e);
 			monitor.halt();
 			throw e;
+        } catch (Throwable t) {
+            logger.logException("fatal - halting monitor", t);
+            monitor.halt();
+            return null;
 		}
 	}
 
@@ -265,11 +269,18 @@ public class Loader implements Callable {
 				}
 			} catch (Exception e) {
 				if (currentFileBasename != null) {
-					logger.info("error in "
+					logger.warning("error in "
 							+ currentFileBasename
 							+ (currentRecordPath == null ? ""
 									: (" at " + currentRecordPath)));
 				}
+                if (producer != null) {
+                    logger.warning(producer.getByteBufferDescription());
+                }
+                if (xpp != null) {
+                    logger.warning("pos = " + xpp.getPositionDescription());
+                    logger.warning("text = " + xpp.getText());
+                }
 				logger.logException("exception", e);
 				if (!config.isFatalErrors()) {
 					// keep going
