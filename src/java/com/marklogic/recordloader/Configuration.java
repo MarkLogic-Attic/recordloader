@@ -266,6 +266,10 @@ public class Configuration {
 
     private static final String ZIP_INPUT_PATTERN_DEFAULT = null;
 
+    private static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
+
+    private static final String COPY_NAMESPACES_DEFAULT = "true";
+
     private Properties props = new Properties();
 
     private String[] baseCollections;
@@ -321,6 +325,8 @@ public class Configuration {
     private int autoid = 1;
 
     private String zipInputPattern;
+
+    private boolean copyNamespaceDeclarations = true;
 
     /**
      * @param _props
@@ -412,6 +418,9 @@ public class Configuration {
             logger.fine(REPAIR_LEVEL_KEY + "=FULL");
             repairLevel = DocumentRepairLevel.FULL;
         }
+
+        copyNamespaceDeclarations = Utilities.stringToBoolean(props.getProperty(
+                COPY_NAMESPACES_KEY, COPY_NAMESPACES_DEFAULT));
 
         fatalErrors = Utilities.stringToBoolean(props.getProperty(
                 FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
@@ -714,6 +723,13 @@ public class Configuration {
      */
     public String getZipInputPattern() {
         return zipInputPattern;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isCopyNamespaceDeclarations() {
+        return copyNamespaceDeclarations;
     }
 
 }

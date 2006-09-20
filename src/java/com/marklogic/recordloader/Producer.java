@@ -62,6 +62,8 @@ public class Producer extends InputStream {
 
     private boolean keepGoing = true;
 
+    private boolean copyNamespaceDeclarations = true;
+
     /**
      * @param _config
      * @param _xpp
@@ -76,6 +78,8 @@ public class Producer extends InputStream {
         idName = config.getIdNodeName();
         recordNamespace = config.getRecordNamespace();
         recordName = config.getRecordName();
+        
+        copyNamespaceDeclarations = config.isCopyNamespaceDeclarations();
 
         logger = _config.getLogger();
         logger.fine("recordName=" + recordName);
@@ -153,7 +157,7 @@ public class Producer extends InputStream {
         write(text);
     }
 
-    private void processStartElement(boolean copyNamespaceDeclarations)
+    private void processStartElement()
             throws IOException, XmlPullParserException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
@@ -397,16 +401,6 @@ public class Producer extends InputStream {
             }
         }
         return true;
-    }
-
-    /**
-     * @throws XmlPullParserException
-     * @throws IOException
-     * 
-     */
-    private void processStartElement() throws IOException,
-            XmlPullParserException {
-        processStartElement(false);
     }
 
     /**
