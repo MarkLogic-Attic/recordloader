@@ -732,4 +732,11 @@ public class Configuration {
         return copyNamespaceDeclarations;
     }
 
+    /**
+     * @param _name
+     */
+    public void setIdNodeName(String _name) {
+        idNodeName = _name;
+    }
+
 }

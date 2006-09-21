@@ -56,507 +56,524 @@ import com.marklogic.xcc.types.XSBoolean;
  * 
  */
 public class Loader implements Callable {
-	private SimpleLogger logger;
+    private SimpleLogger logger;
 
-	private XmlPullParser xpp = null;
+    private XmlPullParser xpp = null;
 
-	// local cache for hot-loop config info
-	private String idName;
+    // local cache for hot-loop config info
+    private String idName;
 
-	private String startId = null;
+    private String startId = null;
 
-	private String recordName;
+    private String recordName;
 
-	private String recordNamespace;
+    private String recordNamespace;
 
-	// actual fields
-	private ContentSource conn;
+    // actual fields
+    private ContentSource conn;
 
-	private Session session;
+    private Session session;
 
-	private TimedEvent event;
+    private TimedEvent event;
 
-	private ContentCreateOptions docOpts;
+    private ContentCreateOptions docOpts;
 
-	private String currentFileBasename = null;
+    private String currentFileBasename = null;
 
-	private long totalSkipped = 0;
+    private long totalSkipped = 0;
 
-	private Map collectionMap;
+    private Map collectionMap;
 
-	private Configuration config;
+    private Configuration config;
 
-	private Monitor monitor;
+    private Monitor monitor;
 
-	private Producer producer;
+    private Producer producer;
 
-	private ProducerFactory factory;
+    private ProducerFactory factory;
 
-	private boolean foundRoot = false;
+    private boolean foundRoot = false;
 
-	private File inputFile;
+    private File inputFile;
 
-	private String currentRecordPath;
+    private String currentRecordPath;
 
-	private Content currentContent;
+    private Content currentContent;
 
-	private String currentUri;
+    private String currentUri;
 
-	/**
-	 * @param _monitor
-	 * @param _uri
-	 * @param _config
-	 * @throws XccException
-	 * @throws XmlPullParserException
-	 */
-	public Loader(Monitor _monitor, URI _uri, Configuration _config)
-			throws XccException, XmlPullParserException {
-		monitor = _monitor;
-		config = _config;
-		conn = ContentSourceFactory.newContentSource(_uri);
-		session = conn.newSession();
+    /**
+     * @param _monitor
+     * @param _uri
+     * @param _config
+     * @throws XccException
+     */
+    public Loader(Monitor _monitor, URI _uri, Configuration _config)
+            throws XccException {
+        monitor = _monitor;
+        config = _config;
+        conn = ContentSourceFactory.newContentSource(_uri);
 
-		logger = config.getLogger();
+        // error if null
+        idName = config.getIdNodeName();
+        if (idName == null) {
+            throw new UnimplementedFeatureException(
+                    "Missing required property: "
+                            + Configuration.ID_NAME_KEY);
+        }
 
-		// error if null
-		idName = config.getIdNodeName();
-		if (idName == null) {
-			throw new XmlPullParserException("Missing required property: "
-					+ Configuration.ID_NAME_KEY);
-		}
-		logger.fine(Configuration.ID_NAME_KEY + "=" + idName);
+        logger = config.getLogger();
+    }
 
-		// only initialize docOpts once
-		if (docOpts == null) {
-			boolean resolveEntities = false;
-			DocumentFormat format = DocumentFormat.XML;
-			int quality = 0;
-			docOpts = new ContentCreateOptions();
-			docOpts.setResolveEntities(resolveEntities);
-			docOpts.setPermissions(config.getPermissions());
-			docOpts.setCollections(config.getBaseCollections());
-			docOpts.setQuality(quality);
-			docOpts.setNamespace(config.getOutputNamespace());
-			docOpts.setRepairLevel(config.getRepairLevel());
-			docOpts.setPlaceKeys(config.getPlaceKeys());
-			docOpts.setFormat(format);
-		}
+    /*
+     * (non-Javadoc)
+     * 
+     * @see java.util.concurrent.Callable#call()
+     */
+    public Object call() throws Exception {
+        session = conn.newSession();
 
-		xpp = config.getXppFactory().newPullParser();
-		// TODO feature isn't supported by xpp3 - look at xpp5?
-		// xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
-		// TODO feature isn't supported by xpp3 - look at xpp5?
-		// xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
-		xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+        logger.fine(Configuration.ID_NAME_KEY + "=" + idName);
 
-		factory = new ProducerFactory(config, xpp);
-	}
+        initDocumentOptions();
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see java.util.concurrent.Callable#call()
-	 */
-	public Object call() throws Exception {
-		// cache certain info locally
-		startId = config.getStartId();
-		recordName = config.getRecordName();
-		recordNamespace = config.getRecordNamespace();
+        xpp = config.getXppFactory().newPullParser();
+        // TODO feature isn't supported by xpp3 - look at xpp5?
+        // xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
+        // TODO feature isn't supported by xpp3 - look at xpp5?
+        // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
+        xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
 
-		if (config.isUseFileNameIds()) {
-			// every file is its own root record
-			logger.finer("treating input as a record");
-			foundRoot = true;
-		}
+        factory = new ProducerFactory(config, xpp);
 
-		try {
-			if (inputFile != null) {
-				// time to instantiate the reader
-				setInput(new FileReader(inputFile));
-			}
-			process();
-			return null;
-		} catch (Exception e) {
-			logger.info("current uri: \"" + currentUri + "\"");
-			if (producer != null) {
-				logger.info("current record: " + producer + ", bytes = "
-						+ producer.getByteBufferDescription());
-			}
-			if (e instanceof MalformedInputException) {
-				// invalid character sequence, probably
-				logger.warning("input could not be decoded: try setting "
-						+ Configuration.INPUT_ENCODING_KEY + " (or set "
-						+ Configuration.INPUT_MALFORMED_ACTION_KEY + " to "
-						+ Configuration.INPUT_MALFORMED_ACTION_IGNORE + " or "
-						+ Configuration.INPUT_MALFORMED_ACTION_REPLACE + ").");
-			}
+        // cache certain info locally
+        startId = config.getStartId();
+        recordName = config.getRecordName();
+        recordNamespace = config.getRecordNamespace();
 
-			// if it got this high, it's fatal
-			logger.logException("fatal - halting monitor", e);
-			monitor.halt();
-			throw e;
+        if (config.isUseFileNameIds()) {
+            // every file is its own root record
+            logger.finer("treating input as a record");
+            foundRoot = true;
+        }
+
+        try {
+            if (inputFile != null) {
+                // time to instantiate the reader
+                setInput(new FileReader(inputFile));
+            }
+            process();
+            return null;
+        } catch (Exception e) {
+            logger.info("current uri: \"" + currentUri + "\"");
+            if (producer != null) {
+                logger.info("current record: " + producer + ", bytes = "
+                        + producer.getByteBufferDescription());
+            }
+            if (e instanceof MalformedInputException) {
+                // invalid character sequence, probably
+                logger.warning("input could not be decoded: try setting "
+                        + Configuration.INPUT_ENCODING_KEY + " (or set "
+                        + Configuration.INPUT_MALFORMED_ACTION_KEY
+                        + " to "
+                        + Configuration.INPUT_MALFORMED_ACTION_IGNORE
+                        + " or "
+                        + Configuration.INPUT_MALFORMED_ACTION_REPLACE
+                        + ").");
+            }
+
+            // if it got this high, it's fatal
+            logger.logException("fatal - halting monitor", e);
+            monitor.halt();
+            throw e;
         } catch (Throwable t) {
             logger.logException("fatal - halting monitor", t);
             monitor.halt();
             return null;
-		}
-	}
+        }
+    }
 
-	/**
-	 * @param _reader
-	 * @throws XmlPullParserException
-	 */
-	public void setInput(Reader _reader) throws XmlPullParserException {
-		xpp.setInput(_reader);
-	}
+    private void initDocumentOptions() throws XccException {
+        // only initialize docOpts once
+        if (null != docOpts) {
+            return;
+        }
+        boolean resolveEntities = false;
+        DocumentFormat format = DocumentFormat.XML;
+        int quality = 0;
+        docOpts = new ContentCreateOptions();
+        docOpts.setResolveEntities(resolveEntities);
+        docOpts.setPermissions(config.getPermissions());
+        docOpts.setCollections(config.getBaseCollections());
+        docOpts.setQuality(quality);
+        docOpts.setNamespace(config.getOutputNamespace());
+        docOpts.setRepairLevel(config.getRepairLevel());
+        docOpts.setPlaceKeys(config.getPlaceKeys());
+        docOpts.setFormat(format);
+    }
 
-	/**
-	 * @param _file
-	 */
-	public void setInput(File _file) {
-		// defer until we actually need to open it
-		inputFile = _file;
-	}
+    /**
+     * @param _reader
+     * @throws XmlPullParserException
+     */
+    public void setInput(Reader _reader) throws XmlPullParserException {
+        xpp.setInput(_reader);
+    }
 
-	/**
-	 * @param _path
-	 */
-	public void setFileBasename(String _name) {
-		currentFileBasename = _name;
-		// update collections
-		if (currentFileBasename == null) {
-			docOpts.setCollections(config.getBaseCollections());
-		} else {
-			List<String> newCollections = new ArrayList<String>(Arrays
-					.asList(config.getBaseCollections()));
-			newCollections.add(_name);
-			docOpts.setCollections(newCollections.toArray(new String[0]));
-		}
-		logger.fine("using fileBasename = " + currentFileBasename);
-	}
+    /**
+     * @param _file
+     */
+    public void setInput(File _file) {
+        // defer until we actually need to open it
+        inputFile = _file;
+    }
 
-	private void process() throws Exception {
-		int eventType;
+    /**
+     * @param _path
+     */
+    public void setFileBasename(String _name) throws XccException {
+        currentFileBasename = _name;
+        // update collections
+        initDocumentOptions();
+        if (currentFileBasename == null) {
+            docOpts.setCollections(config.getBaseCollections());
+        } else {
+            List<String> newCollections = new ArrayList<String>(Arrays
+                    .asList(config.getBaseCollections()));
+            newCollections.add(_name);
+            docOpts.setCollections(newCollections.toArray(new String[0]));
+        }
+        logger.fine("using fileBasename = " + currentFileBasename);
+    }
 
-		// NOTE: next() skips comments, document-decl, ignorable-whitespace,
-		// and processing-instructions automatically.
-		// To catch these, use nextToken() instead.
-		// For custom entity handling, nextToken() could also be used.
-		boolean c = true;
-		while (c) {
-			// We *only* care about finding records,
-			// then passing them off a new producer
-			try {
-				eventType = xpp.next();
-				switch (eventType) {
-				case XmlPullParser.START_TAG:
-					processStartElement();
-					break;
-				case XmlPullParser.TEXT:
-					// text in an unknown element, or otherwise a no-op
-					break;
-				case XmlPullParser.END_TAG:
-					// end of an unknown element, or otherwise a no-op
-					break;
-				case XmlPullParser.START_DOCUMENT:
-					break;
-				case XmlPullParser.END_DOCUMENT:
-					c = false;
-					break;
-				default:
-					throw new XmlPullParserException("UNIMPLEMENTED: "
-							+ eventType);
-				}
-			} catch (Exception e) {
-				if (currentFileBasename != null) {
-					logger.warning("error in "
-							+ currentFileBasename
-							+ (currentRecordPath == null ? ""
-									: (" at " + currentRecordPath)));
-				}
+    private void process() throws Exception {
+        int eventType;
+
+        // NOTE: next() skips comments, document-decl, ignorable-whitespace,
+        // and processing-instructions automatically.
+        // To catch these, use nextToken() instead.
+        // For custom entity handling, nextToken() could also be used.
+        boolean c = true;
+        while (c) {
+            // We *only* care about finding records,
+            // then passing them off a new producer
+            try {
+                eventType = xpp.next();
+                switch (eventType) {
+                case XmlPullParser.START_TAG:
+                    processStartElement();
+                    break;
+                case XmlPullParser.TEXT:
+                    // text in an unknown element, or otherwise a no-op
+                    break;
+                case XmlPullParser.END_TAG:
+                    // end of an unknown element, or otherwise a no-op
+                    break;
+                case XmlPullParser.START_DOCUMENT:
+                    break;
+                case XmlPullParser.END_DOCUMENT:
+                    c = false;
+                    break;
+                default:
+                    throw new XmlPullParserException("UNIMPLEMENTED: "
+                            + eventType);
+                }
+            } catch (Exception e) {
+                if (currentFileBasename != null) {
+                    logger.warning("error in "
+                            + currentFileBasename
+                            + (currentRecordPath == null ? ""
+                                    : (" at " + currentRecordPath)));
+                }
                 if (producer != null) {
                     logger.warning(producer.getByteBufferDescription());
                 }
                 if (xpp != null) {
-                    logger.warning("pos = " + xpp.getPositionDescription());
+                    logger.warning("pos = "
+                            + xpp.getPositionDescription());
                     logger.warning("text = " + xpp.getText());
                 }
-				logger.logException("exception", e);
-				if (!config.isFatalErrors()) {
-					// keep going
-					logger.logException("non-fatal: skipping", e);
+                logger.logException("exception", e);
+                if (!config.isFatalErrors()) {
+                    // keep going
+                    logger.logException("non-fatal: skipping", e);
 
-					event.stop(true);
-					monitor.add(currentUri, event);
+                    event.stop(true);
+                    monitor.add(currentUri, event);
 
-					if (currentContent != null) {
-						currentContent.close();
-					}
+                    if (currentContent != null) {
+                        currentContent.close();
+                    }
 
-					if (config.isUseFileNameIds()) {
-						c = false;
-					}
-					continue;
-				}
+                    if (config.isUseFileNameIds()) {
+                        c = false;
+                    }
+                    continue;
+                }
 
-				// fatal
-				logger.warning("re-throwing fatal error");
-				throw e;
-			}
-		}
+                // fatal
+                logger.warning("re-throwing fatal error");
+                throw e;
+            }
+        }
 
-		if (currentContent != null) {
-			XmlPullParserException e = new XmlPullParserException(
-					"end of document before end of current record!\n"
-							+ "recordName = " + recordName
-							+ ", recordNamespace = " + recordNamespace + " at "
-							+ xpp.getPositionDescription() + "\n" + currentUri);
-			if (config.isFatalErrors()) {
-				throw e;
-			}
-			logger.logException("non-fatal", e);
-			if (currentContent != null) {
-				currentContent.close();
-			}
-			currentUri = null;
-			producer = null;
-		}
-	}
+        if (currentContent != null) {
+            XmlPullParserException e = new XmlPullParserException(
+                    "end of document before end of current record!\n"
+                            + "recordName = " + recordName
+                            + ", recordNamespace = " + recordNamespace
+                            + " at " + xpp.getPositionDescription()
+                            + "\n" + currentUri);
+            if (config.isFatalErrors()) {
+                throw e;
+            }
+            logger.logException("non-fatal", e);
+            if (currentContent != null) {
+                currentContent.close();
+            }
+            currentUri = null;
+            producer = null;
+        }
+    }
 
-	private void processStartElement() throws Exception {
-		String name = xpp.getName();
-		String namespace = xpp.getNamespace();
-		logger.finest(name + " in '" + namespace + "'");
+    private void processStartElement() throws Exception {
+        String name = xpp.getName();
+        String namespace = xpp.getNamespace();
+        logger.finest(name + " in '" + namespace + "'");
 
-		if (!foundRoot) {
-			// this must be the document root
-			logger.fine("found document root: '" + name + "' in '" + namespace
-					+ "'");
-			foundRoot = true;
-			return;
-		}
+        if (!foundRoot) {
+            // this must be the document root
+            logger.fine("found document root: '" + name + "' in '"
+                    + namespace + "'");
+            foundRoot = true;
+            return;
+        }
 
-		if (recordName == null) {
-			synchronized (config) {
-				if (config.getRecordName() == null) {
-					// this must be the record-level element
-					recordName = name;
-					recordNamespace = namespace;
-					config.setRecordName(recordName);
-					config.setRecordNamespace(namespace);
-					logger.fine("autodetected record element: '" + recordName
-							+ "' in '" + recordNamespace + "'");
-				} else {
-					// another thread beat us to it
-					recordName = config.getRecordName();
-					recordNamespace = config.getRecordNamespace();
-				}
-			}
-		}
+        if (recordName == null) {
+            synchronized (config) {
+                if (config.getRecordName() == null) {
+                    // this must be the record-level element
+                    recordName = name;
+                    recordNamespace = namespace;
+                    config.setRecordName(recordName);
+                    config.setRecordNamespace(namespace);
+                    logger.fine("autodetected record element: '"
+                            + recordName + "' in '" + recordNamespace
+                            + "'");
+                } else {
+                    // another thread beat us to it
+                    recordName = config.getRecordName();
+                    recordNamespace = config.getRecordNamespace();
+                }
+            }
+        }
 
-		if (name.equals(recordName) && namespace.equals(recordNamespace)) {
-			// start of a new record
-			logger.fine("found record element: '" + recordName + "' in '"
-					+ recordNamespace + "'");
-			event = new TimedEvent();
+        if (name.equals(recordName) && namespace.equals(recordNamespace)) {
+            // start of a new record
+            logger.fine("found record element: '" + recordName + "' in '"
+                    + recordNamespace + "'");
+            event = new TimedEvent();
 
-			// hand off the work to a new producer
-			producer = factory.newProducer();
-			String id = null;
-			if (config.isUseFileNameIds()) {
-				// this form of URI() does escaping nicely
-				id = new URI(null, currentRecordPath, null).toString();
-				logger.fine("setting currentId = " + id);
-				producer.setCurrentId(id);
-			} else {
-				id = producer.getCurrentId();
-				logger.fine("found id " + id);
-			}
+            // hand off the work to a new producer
+            producer = factory.newProducer();
+            String id = null;
+            if (config.isUseFileNameIds()) {
+                // this form of URI() does escaping nicely
+                id = new URI(null, currentRecordPath, null).toString();
+                logger.fine("setting currentId = " + id);
+                producer.setCurrentId(id);
+            } else {
+                id = producer.getCurrentId();
+                logger.fine("found id " + id);
+            }
 
-			if (id == null) {
-				throw new UnimplementedFeatureException(
-						"producer exited without currentId");
-			}
+            if (id == null) {
+                throw new UnimplementedFeatureException(
+                        "producer exited without currentId");
+            }
 
-			producer.setSkippingRecord(checkId(id));
+            producer.setSkippingRecord(checkId(id));
 
-			currentUri = composeUri(id);
-			composeDocOptions(id);
-			currentContent = ContentFactory.newUnBufferedContent(currentUri,
-					producer, docOpts);
+            currentUri = composeUri(id);
+            composeDocOptions(id);
+            currentContent = ContentFactory.newUnBufferedContent(
+                    currentUri, producer, docOpts);
 
-			if (!producer.isSkippingRecord()) {
-				logger.fine("inserting " + currentUri);
-				session.insertContent(currentContent);
-			}
+            if (!producer.isSkippingRecord()) {
+                logger.fine("inserting " + currentUri);
+                session.insertContent(currentContent);
+            }
 
-			// handle monitor accounting
-			// note that we count skipped records, too
-			event.increment(producer.getBytesRead());
-			monitor.add(currentUri, event);
+            // handle monitor accounting
+            // note that we count skipped records, too
+            event.increment(producer.getBytesRead());
+            monitor.add(currentUri, event);
 
-			// clean up
-			currentContent.close();
-			producer = null;
-			currentContent = null;
-			currentUri = null;
+            // clean up
+            currentContent.close();
+            producer = null;
+            currentContent = null;
+            currentUri = null;
 
-			return;
-		}
+            return;
+        }
 
-		// handle unknown element
-		if (config.isIgnoreUnknown()) {
-			logger.warning("skipping unknown non-record element: " + name);
-			return;
-		}
-	}
+        // handle unknown element
+        if (config.isIgnoreUnknown()) {
+            logger
+                    .warning("skipping unknown non-record element: "
+                            + name);
+            return;
+        }
+    }
 
-	private void composeDocOptions(String _id) {
-		// docOptions have already been initialized,
-		// but may need more work:
-		// handle collectionsMap, if present
-		if (collectionMap == null) {
-			return;
-		}
+    private void composeDocOptions(String _id) {
+        // docOptions have already been initialized,
+        // but may need more work:
+        // handle collectionsMap, if present
+        if (collectionMap == null) {
+            return;
+        }
 
-		// in this case we have to reset the whole collection list every
-		// time, to prevent any carryover from the previous call to
-		// docOptions.setCollections().
-		List<String> collections = new ArrayList<String>(Arrays.asList(config
-				.getBaseCollections()));
-		if (currentFileBasename != null) {
-			collections.add(currentFileBasename);
-		}
-		if (collectionMap.containsKey(_id)) {
-			// each map entry is a String[]
-			collections
-					.addAll(Arrays.asList((String[]) collectionMap.get(_id)));
-		}
-		docOpts.setCollections(collections.toArray(new String[0]));
-	}
+        // in this case we have to reset the whole collection list every
+        // time, to prevent any carryover from the previous call to
+        // docOptions.setCollections().
+        List<String> collections = new ArrayList<String>(Arrays
+                .asList(config.getBaseCollections()));
+        if (currentFileBasename != null) {
+            collections.add(currentFileBasename);
+        }
+        if (collectionMap.containsKey(_id)) {
+            // each map entry is a String[]
+            collections.addAll(Arrays.asList((String[]) collectionMap
+                    .get(_id)));
+        }
+        docOpts.setCollections(collections.toArray(new String[0]));
+    }
 
-	/**
-	 * @param _uri
-	 * @return
-	 */
-	private boolean checkFile(String _uri) throws XccException {
-		// TODO this is a common pattern: should be in a reusable class
-		String query = "define variable $URI as xs:string external\n"
-				+ "xdmp:exists(doc($URI))\n";
-		ResultSequence result = null;
-		boolean exists = false;
-		try {
-			Request request = session.newAdhocQuery(query);
-			request.setNewStringVariable("URI", _uri);
+    /**
+     * @param _uri
+     * @return
+     */
+    private boolean checkFile(String _uri) throws XccException {
+        // TODO this is a common pattern: should be in a reusable class
+        String query = "define variable $URI as xs:string external\n"
+                + "xdmp:exists(doc($URI))\n";
+        ResultSequence result = null;
+        boolean exists = false;
+        try {
+            Request request = session.newAdhocQuery(query);
+            request.setNewStringVariable("URI", _uri);
 
-			result = session.submitRequest(request);
+            result = session.submitRequest(request);
 
-			if (!result.hasNext()) {
-				throw new RequestException("unexpected null result", request);
-			}
+            if (!result.hasNext()) {
+                throw new RequestException("unexpected null result",
+                        request);
+            }
 
-			ResultItem item = result.next();
+            ResultItem item = result.next();
 
-			exists = ((XSBoolean) item.getItem()).asPrimitiveBoolean();
-		} finally {
-			if (result != null && !result.isClosed())
-				result.close();
-		}
-		return exists;
-	}
+            exists = ((XSBoolean) item.getItem()).asPrimitiveBoolean();
+        } finally {
+            if (result != null && !result.isClosed())
+                result.close();
+        }
+        return exists;
+    }
 
-	/**
-	 * @param uri
-	 * @return
-	 * @throws IOException
-	 * @throws XccException
-	 */
-	private boolean checkExistingUri(String uri) throws XccException,
-			IOException {
-		// return true if we're supposed to check,
-		// and if the document already exists
-		if (config.isSkipExisting() || config.isErrorExisting()) {
-			boolean exists = checkFile(uri);
-			logger.fine("checking for uri " + uri + " = " + exists);
-			if (exists) {
-				if (config.isErrorExisting()) {
-					throw new IOException(
-							"ERROR_EXISTING=true, cannot overwrite existing document: "
-									+ uri);
-				}
-				// ok, must be skipExisting...
-				// count it and log the message
-				totalSkipped++;
-				logger.log((totalSkipped % 500 == 0) ? Level.INFO : Level.FINE,
-						"skipping " + totalSkipped + " existing uri " + uri);
-				return true;
-			}
-		}
-		return false;
-	}
+    /**
+     * @param uri
+     * @return
+     * @throws IOException
+     * @throws XccException
+     */
+    private boolean checkExistingUri(String uri) throws XccException,
+            IOException {
+        // return true if we're supposed to check,
+        // and if the document already exists
+        if (config.isSkipExisting() || config.isErrorExisting()) {
+            boolean exists = checkFile(uri);
+            logger.fine("checking for uri " + uri + " = " + exists);
+            if (exists) {
+                if (config.isErrorExisting()) {
+                    throw new IOException(
+                            "ERROR_EXISTING=true, cannot overwrite existing document: "
+                                    + uri);
+                }
+                // ok, must be skipExisting...
+                // count it and log the message
+                totalSkipped++;
+                logger.log((totalSkipped % 500 == 0) ? Level.INFO
+                        : Level.FINE, "skipping " + totalSkipped
+                        + " existing uri " + uri);
+                return true;
+            }
+        }
+        return false;
+    }
 
-	private String composeUri(String id) throws IOException {
-		if (id == null) {
-			throw new IOException("id may not be null");
-		}
+    private String composeUri(String id) throws IOException {
+        if (id == null) {
+            throw new IOException("id may not be null");
+        }
 
-		String cleanId = id.trim();
-		if (cleanId.length() < 1) {
-			throw new IOException("id may not be empty");
-		}
+        String cleanId = id.trim();
+        if (cleanId.length() < 1) {
+            throw new IOException("id may not be empty");
+        }
 
-		// automatically use the current file, if available
-		// note that config.getUriPrefix() will ensure that the uri ends in '/'
-		StringBuffer baseName = new StringBuffer(config.getUriPrefix());
-		baseName
-				.append((currentFileBasename == null
-						|| currentFileBasename.equals("") || config
-						.isUseFileNameIds()) ? "" : currentFileBasename);
-		if (baseName != null && baseName.length() > 0
-				&& '/' != baseName.charAt(baseName.length() - 1)) {
-			baseName.append("/");
-		}
-		baseName.append(cleanId);
-		baseName.append(config.getUriSuffix());
-		return baseName.toString();
-	}
+        // automatically use the current file, if available
+        // note that config.getUriPrefix() will ensure that the uri ends in '/'
+        StringBuffer baseName = new StringBuffer(config.getUriPrefix());
+        baseName.append((currentFileBasename == null
+                || currentFileBasename.equals("") || config
+                .isUseFileNameIds()) ? "" : currentFileBasename);
+        if (baseName != null && baseName.length() > 0
+                && '/' != baseName.charAt(baseName.length() - 1)) {
+            baseName.append("/");
+        }
+        baseName.append(cleanId);
+        baseName.append(config.getUriSuffix());
+        return baseName.toString();
+    }
 
-	private boolean checkStartId(String id) {
-		if (startId == null) {
-			return false;
-		}
+    private boolean checkStartId(String id) {
+        if (startId == null) {
+            return false;
+        }
 
-		// we're still scanning for the startid:
-		// is this my cow?
-		if (!startId.equals(id)) {
-			// don't bother to open the stream: skip this record
-			logger.info("skipping record " + (++totalSkipped) + " with id "
-					+ id + " != " + startId);
-			return true;
-		}
+        // we're still scanning for the startid:
+        // is this my cow?
+        if (!startId.equals(id)) {
+            // don't bother to open the stream: skip this record
+            logger.info("skipping record " + (++totalSkipped)
+                    + " with id " + id + " != " + startId);
+            return true;
+        }
 
-		logger.info("found START_ID " + id);
-		startId = null;
-		config.setStartId(null);
-		monitor.resetThreadPool();
-		return false;
-	}
+        logger.info("found START_ID " + id);
+        startId = null;
+        config.setStartId(null);
+        monitor.resetThreadPool();
+        return false;
+    }
 
-	/**
-	 * @param _id
-	 * @return
-	 * @throws IOException
-	 * @throws XccException
-	 */
-	private boolean checkId(String _id) throws XccException, IOException {
-		return checkStartId(_id) || checkExistingUri(composeUri(_id));
-	}
+    /**
+     * @param _id
+     * @return
+     * @throws IOException
+     * @throws XccException
+     */
+    private boolean checkId(String _id) throws XccException, IOException {
+        return checkStartId(_id) || checkExistingUri(composeUri(_id));
+    }
 
-	/**
-	 * @param _path
-	 */
-	public void setRecordPath(String _path) {
-		currentRecordPath = _path;
-	}
+    /**
+     * @param _path
+     */
+    public void setRecordPath(String _path) {
+        currentRecordPath = _path;
+    }
 
 }

@@ -78,7 +78,7 @@ public class Producer extends InputStream {
         idName = config.getIdNodeName();
         recordNamespace = config.getRecordNamespace();
         recordName = config.getRecordName();
-        
+
         copyNamespaceDeclarations = config.isCopyNamespaceDeclarations();
 
         logger = _config.getLogger();
@@ -157,14 +157,16 @@ public class Producer extends InputStream {
         write(text);
     }
 
-    private void processStartElement()
-            throws IOException, XmlPullParserException {
+    private void processStartElement() throws IOException,
+            XmlPullParserException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
         logger.finest("name = " + name);
         String text = xpp.getText();
+        boolean isRecordRoot = false;
 
         if (name.equals(recordName) && namespace.equals(recordNamespace)) {
+            isRecordRoot = true;
             handleRecordStart();
         }
 
@@ -218,36 +220,44 @@ public class Producer extends InputStream {
             return;
         }
 
-        if (copyNamespaceDeclarations) {
+        if (copyNamespaceDeclarations && isRecordRoot) {
             // preserve namespace declarations into this element
-            int stop = xpp.getNamespaceCount(xpp.getDepth());
-            if (stop > 0) {
-                StringBuffer decl = null;
-                String nsDeclPrefix, nsDeclUri;
-                logger.finer("checking namespace declarations");
-                for (int i = 0; i < stop; i++) {
-                    if (decl == null) {
-                        decl = new StringBuffer();
-                    } else {
-                        decl.append(" ");
+            int depth = xpp.getDepth();
+            if (depth > 0) {
+                int stop = xpp.getNamespaceCount(depth - 1);
+                if (stop > 0) {
+                    StringBuffer decl = null;
+                    String nsDeclPrefix, nsDeclUri;
+                    logger.finer("checking namespace declarations");
+                    for (int i = 0; i < stop; i++) {
+                        if (decl == null) {
+                            decl = new StringBuffer();
+                        }
+                        nsDeclPrefix = xpp.getNamespacePrefix(i);
+                        nsDeclUri = xpp.getNamespaceUri(i);
+                        logger.finest("found namespace declaration "
+                                + nsDeclPrefix + " = " + nsDeclUri);
+                        decl.append(" xmlns");
+                        if (nsDeclPrefix != null) {
+                            decl.append(":");
+                            decl.append(nsDeclPrefix);
+                        }
+                        decl.append("=\"");
+                        decl.append(nsDeclUri);
+                        decl.append("\"");
                     }
-                    nsDeclPrefix = xpp.getNamespacePrefix(i);
-                    nsDeclUri = xpp.getNamespaceUri(i);
-                    logger.finest("found namespace declaration "
-                            + nsDeclPrefix + " = " + nsDeclUri);
-                    decl.append("xmlns"
-                            + (nsDeclPrefix == null ? ""
-                                    : (":" + nsDeclPrefix)) + "=\""
-                            + nsDeclUri + "\"");
-                }
-                // copy the namespace decls to the end of the tag
-                if (decl != null) {
-                    logger.finer("copying namespace declarations");
-                    text = text.replaceFirst(">$", decl.toString()
-                            + (isEmpty ? "/" : "") + ">");
+                    // copy the namespace decls to the end of the tag
+                    if (decl != null) {
+                        logger.finer("copying namespace declarations");
+                        text = text.replaceFirst(">$", decl.toString()
+                                + (isEmpty ? "/" : "") + ">");
+                    }
+                } else {
+                    logger.finer("no namespace declarations to copy");
                 }
             } else {
-                logger.finer("no namespace declarations to copy");
+                logger.finer("no namespace declarations to copy at "
+                        + depth);
             }
         }
 
@@ -498,8 +508,8 @@ public class Producer extends InputStream {
         }
 
         int available = readByteBuffer(len - 1);
-//        logger.fine("off = " + off + ", len = " + len + ", available = "
-//                + available);
+        // logger.fine("off = " + off + ", len = " + len + ", available = "
+        // + available);
 
         if (available < 0) {
             return available;

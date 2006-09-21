@@ -59,7 +59,7 @@ public class RecordLoader {
 	private static final String SIMPLE_NAME = RecordLoader.class
 			.getSimpleName();
 
-	public static final String VERSION = "2006-09-20.1";
+	public static final String VERSION = "2006-09-21.1";
 
 	public static final String NAME = RecordLoader.class.getName();
 
@@ -150,6 +150,7 @@ public class RecordLoader {
 		logger.info("thread count = " + threadCount);
 		ThreadPoolExecutor pool = (ThreadPoolExecutor) Executors
 				.newFixedThreadPool(threadCount);
+        // TODO use a completion service?
 		// this seems to avoid intermittent errors on submit?
 		pool.prestartAllCoreThreads();
 
