@@ -71,7 +71,7 @@ public class ProducerTest extends TestCase {
         config.setIdNodeName("#FILE");
         //config.setRecordNamespace("");
         //String recordName = "COMMENTARYDOC";
-        config.setRecordNamespace("http://www.lexis-nexis.com/glp/comm");
+        config.setRecordNamespace("http://www.test.com/glp/comm");
         String recordName = "body";
         config.setRecordName(recordName);
 
@@ -79,7 +79,7 @@ public class ProducerTest extends TestCase {
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
 
         String testXml = "<COMMENTARYDOC "
-                + " xmlns:comm=  \"http://www.lexis-nexis.com/glp/comm\"  >"
+                + " xmlns:comm=  \"http://www.test.com/glp/comm\"  >"
                 + "<comm:body >" + "<level leveltype= \"comm12\" >"
                 + "<heading align= \"left\" searchtype= \"COMMENTARY\" >"
                 + "<title >" + "<emph typestyle= \"bf\" > FORMS </emph >"
@@ -106,22 +106,15 @@ public class ProducerTest extends TestCase {
         while ((len = producer.read(buf)) > -1) {
             outputXml.append(new String(buf, 0, len));
         }
-//        String expectedXml = "<COMMENTARYDOC "
-//                + " xmlns:comm=  \"http://www.lexis-nexis.com/glp/comm\"  >"
-//                + "<comm:body ><level leveltype= \"comm12\" >"
-//                + "<heading align= \"left\" searchtype= \"COMMENTARY\" >"
-//                + "<title ><emph typestyle= \"bf\" > FORMS </emph ></title >"
-//                + "</heading ></level >" + "</comm:body >"
-//                + "</COMMENTARYDOC >".trim();
         String expectedXml = "<comm:body"
-                + "  xmlns:comm=\"http://www.lexis-nexis.com/glp/comm\">"
+                + "  xmlns:comm=\"http://www.test.com/glp/comm\">"
                 + "<level leveltype= \"comm12\" >"
                 + "<heading align= \"left\" searchtype= \"COMMENTARY\" >"
                 + "<title ><emph typestyle= \"bf\" > FORMS </emph ></title >"
                 + "</heading ></level >" + "</comm:body >".trim();
-        logger.info("expected = " + expectedXml);
+//        logger.info("expected = " + expectedXml);
         String actual = outputXml.toString().trim();
-        logger.info("actual   = " + actual);
+//        logger.info("actual   = " + actual);
         assertEquals(expectedXml, actual);
     }
 
