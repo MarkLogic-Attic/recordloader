@@ -19,6 +19,9 @@ import junit.framework.TestCase;
  */
 public class ProducerTest extends TestCase {
 
+    // just large enough to expose bugs
+    private static final int READ_SIZE = 8;
+
     SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
     public void testPrefixes() throws Exception {
@@ -51,7 +54,7 @@ public class ProducerTest extends TestCase {
         Producer producer = new Producer(config, xpp);
 
         StringBuffer outputXml = new StringBuffer();
-        byte[] buf = new byte[1024];
+        byte[] buf = new byte[READ_SIZE];
         int len;
         while ((len = producer.read(buf)) > -1) {
             outputXml.append(new String(buf, 0, len));
@@ -60,7 +63,7 @@ public class ProducerTest extends TestCase {
                 .trim();
         // logger.info("expected = " + expectedXml);
         String actual = outputXml.toString().trim();
-        // logger.info("actual   = " + actual);
+        // logger.info("actual = " + actual);
         assertEquals(expectedXml, actual);
     }
 
@@ -69,8 +72,6 @@ public class ProducerTest extends TestCase {
         config.setLogger(logger);
 
         config.setIdNodeName("#FILE");
-        //config.setRecordNamespace("");
-        //String recordName = "COMMENTARYDOC";
         config.setRecordNamespace("http://www.test.com/glp/comm");
         String recordName = "body";
         config.setRecordName(recordName);
@@ -101,7 +102,7 @@ public class ProducerTest extends TestCase {
         producer.setCurrentId("test");
 
         StringBuffer outputXml = new StringBuffer();
-        byte[] buf = new byte[1024];
+        byte[] buf = new byte[READ_SIZE];
         int len;
         while ((len = producer.read(buf)) > -1) {
             outputXml.append(new String(buf, 0, len));
@@ -112,9 +113,9 @@ public class ProducerTest extends TestCase {
                 + "<heading align= \"left\" searchtype= \"COMMENTARY\" >"
                 + "<title ><emph typestyle= \"bf\" > FORMS </emph ></title >"
                 + "</heading ></level >" + "</comm:body >".trim();
-//        logger.info("expected = " + expectedXml);
+        // logger.info("expected = " + expectedXml);
         String actual = outputXml.toString().trim();
-//        logger.info("actual   = " + actual);
+        // logger.info("actual = " + actual);
         assertEquals(expectedXml, actual);
     }
 

@@ -36,13 +36,32 @@ public class Utilities {
      * @return
      */
     public static String join(String[] _items, String _delim) {
-        String rval = "";
-        for (int i = 0; i < _items.length; i++)
-            if (i == 0)
-                rval = _items[0];
-            else
-                rval += _delim + _items[i];
-        return rval;
+        StringBuffer rval = new StringBuffer();
+        for (int i = 0; i < _items.length; i++) {
+            if (i == 0) {
+                rval.append(_items[0]);
+            } else {
+                rval.append(_delim).append(_items[i]);
+            }
+        }
+        return rval.toString();
+    }
+
+    /**
+     * @param _items
+     * @param _delim
+     * @return
+     */
+    public static String join(Object[] _items, String _delim) {
+        StringBuffer rval = new StringBuffer();
+        for (int i = 0; i < _items.length; i++) {
+            if (i == 0) {
+                rval.append(_items[0]);
+            } else {
+                rval.append(_delim).append(_items[i]);
+            }
+        }
+        return rval.toString();
     }
 
     public static String escapeXml(String _in) {

@@ -54,8 +54,7 @@ public class LoaderFactory {
         config = _config;
     }
 
-    private Loader getLoader() throws XccException,
-            XmlPullParserException {
+    private Loader getLoader() throws XccException {
         // if multiple connString are available, we round-robin
         int x = (int) (count++ % config.getConnectionStrings().length);
         return new Loader(monitor, config.getConnectionStrings()[x],
@@ -85,10 +84,8 @@ public class LoaderFactory {
      * @param file
      * @return
      * @throws XccException
-     * @throws XmlPullParserException
      */
-    public Loader newLoader(File file) throws XccException,
-            XmlPullParserException {
+    public Loader newLoader(File file) throws XccException {
         Loader loader = getLoader();
         loader.setInput(file);
         loader.setFileBasename(stripExtension(file.getName()));

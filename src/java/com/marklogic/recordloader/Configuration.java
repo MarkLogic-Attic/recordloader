@@ -42,6 +42,7 @@ import com.marklogic.xcc.ContentSourceFactory;
 import com.marklogic.xcc.ContentbaseMetaData;
 import com.marklogic.xcc.DocumentRepairLevel;
 import com.marklogic.xcc.Session;
+import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 import com.marklogic.xcc.exceptions.XccException;
 
 /**
@@ -419,8 +420,9 @@ public class Configuration {
             repairLevel = DocumentRepairLevel.FULL;
         }
 
-        copyNamespaceDeclarations = Utilities.stringToBoolean(props.getProperty(
-                COPY_NAMESPACES_KEY, COPY_NAMESPACES_DEFAULT));
+        copyNamespaceDeclarations = Utilities
+                .stringToBoolean(props.getProperty(COPY_NAMESPACES_KEY,
+                        COPY_NAMESPACES_DEFAULT));
 
         fatalErrors = Utilities.stringToBoolean(props.getProperty(
                 FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
@@ -437,7 +439,7 @@ public class Configuration {
 
         threadCount = Integer.parseInt(props
                 .getProperty(THREADS_KEY, "1"));
-        
+
         inputPath = props.getProperty(INPUT_PATH_KEY);
         logger.fine(INPUT_PATH_KEY + " = " + inputPath);
         inputPattern = props.getProperty(INPUT_PATTERN_KEY,
@@ -640,32 +642,39 @@ public class Configuration {
      */
     public BigInteger[] getPlaceKeys() throws XccException {
         // lazy initialization
-        if (placeKeys == null) {
-            synchronized (placeKeysMutex) {
-                String forestNames = props
-                        .getProperty(OUTPUT_FORESTS_KEY);
-                if (forestNames != null) {
-                    forestNames = forestNames.trim();
-                    if (!forestNames.equals(OUTPUT_URI_SUFFIX_DEFAULT)) {
-                        logger.info("sending output to forests: "
-                                + forestNames);
-                        logger.fine("querying for Forest ids");
-                        String[] placeNames = forestNames.split("\\s+");
-                        ContentSource cs = ContentSourceFactory
-                                .newContentSource(getConnectionStrings()[0]);
-                        // be sure to use the default db
-                        Session session = cs.newSession();
-                        ContentbaseMetaData meta = session
-                                .getContentbaseMetaData();
-                        Map forestMap = meta.getForestMap();
-                        placeKeys = new BigInteger[placeNames.length];
-                        for (int i = 0; i < placeNames.length; i++) {
-                            logger.finest("looking up " + placeNames[i]);
-                            placeKeys[i] = (BigInteger) forestMap
-                                    .get(placeNames[i]);
-                            logger.fine("mapping " + placeNames[i]
-                                    + " to " + placeKeys[i]);
+        if (null != placeKeys) {
+            return placeKeys;
+        }
+
+        synchronized (placeKeysMutex) {
+            String forestNames = props.getProperty(OUTPUT_FORESTS_KEY);
+            if (forestNames != null) {
+                forestNames = forestNames.trim();
+                if (!forestNames.equals(OUTPUT_URI_SUFFIX_DEFAULT)) {
+                    logger.info("sending output to forests: "
+                            + forestNames);
+                    logger.fine("querying for Forest ids");
+                    String[] placeNames = forestNames.split("\\s+");
+                    URI uri = getConnectionStrings()[0];
+                    ContentSource cs = ContentSourceFactory
+                            .newContentSource(uri);
+                    // be sure to use the default db
+                    Session session = cs.newSession();
+                    ContentbaseMetaData meta = session
+                            .getContentbaseMetaData();
+                    Map forestMap = meta.getForestMap();
+                    placeKeys = new BigInteger[placeNames.length];
+                    for (int i = 0; i < placeNames.length; i++) {
+                        logger.finest("looking up " + placeNames[i]);
+                        placeKeys[i] = (BigInteger) forestMap
+                                .get(placeNames[i]);
+                        if (null == placeKeys[i]) {
+                            throw new UnimplementedFeatureException(uri
+                                    + " has no forest named "
+                                    + placeNames[i]);
                         }
+                        logger.fine("mapping " + placeNames[i] + " to "
+                                + placeKeys[i]);
                     }
                 }
             }

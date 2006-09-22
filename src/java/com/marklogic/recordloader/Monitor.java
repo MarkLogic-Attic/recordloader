@@ -36,167 +36,182 @@ import com.marklogic.ps.timing.Timer;
  */
 public class Monitor extends Thread {
 
-	private static SimpleLogger logger;
+    private static SimpleLogger logger;
 
-	private Timer timer;
+    private Timer timer;
 
-	private static long lastDisplayMillis = 0;
+    private static long lastDisplayMillis = 0;
 
-	String lastUri;
+    String lastUri;
 
-	private boolean running = true;
+    private boolean running = true;
 
-	private List<ZipFile> openZipFiles;
+    private List<ZipFile> openZipFiles;
 
-	private ThreadPoolExecutor pool;
+    private ThreadPoolExecutor pool;
 
-	private Configuration config;
+    private Configuration config;
 
-	public void run() {
-		try {
-			if (logger == null) {
-				throw new NullPointerException("must call setLogger");
-			}
-			logger.fine("starting");
-			timer = new Timer();
-			monitor();
-			logger.info("loaded " + timer.getSuccessfulEventCount()
-					+ " records ok (" + timer.getProgressMessage(true)
-					+ "), with " + timer.getErrorCount() + " error(s)");
-		} catch (Throwable t) {
-			logger.logException("fatal error", t);
-		} finally {
-			pool.shutdownNow();
+    private Monitor() {
+        // avoid no-argument constructors
+    }
 
-			logger.info("waiting for pool to terminate");
-			try {
-				pool.awaitTermination(30, TimeUnit.SECONDS);
-			} catch (InterruptedException e1) {
-				// do nothing
-			}
+    /**
+     * @param _c
+     * @param _e
+     */
+    public Monitor(Configuration _c, ThreadPoolExecutor _e) {
+        config = _c;
+        pool = _e;
+    }
 
-			if (openZipFiles != null) {
-				logger.fine("cleaning up zip files");
-				ZipFile zFile;
-				Iterator<ZipFile> iter = openZipFiles.iterator();
-				while (iter.hasNext()) {
-					zFile = iter.next();
-					try {
-						zFile.close();
-					} catch (IOException e) {
-						logger
-								.logException("cleaning up " + zFile.getName(),
-										e);
-					}
-				}
-			}
-		}
-		logger.fine("exiting");
-	}
+    public void run() {
+        logger = config.getLogger();
+        logger.fine("starting");
 
-	/**
-	 * 
-	 */
-	private void monitor() {
-		int displayMillis = Configuration.DISPLAY_MILLIS;
-		int sleepMillis = Configuration.SLEEP_TIME;
-		long currentMillis;
+        timer = new Timer();
+        try {
+            monitor();
+            // successful exit
+            timer.stop();
+            logger.info("loaded " + timer.getSuccessfulEventCount()
+                    + " records ok (" + timer.getProgressMessage(true)
+                    + "), with " + timer.getErrorCount() + " error(s)");
+        } catch (Throwable t) {
+            logger.logException("fatal error", t);
+        } finally {
+            cleanup();
+        }
+        logger.fine("exiting");
+    }
 
-		// if anything goes wrong, the futuretask knows how to stop us
-		logger.finest("looping every " + sleepMillis);
-		while (running && !isInterrupted()) {
-			currentMillis = System.currentTimeMillis();
-			if (lastUri != null
-					&& currentMillis - lastDisplayMillis > displayMillis) {
-				lastDisplayMillis = currentMillis;
-				logger.info("inserted record " + timer.getEventCount() + " as "
-						+ lastUri + " (" + timer.getProgressMessage()
-						+ "), with " + timer.getErrorCount() + " error(s)");
-				logger.fine("thread count: core=" + pool.getCorePoolSize()
-						+ ", active=" + pool.getActiveCount());
-			}
-			try {
-				Thread.sleep(sleepMillis);
-			} catch (InterruptedException e) {
-				logger.logException("sleep was interrupted: continuing", e);
-			}
+    private void cleanup() {
+        pool.shutdownNow();
 
-			if (pool.getActiveCount() < 1) {
-				logger.fine("no active threads");
-				break;
-			}
-		}
-	}
+        logger.fine("waiting for pool to terminate");
 
-	/**
-	 * 
-	 */
-	public void halt() {
-		if (running) {
-			logger.info("halting");
-			running = false;
-			pool.shutdownNow();
-			interrupt();
-		}
-	}
+        try {
+            pool.awaitTermination(30, TimeUnit.SECONDS);
+        } catch (InterruptedException e1) {
+            // do nothing
+        }
 
-	/**
-	 * @param _event
-	 */
-	public synchronized void add(String _uri, TimedEvent _event) {
-		if (_uri != null) {
-			logger.finer("adding event for " + _uri);
-			lastUri = _uri;
-		}
-		timer.add(_event);
-	}
+        if (openZipFiles != null) {
+            logger.fine("cleaning up zip files");
+            ZipFile zFile;
+            Iterator<ZipFile> iter = openZipFiles.iterator();
+            while (iter.hasNext()) {
+                zFile = iter.next();
+                try {
+                    zFile.close();
+                } catch (IOException e) {
+                    logger.logException("cleaning up " + zFile.getName(),
+                            e);
+                }
+            }
+        }
+    }
 
-	/**
-	 * @param _logger
-	 */
-	public void setLogger(SimpleLogger _logger) {
-		logger = _logger;
-	}
+    /**
+     * 
+     */
+    private void monitor() throws Exception {
+        int displayMillis = Configuration.DISPLAY_MILLIS;
+        int sleepMillis = Configuration.SLEEP_TIME;
+        long currentMillis;
 
-	/**
-	 * @param _pool
-	 */
-	public void setPool(ThreadPoolExecutor _pool) {
-		pool = _pool;
-	}
+        // if anything goes wrong, the futuretask knows how to stop us
+        // hence, we do nothing with the pool in this loop
+        logger.finest("looping every " + sleepMillis);
+        while (running && !isInterrupted() && !pool.isTerminated()) {
+            // try to avoid thread starvation
+            yield();
+            
+            currentMillis = System.currentTimeMillis();
+            if (lastUri != null
+                    && currentMillis - lastDisplayMillis > displayMillis) {
+                lastDisplayMillis = currentMillis;
+                logger.info("inserted record " + timer.getEventCount()
+                        + " as " + lastUri + " ("
+                        + timer.getProgressMessage() + "), with "
+                        + timer.getErrorCount() + " error(s)");
+                logger.fine("thread count: core="
+                        + pool.getCorePoolSize() + ", active="
+                        + pool.getActiveCount());
+            }
+            
+            try {
+                Thread.sleep(sleepMillis);
+            } catch (InterruptedException e) {
+                logger.logException("sleep was interrupted: continuing",
+                        e);
+            }
+        }
+    }
 
-	/**
-	 * @return
-	 */
-	public long getEventCount() {
-		return timer.getEventCount();
-	}
+    /**
+     * 
+     */
+    public void halt() {
+        if (running) {
+            logger.info("halting");
+            running = false;
+            pool.shutdownNow();
+            interrupt();
+        }
+    }
 
-	/**
-	 * @param zipFile
-	 */
-	public void add(ZipFile zipFile) {
-		if (openZipFiles == null) {
-			openZipFiles = new ArrayList<ZipFile>();
-		}
-		openZipFiles.add(zipFile);
-	}
+    /**
+     * 
+     */
+    public void halt(Throwable t) {
+        logger.logException("fatal - halting monitor", t);
+        halt();
+    }
 
-	/**
-	 * 
-	 */
-	public void resetThreadPool() {
-		logger.info("resetting thread pool size");
-		int threadCount = config.getThreadCount();
-		pool.setMaximumPoolSize(threadCount);
-		pool.setCorePoolSize(threadCount);
-	}
+    /**
+     * @param _event
+     */
+    public synchronized void add(String _uri, TimedEvent _event) {
+        if (_uri != null) {
+            logger.finer("adding event for " + _uri);
+            lastUri = _uri;
+        }
+        timer.add(_event);
+    }
 
-	/**
-	 * @param _config
-	 */
-	public void setConfig(Configuration _config) {
-		config = _config;
-	}
+    /**
+     * @return
+     */
+    public long getEventCount() {
+        return timer.getEventCount();
+    }
+
+    /**
+     * @param zipFile
+     */
+    public void add(ZipFile zipFile) {
+        if (openZipFiles == null) {
+            openZipFiles = new ArrayList<ZipFile>();
+        }
+        openZipFiles.add(zipFile);
+    }
+
+    /**
+     * 
+     */
+    public void resetThreadPool() {
+        logger.info("resetting thread pool size");
+        int threadCount = config.getThreadCount();
+        pool.setMaximumPoolSize(threadCount);
+        pool.setCorePoolSize(threadCount);
+    }
+
+    /**
+     * @param _config
+     */
+    public void setConfig(Configuration _config) {
+        config = _config;
+    }
 
 }

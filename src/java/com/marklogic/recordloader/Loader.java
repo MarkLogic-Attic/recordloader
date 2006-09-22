@@ -35,6 +35,7 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import com.marklogic.ps.SimpleLogger;
+import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
@@ -183,12 +184,11 @@ public class Loader implements Callable {
             }
 
             // if it got this high, it's fatal
-            logger.logException("fatal - halting monitor", e);
-            monitor.halt();
+            monitor.halt(e);
             throw e;
         } catch (Throwable t) {
-            logger.logException("fatal - halting monitor", t);
-            monitor.halt();
+            // for OutOfMemoryError, NullPointerException, etc
+            monitor.halt(t);
             return null;
         }
     }
@@ -396,6 +396,7 @@ public class Loader implements Callable {
 
             currentUri = composeUri(id);
             composeDocOptions(id);
+            logger.fine("placeKeys = " + Utilities.join(docOpts.getPlaceKeys(), ","));
             currentContent = ContentFactory.newUnBufferedContent(
                     currentUri, producer, docOpts);
 
