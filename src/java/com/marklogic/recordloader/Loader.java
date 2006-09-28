@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
+import java.math.BigInteger;
 import java.net.URI;
 import java.nio.charset.MalformedInputException;
 import java.util.ArrayList;
@@ -396,7 +397,10 @@ public class Loader implements Callable {
 
             currentUri = composeUri(id);
             composeDocOptions(id);
-            logger.fine("placeKeys = " + Utilities.join(docOpts.getPlaceKeys(), ","));
+            BigInteger[] placeKeys = docOpts.getPlaceKeys();
+            logger.fine("placeKeys = "
+                    + (placeKeys == null ? null : Utilities.join(
+                            placeKeys, ",")));
             currentContent = ContentFactory.newUnBufferedContent(
                     currentUri, producer, docOpts);
 

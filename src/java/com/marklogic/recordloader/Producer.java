@@ -56,7 +56,7 @@ public class Producer extends InputStream {
 
     private long bytesRead = 0;
 
-    private String currentId;
+    private String currentId = null;
 
     private int byteIndex = 0;
 
@@ -64,14 +64,13 @@ public class Producer extends InputStream {
 
     private boolean copyNamespaceDeclarations = true;
 
+    private boolean startOfRecord = true;
+
     /**
      * @param _config
      * @param _xpp
-     * @throws XmlPullParserException
-     * @throws IOException
      */
-    public Producer(Configuration _config, XmlPullParser _xpp)
-            throws XmlPullParserException, IOException {
+    public Producer(Configuration _config, XmlPullParser _xpp) {
         config = _config;
         xpp = _xpp;
 
@@ -83,9 +82,6 @@ public class Producer extends InputStream {
 
         logger = _config.getLogger();
         logger.fine("recordName=" + recordName);
-
-        // by definition, we are at the start of an element
-        processStartElement();
     }
 
     /**
@@ -107,7 +103,7 @@ public class Producer extends InputStream {
             } else if (useFileNameIds) {
                 // the constructor had better have set our id!
                 // note that skipping won't work for this case
-                if (currentId == null) {
+                if (null == currentId) {
                     throw new UnimplementedFeatureException(
                             "Cannot use filename ids unless the constructor sets currentId");
                 }
@@ -172,7 +168,7 @@ public class Producer extends InputStream {
 
         // allow for repeated idName elements: use the first one we see, for
         // each recordName
-        // NOTE: idName is namespace-ignorant
+        // NOTE: idName is namespace-insensitive
         if (currentId == null && name.equals(idName)) {
             // pick out the contents and use it for the uri
             if (xpp.next() != XmlPullParser.TEXT) {
@@ -532,6 +528,15 @@ public class Producer extends InputStream {
      */
     private void processNext() throws XmlPullParserException, IOException {
         if (!keepGoing) {
+            return;
+        }
+        
+        if (startOfRecord) {
+            // this is the start of the record
+            // by definition, we are at the start of an element
+            logger.fine("processing start of record");
+            processStartElement();
+            startOfRecord = false;
             return;
         }
 
