@@ -18,10 +18,7 @@
  */
 package com.marklogic.recordloader;
 
-import java.io.IOException;
-
 import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -44,10 +41,8 @@ public class ProducerFactory {
 
     /**
      * @return
-     * @throws IOException 
-     * @throws XmlPullParserException 
      */
-    public Producer newProducer() throws XmlPullParserException, IOException {
+    public Producer newProducer() {
         return new Producer(config, xpp);
     }
 

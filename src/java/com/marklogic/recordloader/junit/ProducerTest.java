@@ -24,6 +24,50 @@ public class ProducerTest extends TestCase {
 
     SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
+    public void testExternalId() throws Exception {
+        Configuration config = new Configuration();
+        config.setLogger(logger);
+
+        config.setIdNodeName("#FILENAME");
+        config.setRecordNamespace("");
+        String recordName = "record";
+        config.setRecordName(recordName);
+
+        XmlPullParser xpp = config.getXppFactory().newPullParser();
+        xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+        
+        String testXml = "<root><record>hello world</record></root>";
+        xpp.setInput(new StringReader(testXml));
+
+        int eventType;
+        while (true) {
+            eventType = xpp.next();
+            if (eventType == XmlPullParser.START_TAG) {
+                if (xpp.getName().equals(recordName)) {
+                    break;
+                }
+            }
+        }
+
+        Producer producer = new Producer(config, xpp);
+        String id = "test1";
+        producer.setCurrentId(id);
+
+        StringBuffer outputXml = new StringBuffer();
+        byte[] buf = new byte[READ_SIZE];
+        int len;
+        while ((len = producer.read(buf)) > -1) {
+            outputXml.append(new String(buf, 0, len));
+        }
+        String expectedXml = "<record>hello world</record>"
+                .trim();
+        // logger.info("expected = " + expectedXml);
+        String actual = outputXml.toString().trim();
+        // logger.info("actual = " + actual);
+        assertEquals(expectedXml, actual);
+        assertEquals(id, producer.getCurrentId());
+}
+    
     public void testPrefixes() throws Exception {
         Configuration config = new Configuration();
         config.setLogger(logger);
