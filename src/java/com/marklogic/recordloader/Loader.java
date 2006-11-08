@@ -139,7 +139,7 @@ public class Loader implements Callable {
 
         initDocumentOptions();
 
-        xpp = config.getXppFactory().newPullParser();
+        initParser();
         // TODO feature isn't supported by xpp3 - look at xpp5?
         // xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
         // TODO feature isn't supported by xpp3 - look at xpp5?
@@ -218,7 +218,18 @@ public class Loader implements Callable {
      * @throws XmlPullParserException
      */
     public void setInput(Reader _reader) throws XmlPullParserException {
+        if (null == _reader) {
+            throw new NullPointerException("null reader");
+        }
+        initParser();
         xpp.setInput(_reader);
+    }
+
+    private void initParser() throws XmlPullParserException {
+        if (null != xpp) {
+            return;
+        }
+        xpp = config.getXppFactory().newPullParser();
     }
 
     /**

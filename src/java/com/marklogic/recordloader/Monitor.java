@@ -63,10 +63,10 @@ public class Monitor extends Thread {
     public Monitor(Configuration _c, ThreadPoolExecutor _e) {
         config = _c;
         pool = _e;
+        logger = config.getLogger();
     }
 
     public void run() {
-        logger = config.getLogger();
         logger.fine("starting");
 
         timer = new Timer();

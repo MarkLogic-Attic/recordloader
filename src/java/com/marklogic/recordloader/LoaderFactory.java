@@ -71,8 +71,9 @@ public class LoaderFactory {
     public Loader newLoader(InputStream stream, String _name, String _path)
             throws XccException, XmlPullParserException {
         Loader loader = getLoader();
-        loader.setInput(new BufferedReader(new InputStreamReader(stream,
-                decoder)));
+        BufferedReader br = new BufferedReader(new InputStreamReader(stream,
+                        decoder));
+        loader.setInput(br);
         if (_name != null) {
             loader.setFileBasename(stripExtension(_name));
         }
