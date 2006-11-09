@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipFile;
 
 import com.marklogic.ps.SimpleLogger;
+import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
 import com.marklogic.ps.timing.Timer;
 
@@ -165,7 +166,7 @@ public class Monitor extends Thread {
      * 
      */
     public void halt(Throwable t) {
-        logger.logException("fatal - halting monitor", t);
+        logger.logException("fatal - halting monitor", Utilities.getCause(t));
         halt();
     }
 

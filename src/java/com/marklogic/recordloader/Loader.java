@@ -167,6 +167,14 @@ public class Loader implements Callable {
             process();
             return null;
         } catch (Exception e) {
+            if (null != inputFile) {
+                logger.info("current file: \""
+                        + inputFile.getCanonicalPath() + "\"");
+            }
+            if (null != currentFileBasename) {
+                logger.info("current file basename: \""
+                        + currentFileBasename + "\"");
+            }
             logger.info("current uri: \"" + currentUri + "\"");
             if (producer != null) {
                 logger.info("current record: " + producer + ", bytes = "
@@ -305,7 +313,8 @@ public class Loader implements Callable {
                             + xpp.getPositionDescription());
                     logger.warning("text = " + xpp.getText());
                 }
-                logger.logException("exception", e);
+                // get to the init cause, if there is one
+                logger.logException("exception", Utilities.getCause(e));
                 if (!config.isFatalErrors()) {
                     // keep going
                     logger.logException("non-fatal: skipping", e);

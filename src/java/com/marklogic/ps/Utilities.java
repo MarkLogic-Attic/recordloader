@@ -89,4 +89,18 @@ public class Utilities {
         return true;
     }
 
+    /**
+     * @param t
+     * @return
+     */
+    public static Throwable getCause(Throwable t) {
+        // trace back to the original cause, if there was one
+        Throwable cause = t;
+        Throwable temp = null;
+        while ((temp = cause.getCause()) != null) {
+            cause = temp;
+        }
+        return cause;
+    }
+
 }

@@ -374,34 +374,31 @@ public class Producer extends InputStream {
             case XmlPullParser.TEXT:
                 processText();
                 break;
+            case XmlPullParser.CDSECT:
+                // cross your fingers...
+                processText();
+                break;
             case XmlPullParser.ENTITY_REF:
                 processMalformedEntityRef();
                 break;
             case XmlPullParser.START_TAG:
                 processStartElement();
                 return true;
-            // break;
             case XmlPullParser.END_TAG:
                 processEndElement();
                 return true;
-            // break;
             case XmlPullParser.COMMENT:
                 // skip comments
                 continue;
-            // return;
             case XmlPullParser.PROCESSING_INSTRUCTION:
                 // skip PIs
                 continue;
-            // return;
-            // break;
             case XmlPullParser.START_DOCUMENT:
                 throw new XmlPullParserException(
                         "Unexpected START_DOCUMENT: " + type);
-            // break;
             case XmlPullParser.END_DOCUMENT:
                 throw new XmlPullParserException(
                         "Unexpected END_DOCUMENT: " + type);
-            // break;
             default:
                 throw new XmlPullParserException("UNIMPLEMENTED: " + type);
             }
