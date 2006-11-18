@@ -271,6 +271,8 @@ public class Configuration {
 
     private static final String COPY_NAMESPACES_DEFAULT = "true";
 
+    private static final String RECORD_NAMESPACE_DEFAULT = "";
+
     private Properties props = new Properties();
 
     private String[] baseCollections;
@@ -309,7 +311,7 @@ public class Configuration {
 
     private int threadCount;
 
-    private String uriPrefix = OUTPUT_URI_SUFFIX_DEFAULT;
+    private String uriPrefix = OUTPUT_URI_PREFIX_DEFAULT;
 
     private String uriSuffix = OUTPUT_URI_SUFFIX_DEFAULT;
 
@@ -371,7 +373,7 @@ public class Configuration {
         recordName = props.getProperty(RECORD_NAME_KEY);
         recordNamespace = props.getProperty(RECORD_NAMESPACE_KEY);
         if (recordName != null && recordNamespace == null)
-            recordNamespace = OUTPUT_URI_SUFFIX_DEFAULT;
+            recordNamespace = RECORD_NAMESPACE_DEFAULT;
 
         ignoreUnknown = Utilities.stringToBoolean(props.getProperty(
                 IGNORE_UNKNOWN_KEY, "false"));
@@ -413,10 +415,9 @@ public class Configuration {
             useFileNameIds = true;
         }
 
-        String repairString = props.getProperty(REPAIR_LEVEL_KEY,
-                OUTPUT_URI_SUFFIX_DEFAULT + "NONE");
+        String repairString = props.getProperty(REPAIR_LEVEL_KEY, "NONE");
         if (repairString.equals("FULL")) {
-            logger.fine(REPAIR_LEVEL_KEY + "=FULL");
+            logger.fine(REPAIR_LEVEL_KEY + "=" + repairString);
             repairLevel = DocumentRepairLevel.FULL;
         }
 
@@ -459,8 +460,7 @@ public class Configuration {
         logger.info("adding extra collection: " + collections.get(0));
         String collectionsString = props
                 .getProperty(OUTPUT_COLLECTIONS_KEY);
-        if (collectionsString != null
-                && !collectionsString.equals(OUTPUT_URI_SUFFIX_DEFAULT)) {
+        if (collectionsString != null && !collectionsString.equals("")) {
             collections.addAll(Arrays.asList(collectionsString
                     .split("[\\s,]+")));
         }
@@ -611,16 +611,13 @@ public class Configuration {
      */
     public ContentPermission[] getPermissions() {
         ContentPermission[] permissions = null;
-        String readRolesString = props.getProperty(OUTPUT_READ_ROLES_KEY,
-                OUTPUT_URI_SUFFIX_DEFAULT);
+        String readRolesString = props.getProperty(OUTPUT_READ_ROLES_KEY);
         if (readRolesString != null && readRolesString.length() > 0) {
             String[] readRoles = readRolesString.trim().split("\\s+");
             if (readRoles != null && readRoles.length > 0) {
                 permissions = new ContentPermission[readRoles.length];
                 for (int i = 0; i < readRoles.length; i++) {
-                    if (readRoles[i] != null
-                            && !readRoles[i]
-                                    .equals(OUTPUT_URI_SUFFIX_DEFAULT))
+                    if (readRoles[i] != null && !readRoles[i].equals(""))
                         permissions[i] = new ContentPermission(
                                 ContentPermission.READ, readRoles[i]);
                 }
@@ -650,7 +647,7 @@ public class Configuration {
             String forestNames = props.getProperty(OUTPUT_FORESTS_KEY);
             if (forestNames != null) {
                 forestNames = forestNames.trim();
-                if (!forestNames.equals(OUTPUT_URI_SUFFIX_DEFAULT)) {
+                if (!forestNames.equals("")) {
                     logger.info("sending output to forests: "
                             + forestNames);
                     logger.fine("querying for Forest ids");
@@ -719,7 +716,7 @@ public class Configuration {
      */
     public String getAutoId() {
         synchronized (autoIdMutex) {
-            return OUTPUT_URI_SUFFIX_DEFAULT + (autoid++);
+            return "" + (autoid++);
         }
     }
 

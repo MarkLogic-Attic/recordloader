@@ -159,10 +159,12 @@ public class Loader implements Callable {
             foundRoot = true;
         }
 
+        FileReader fileReader = null;
         try {
             if (inputFile != null) {
                 // time to instantiate the reader
-                setInput(new FileReader(inputFile));
+                fileReader = new FileReader(inputFile);
+                setInput(fileReader);
             }
             process();
             return null;
@@ -199,6 +201,11 @@ public class Loader implements Callable {
             // for OutOfMemoryError, NullPointerException, etc
             monitor.halt(t);
             return null;
+        } finally {
+            // if we have a file reader open, close it
+            if (fileReader != null) {
+                fileReader.close();
+            }
         }
     }
 
