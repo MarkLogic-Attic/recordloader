@@ -69,7 +69,7 @@ public class Configuration {
     /**
      * 
      */
-    private static final String INPUT_PATTERN_DEFAULT = "^.+\\.xml$";
+    private static final String INPUT_PATTERN_DEFAULT = "^.+\\.[Xx][Mm][Ll]$";
 
     /**
      * 
@@ -211,31 +211,6 @@ public class Configuration {
     /**
      * 
      */
-    static final String UNRESOLVED_ENTITY_POLICY_KEY = "UNRESOLVED_ENTITY_POLICY";
-
-    /**
-     * 
-     */
-    static final String UNRESOLVED_ENTITY_POLICY_IGNORE = "IGNORE";
-
-    /**
-     * 
-     */
-    static final String UNRESOLVED_ENTITY_POLICY_REPLACE = "REPLACE";
-
-    /**
-     * 
-     */
-    static final String UNRESOLVED_ENTITY_POLICY_REPORT = "REPORT";
-
-    /**
-     * 
-     */
-    static final String UNRESOLVED_ENTITY_POLICY_DEFAULT = UNRESOLVED_ENTITY_POLICY_REPORT;
-
-    /**
-     * 
-     */
     static final String OUTPUT_URI_SUFFIX_KEY = "URI_SUFFIX";
 
     /**
@@ -273,13 +248,13 @@ public class Configuration {
 
     private static final String RECORD_NAMESPACE_DEFAULT = "";
 
+    private static final int DEFAULT_CAPACITY = 1000;
+
     private Properties props = new Properties();
 
     private String[] baseCollections;
 
     private URI[] uris;
-
-    private String entityPolicy = UNRESOLVED_ENTITY_POLICY_DEFAULT;
 
     private boolean errorExisting = false;
 
@@ -330,6 +305,8 @@ public class Configuration {
     private String zipInputPattern;
 
     private boolean copyNamespaceDeclarations = true;
+
+    private int capacity = DEFAULT_CAPACITY;
 
     /**
      * @param _props
@@ -428,9 +405,6 @@ public class Configuration {
         fatalErrors = Utilities.stringToBoolean(props.getProperty(
                 FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
 
-        entityPolicy = props.getProperty(UNRESOLVED_ENTITY_POLICY_KEY,
-                UNRESOLVED_ENTITY_POLICY_DEFAULT);
-
         inputEncoding = props.getProperty(INPUT_ENCODING_KEY,
                 OUTPUT_ENCODING_DEFAULT);
         malformedInputAction = props.getProperty(
@@ -440,6 +414,7 @@ public class Configuration {
 
         threadCount = Integer.parseInt(props
                 .getProperty(THREADS_KEY, "1"));
+        capacity = DEFAULT_CAPACITY * threadCount;
 
         inputPath = props.getProperty(INPUT_PATH_KEY);
         logger.fine(INPUT_PATH_KEY + " = " + inputPath);
@@ -514,10 +489,6 @@ public class Configuration {
         this.uriSuffix = uriSuffix;
     }
 
-    public String getEntityPolicy() {
-        return entityPolicy;
-    }
-
     public boolean isFatalErrors() {
         return fatalErrors;
     }
@@ -531,20 +502,6 @@ public class Configuration {
      */
     public boolean isFullRepair() {
         return repairLevel == DocumentRepairLevel.FULL;
-    }
-
-    /**
-     * @return
-     */
-    public boolean isUnresolvedEntityIgnore() {
-        return UNRESOLVED_ENTITY_POLICY_IGNORE.equals(entityPolicy);
-    }
-
-    /**
-     * @return
-     */
-    public boolean isUnresolvedEntityReplace() {
-        return UNRESOLVED_ENTITY_POLICY_REPLACE.equals(entityPolicy);
     }
 
     public boolean isUseAutomaticIds() {
@@ -743,6 +700,27 @@ public class Configuration {
      */
     public void setIdNodeName(String _name) {
         idNodeName = _name;
+    }
+
+    /**
+     * @return
+     */
+    public int getQueueCapacity() {
+        return capacity;
+    }
+
+    /**
+     * @return
+     */
+    public long getKeepAliveSeconds() {
+        return 16;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isFileBasedId() {
+        return idNodeName.equals(ID_NAME_FILENAME);
     }
 
 }

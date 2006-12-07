@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.math.BigInteger;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.MalformedInputException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,6 +51,7 @@ import com.marklogic.xcc.ResultSequence;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
+import com.marklogic.xcc.exceptions.XQueryException;
 import com.marklogic.xcc.exceptions.XccException;
 import com.marklogic.xcc.types.XSBoolean;
 
@@ -103,6 +105,8 @@ public class Loader implements Callable {
     private Content currentContent;
 
     private String currentUri;
+
+    private Reader input;
 
     /**
      * @param _monitor
@@ -238,6 +242,7 @@ public class Loader implements Callable {
         }
         initParser();
         xpp.setInput(_reader);
+        input = _reader;
     }
 
     private void initParser() throws XmlPullParserException {
@@ -276,34 +281,29 @@ public class Loader implements Callable {
     private void process() throws Exception {
         int eventType;
 
-        // NOTE: next() skips comments, document-decl, ignorable-whitespace,
-        // and processing-instructions automatically.
-        // To catch these, use nextToken() instead.
-        // For custom entity handling, nextToken() could also be used.
+        // TODO sometimes we can short-circuit the parsing
+        // for example, if the filename is the id.
+        // TODO do we need to check anything else for this?
+        if (config.isUseFileNameIds()) {
+            processMonolith();
+            return;
+        }
+
         boolean c = true;
         while (c) {
-            // We *only* care about finding records,
-            // then passing them off a new producer
             try {
-                eventType = xpp.next();
+                eventType = xpp.nextToken();
                 switch (eventType) {
+                // We *only* care about finding records,
+                // then passing them off a new producer
                 case XmlPullParser.START_TAG:
                     processStartElement();
-                    break;
-                case XmlPullParser.TEXT:
-                    // text in an unknown element, or otherwise a no-op
-                    break;
-                case XmlPullParser.END_TAG:
-                    // end of an unknown element, or otherwise a no-op
-                    break;
-                case XmlPullParser.START_DOCUMENT:
                     break;
                 case XmlPullParser.END_DOCUMENT:
                     c = false;
                     break;
                 default:
-                    throw new XmlPullParserException("UNIMPLEMENTED: "
-                            + eventType);
+                    break;
                 }
             } catch (Exception e) {
                 if (currentFileBasename != null) {
@@ -314,6 +314,11 @@ public class Loader implements Callable {
                 }
                 if (producer != null) {
                     logger.warning(producer.getByteBufferDescription());
+                    if (e instanceof XQueryException) {
+                        logger
+                                .warning("buffer = "
+                                        + producer.getBuffer());
+                    }
                 }
                 if (xpp != null) {
                     logger.warning("pos = "
@@ -361,6 +366,77 @@ public class Loader implements Callable {
             }
             currentUri = null;
             producer = null;
+        }
+    }
+
+    /**
+     * @throws URISyntaxException
+     * @throws IOException
+     * @throws XccException
+     * 
+     */
+    private void processMonolith() throws URISyntaxException,
+            XccException, IOException {
+        try {
+            // handle the input reader as a single document,
+            // without any parsing.
+            String id = null;
+            if (!config.isUseFileNameIds()) {
+                throw new UnimplementedFeatureException("wrong code path");
+            }
+
+            event = new TimedEvent();
+
+            // this form of URI() does escaping nicely
+            id = new URI(null, currentRecordPath, null).toString();
+            logger.fine("setting currentId = " + id);
+
+            boolean skippingRecord = checkId(id);
+
+            currentUri = composeUri(id);
+            composeDocOptions(id);
+
+            // grab the entire document
+            // uses a reader, so charset translation should be ok
+            StringBuffer sb = new StringBuffer();
+            int size;
+            char[] buf = new char[32 * 1024];
+            while ((size = input.read(buf)) > 0) {
+                sb.append(buf, 0, size);
+            }
+            String xml = sb.toString();
+
+            if (!skippingRecord) {
+                logger.fine("inserting " + currentUri);
+                currentContent = ContentFactory.newContent(currentUri,
+                        xml, docOpts);
+                session.insertContent(currentContent);
+            }
+
+            // handle monitor accounting
+            // note that we count skipped records, too
+            event.increment(xml.length());
+            monitor.add(currentUri, event);
+        } catch (URISyntaxException e) {
+            if (config.isFatalErrors()) {
+                throw e;
+            }
+        } catch (XccException e) {
+            if (config.isFatalErrors()) {
+                throw e;
+            }
+        } catch (IOException e) {
+            if (config.isFatalErrors()) {
+                throw e;
+            }
+        } finally {
+            // clean up
+            if (null != currentContent) {
+                currentContent.close();
+            }
+            producer = null;
+            currentContent = null;
+            currentUri = null;
         }
     }
 
@@ -424,10 +500,6 @@ public class Loader implements Callable {
 
             currentUri = composeUri(id);
             composeDocOptions(id);
-            BigInteger[] placeKeys = docOpts.getPlaceKeys();
-            logger.fine("placeKeys = "
-                    + (placeKeys == null ? null : Utilities.join(
-                            placeKeys, ",")));
             currentContent = ContentFactory.newUnBufferedContent(
                     currentUri, producer, docOpts);
 
@@ -481,13 +553,18 @@ public class Loader implements Callable {
                     .get(_id)));
         }
         docOpts.setCollections(collections.toArray(new String[0]));
+
+        BigInteger[] placeKeys = docOpts.getPlaceKeys();
+        logger.fine("placeKeys = "
+                + (placeKeys == null ? null : Utilities.join(placeKeys,
+                        ",")));
     }
 
     /**
      * @param _uri
      * @return
      */
-    private boolean checkFile(String _uri) throws XccException {
+    private boolean checkDocumentUri(String _uri) throws XccException {
         // TODO this is a common pattern: should be in a reusable class
         String query = "define variable $URI as xs:string external\n"
                 + "xdmp:exists(doc($URI))\n";
@@ -525,7 +602,7 @@ public class Loader implements Callable {
         // return true if we're supposed to check,
         // and if the document already exists
         if (config.isSkipExisting() || config.isErrorExisting()) {
-            boolean exists = checkFile(uri);
+            boolean exists = checkDocumentUri(uri);
             logger.fine("checking for uri " + uri + " = " + exists);
             if (exists) {
                 if (config.isErrorExisting()) {

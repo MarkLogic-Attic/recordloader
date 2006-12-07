@@ -151,7 +151,7 @@ use <code>INPUT_ENCODING=Cp1252</code> to ensure correct conversion.
 If unset, RecordLoader will read XML directly from standard input.</td>
 </tr>
 
-<tr><td>INPUT_PATTERN</td><td>^.+\\.xml$</td>
+<tr><td>INPUT_PATTERN</td><td>^.+\\.[Xx][Mm][Ll]$</td>
 <td>Matching pattern (regex) for files found in INPUT_PATH.
 The default value matches all filenames ending with <code>.xml</code></td>
 </tr>
@@ -229,17 +229,6 @@ This allows RecordLoader to resume after being interrupted.</td>
 <tr><td>THREADS</td><td>1</td>
 <td>Number of RecordLoader threads.
 Note that when using standard input, this value is ignored.</td>
-</tr>
-
-<tr><td>UNRESOLVED_ENTITY_POLICY</td><td>REPORT</td>
-<td>What should XPP3 do with unresolved entities?
-<ul>
-<li/>REPORT: throw a fatal exception.
-<li/>REPLACE: replace with a comment, including the entity name.
-<li/>IGNORE: omit the unresolved entity from the new document.
-</ul>
-In any case, RecordLoader will log a warning.
-</td>
 </tr>
 
 <tr><td>XML_REPAIR_LEVEL</td><td>NONE</td>

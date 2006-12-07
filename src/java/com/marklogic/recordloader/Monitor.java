@@ -84,6 +84,7 @@ public class Monitor extends Thread {
             cleanup();
         }
         logger.fine("exiting");
+        System.exit(0);
     }
 
     private void cleanup() {

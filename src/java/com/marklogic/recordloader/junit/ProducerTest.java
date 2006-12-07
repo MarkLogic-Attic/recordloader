@@ -41,7 +41,7 @@ public class ProducerTest extends TestCase {
 
         int eventType;
         while (true) {
-            eventType = xpp.next();
+            eventType = xpp.nextToken();
             if (eventType == XmlPullParser.START_TAG) {
                 if (xpp.getName().equals(recordName)) {
                     break;
@@ -87,7 +87,7 @@ public class ProducerTest extends TestCase {
 
         int eventType;
         while (true) {
-            eventType = xpp.next();
+            eventType = xpp.nextToken();
             if (eventType == XmlPullParser.START_TAG) {
                 if (xpp.getName().equals(recordName)) {
                     break;
@@ -134,7 +134,7 @@ public class ProducerTest extends TestCase {
 
         int eventType;
         while (true) {
-            eventType = xpp.next();
+            eventType = xpp.nextToken();
             if (eventType == XmlPullParser.START_TAG) {
                 if (xpp.getName().equals(recordName)) {
                     break;

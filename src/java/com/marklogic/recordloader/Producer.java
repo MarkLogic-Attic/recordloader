@@ -136,23 +136,6 @@ public class Producer extends InputStream {
         }
     }
 
-    private void processText() throws XmlPullParserException {
-        // if the startId is still defined, and the uri has been found,
-        // we should skip as much of this work as possible
-        // this avoids OutOfMemory too
-        if (skippingRecord) {
-            return;
-        }
-
-        String text = xpp.getText();
-
-        if (xpp.getEventType() == XmlPullParser.TEXT) {
-            text = Utilities.escapeXml(text);
-        }
-
-        write(text);
-    }
-
     private void processStartElement() throws IOException,
             XmlPullParserException {
         String name = xpp.getName();
@@ -166,12 +149,11 @@ public class Producer extends InputStream {
             handleRecordStart();
         }
 
-        // allow for repeated idName elements: use the first one we see, for
-        // each recordName
+        // allow for repeated idName elements: first one wins
         // NOTE: idName is namespace-insensitive
-        if (currentId == null && name.equals(idName)) {
+        if (null == currentId && name.equals(idName)) {
             // pick out the contents and use it for the uri
-            if (xpp.next() != XmlPullParser.TEXT) {
+            if (xpp.nextToken() != XmlPullParser.TEXT) {
                 throw new XmlPullParserException(
                         "badly formed xml: missing id at "
                                 + xpp.getPositionDescription());
@@ -188,7 +170,7 @@ public class Producer extends InputStream {
             write(currentId);
 
             // advance xpp to the END_ELEMENT - brittle?
-            if (xpp.next() != XmlPullParser.END_TAG) {
+            if (xpp.nextToken() != XmlPullParser.END_TAG) {
                 throw new XmlPullParserException(
                         "badly formed xml: no END_TAG after id text"
                                 + xpp.getPositionDescription());
@@ -295,46 +277,17 @@ public class Producer extends InputStream {
 
         // end of record
         logger.fine("end of record");
+        //logger.finest(buffer.toString());
         return false;
-    }
-
-    /**
-     * @return
-     */
-    private String getCurrentTextCharactersString() {
-        int[] sl = new int[2];
-        char[] chars = xpp.getTextCharacters(sl);
-        char[] nameChars = new char[sl[1]];
-        System.arraycopy(chars, sl[0], nameChars, 0, sl[1]);
-        return new String(nameChars);
-    }
-
-    /**
-     * @throws XmlPullParserException
-     * 
-     */
-    private void processMalformedEntityRef()
-            throws XmlPullParserException {
-        // handle unresolved entity exceptions
-        if (config.isUnresolvedEntityIgnore()) {
-            return;
-        } else if (config.isUnresolvedEntityReplace()) {
-            String name = getCurrentTextCharactersString();
-            logger.fine("name=" + name);
-            String replacement = Configuration.UNRESOLVED_ENTITY_REPLACEMENT_PREFIX
-                    + name
-                    + Configuration.UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX;
-            write(replacement);
-            return;
-        }
-        throw new XmlPullParserException("Unresolved entity error at "
-                + xpp.getPositionDescription());
     }
 
     /**
      * @param string
      */
     private void write(String string) {
+        // if the startId is still defined, and the uri has been found,
+        // we should skip as much of this work as possible
+        // this avoids OutOfMemory too
         if (skippingRecord) {
             return;
         }
@@ -345,65 +298,6 @@ public class Producer extends InputStream {
 
         // logger.finest(string);
         buffer.append(string);
-    }
-
-    /**
-     * @throws IOException
-     * @throws XmlPullParserException
-     * 
-     */
-    private boolean handleUnresolvedEntity()
-            throws XmlPullParserException, IOException {
-        int type;
-        boolean c = true;
-        while (c) {
-            try {
-                type = xpp.nextToken();
-            } catch (XmlPullParserException e) {
-                if (e.getMessage().contains("quotation or apostrophe")
-                        && config.isFullRepair()) {
-                    // messed-up attribute? skip it?
-                    logger.warning("attribute error: " + e.getMessage());
-                    // all we can do is ignore it, apparently
-                    return true;
-                }
-                throw e;
-            }
-            logger.fine("type=" + type);
-            switch (type) {
-            case XmlPullParser.TEXT:
-                processText();
-                break;
-            case XmlPullParser.CDSECT:
-                // cross your fingers...
-                processText();
-                break;
-            case XmlPullParser.ENTITY_REF:
-                processMalformedEntityRef();
-                break;
-            case XmlPullParser.START_TAG:
-                processStartElement();
-                return true;
-            case XmlPullParser.END_TAG:
-                processEndElement();
-                return true;
-            case XmlPullParser.COMMENT:
-                // skip comments
-                continue;
-            case XmlPullParser.PROCESSING_INSTRUCTION:
-                // skip PIs
-                continue;
-            case XmlPullParser.START_DOCUMENT:
-                throw new XmlPullParserException(
-                        "Unexpected START_DOCUMENT: " + type);
-            case XmlPullParser.END_DOCUMENT:
-                throw new XmlPullParserException(
-                        "Unexpected END_DOCUMENT: " + type);
-            default:
-                throw new XmlPullParserException("UNIMPLEMENTED: " + type);
-            }
-        }
-        return true;
     }
 
     /**
@@ -438,7 +332,7 @@ public class Producer extends InputStream {
         // do we have something ready to read?
         if (byteBuffer != null) {
             if (byteIndex < byteBuffer.length) {
-                // logger.finer("existing = " + getByteBufferDescription());
+                logger.finer("existing = " + getByteBufferDescription());
                 return byteBuffer.length - byteIndex;
             }
             byteBuffer = null;
@@ -446,7 +340,7 @@ public class Producer extends InputStream {
         }
 
         if (buffer == null) {
-            // logger.fine("buffer is null");
+            logger.fine("buffer is null");
             byteBuffer = null;
             // must wrap any non-IOException in an IOException
             try {
@@ -463,7 +357,7 @@ public class Producer extends InputStream {
 
         if (buffer == null) {
             // indicate EOF
-            // logger.fine("EOF");
+            logger.fine("EOF");
             return -1;
         }
 
@@ -527,7 +421,7 @@ public class Producer extends InputStream {
         if (!keepGoing) {
             return;
         }
-        
+
         if (startOfRecord) {
             // this is the start of the record
             // by definition, we are at the start of an element
@@ -539,18 +433,45 @@ public class Producer extends InputStream {
 
         int eventType;
         try {
-            // NOTE: next() skips comments, document-decl, ignorable-whitespace,
-            // processing-instructions automatically.
+            // NOTE: next() skips comments, ignorable-whitespace, etc.
             // to catch these, use nextToken() instead.
-            // nextToken() could also be used for custom entity handling.
-            eventType = xpp.next();
+            eventType = xpp.nextToken();
             logger.finest("eventType = " + eventType);
             switch (eventType) {
             case XmlPullParser.START_TAG:
                 processStartElement();
                 break;
             case XmlPullParser.TEXT:
-                processText();
+                write(Utilities.escapeXml(xpp.getText()));
+                break;
+            case XmlPullParser.CDSECT:
+                // round-trip it
+                write("<![CDATA[");
+                write(xpp.getText());
+                write("]]>");
+                break;
+            case XmlPullParser.IGNORABLE_WHITESPACE:
+                write(xpp.getText());
+                break;
+            case XmlPullParser.ENTITY_REF:
+                write("&");
+                write(xpp.getName());
+                write(";");
+                break;
+            case XmlPullParser.DOCDECL:
+                write("<!DOCTYPE");
+                write(xpp.getText());
+                write(">");
+                break;
+            case XmlPullParser.PROCESSING_INSTRUCTION:
+                write("<?");
+                write(xpp.getText());
+                write("?>");
+                break;
+            case XmlPullParser.COMMENT:
+                write("<!--");
+                write(xpp.getText());
+                write("-->");
                 break;
             case XmlPullParser.END_TAG:
                 keepGoing = processEndElement();
@@ -576,11 +497,7 @@ public class Producer extends InputStream {
         } catch (XmlPullParserException e) {
             logger.warning(e.getClass().getSimpleName() + " at "
                     + xpp.getPositionDescription());
-            // could be a problem entity
-            if (e.getMessage().contains("entity")) {
-                logger.warning("entity error: " + e.getMessage());
-                handleUnresolvedEntity();
-            } else if (e.getMessage().contains("quotation or apostrophe")
+            if (e.getMessage().contains("quotation or apostrophe")
                     && config.isFullRepair()) {
                 // messed-up attribute? skip it?
                 logger.warning("attribute error: " + e.getMessage());
@@ -608,11 +525,22 @@ public class Producer extends InputStream {
     }
 
     public String getByteBufferDescription() {
+        //logger.info(buffer.toString());
         if (byteBuffer == null) {
-            return "" + byteIndex + " of " + byteBuffer;
+            return "" + byteIndex + " in empty byteBuffer";
         }
         return "" + byteIndex + "/" + byteBuffer.length + " of "
                 + new String(byteBuffer);
+    }
+
+    /**
+     * @return
+     */
+    public String getBuffer() {
+        if (null == buffer) {
+            return null;
+        }
+        return buffer.toString();
     }
 
 }

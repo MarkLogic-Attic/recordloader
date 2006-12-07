@@ -32,9 +32,12 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
@@ -47,6 +50,7 @@ import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.Loader;
 import com.marklogic.recordloader.LoaderFactory;
 import com.marklogic.recordloader.Monitor;
+import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 import com.marklogic.xcc.exceptions.XccException;
 
 /**
@@ -59,16 +63,37 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-11-15.1";
+    public static final String VERSION = "2006-12-01.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
     private static SimpleLogger logger = SimpleLogger.getSimpleLogger();
 
-    // number of entries overflows at 2^16 = 65536
-    // ref: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=4828461
-    // (supposed to be fixed, but isn't)
-    private static final int MAX_ENTRIES = 65536 - 1;
+    private class CallerBlocksPolicy implements RejectedExecutionHandler {
+
+        private BlockingQueue<Runnable> queue;
+
+        /*
+         * (non-Javadoc)
+         * 
+         * @see java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java.lang.Runnable,
+         *      java.util.concurrent.ThreadPoolExecutor)
+         */
+        public void rejectedExecution(Runnable r,
+                ThreadPoolExecutor executor) {
+            if (null == queue) {
+                queue = executor.getQueue();
+            }
+            try {
+                // block until space becomes available
+                queue.put(r);
+            } catch (InterruptedException e) {
+                // someone is trying to interrupt us
+                throw new RejectedExecutionException(e);
+            }
+        }
+
+    }
 
     public static void main(String[] args) throws FileNotFoundException,
             IOException, XccException, XmlPullParserException,
@@ -151,9 +176,14 @@ public class RecordLoader {
         }
         logger.info("thread count = " + threadCount);
 
-        ThreadPoolExecutor pool = (ThreadPoolExecutor) Executors
-                .newFixedThreadPool(threadCount);
-
+        BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(
+                config.getQueueCapacity());
+        RecordLoader rl = new RecordLoader();
+        CallerBlocksPolicy policy = rl.getPolicy();
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(config
+                .getThreadCount(), config.getThreadCount(), config
+                .getKeepAliveSeconds(), TimeUnit.SECONDS, workQueue,
+                policy);
         Monitor monitor = new Monitor(config, pool);
 
         try {
@@ -168,6 +198,7 @@ public class RecordLoader {
             } else {
                 if (config.getThreadCount() > 1) {
                     logger.warning("Will not use multiple threads!");
+                    pool.setCorePoolSize(1);
                     pool.setMaximumPoolSize(1);
                 }
                 handleStandardInput(config, inputDecoder, pool, factory);
@@ -196,6 +227,13 @@ public class RecordLoader {
                 monitor.halt();
             }
         }
+    }
+
+    /**
+     * @return
+     */
+    private CallerBlocksPolicy getPolicy() {
+        return new CallerBlocksPolicy();
     }
 
     private static CharsetDecoder getDecoder(String inputEncoding,
@@ -249,18 +287,17 @@ public class RecordLoader {
                 _monitor.add(zipFile);
                 entries = zipFile.entries();
                 size = zipFile.size();
-                logger.fine("queuing entries from zip file "
+                logger.fine("queuing " + size + " entries from zip file "
                         + file.getCanonicalPath());
-                if (size >= MAX_ENTRIES) {
-                    logger.warning("too many entries in input-package: "
-                            + size + " >= " + MAX_ENTRIES + "("
-                            + file.getCanonicalPath() + ")");
-                }
                 int count = 0;
                 while (entries.hasMoreElements()) {
                     ze = entries.nextElement();
                     logger.fine("found zip entry " + ze);
                     if (ze.isDirectory()) {
+                        // skip it
+                        continue;
+                    }
+                    if (!ze.getName().matches(_config.getInputPattern())) {
                         // skip it
                         continue;
                     }
@@ -275,6 +312,11 @@ public class RecordLoader {
                             .getInputStream(ze), file.getName(),
                             entryName));
                     count++;
+                    if (0 == count % 1000) {
+                        logger.finer("queued " + count
+                                + " entries from zip file "
+                                + file.getCanonicalPath());
+                    }
                 }
                 logger.fine("queued " + count + " entries from zip file "
                         + file.getCanonicalPath());
@@ -299,6 +341,11 @@ public class RecordLoader {
             XmlPullParserException {
         // use stdin by default
         // NOTE: will not use multiple threads
+        if (_config.isFileBasedId()) {
+            throw new UnimplementedFeatureException("Must specify "
+                    + Configuration.ID_NAME_KEY
+                    + " when using standard input");
+        }
         logger.info("Reading from standard input...");
         submitLoader(_es, _factory.newLoader(System.in));
     }
