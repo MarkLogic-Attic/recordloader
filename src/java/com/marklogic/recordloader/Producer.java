@@ -140,8 +140,32 @@ public class Producer extends InputStream {
             XmlPullParserException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
+        boolean isEmpty = xpp.isEmptyElementTag();
+
         logger.finest("name = " + name);
         String text = xpp.getText();
+        logger.finest("text = " + text);
+        // guard against and work around a known bug
+        if (!text.contains(name)) {
+            logger.warning("working around xpp3 bug 249: name = " + name
+                    + ", text = " + text);
+            text = "<" + name;
+            int attributeCount = xpp.getAttributeCount();
+            String aPrefix;
+            if (attributeCount > 0) {
+                for (int i = 0; i < attributeCount; i++) {
+                    aPrefix = xpp.getAttributePrefix(i);
+                    text += " "
+                            + (null == aPrefix ? "" : (aPrefix + ":"))
+                            + xpp.getAttributeName(i)
+                            + "=\""
+                            + Utilities.escapeXml(xpp
+                                    .getAttributeValue(i)) + "\"";
+                }
+            }
+            text += (isEmpty ? "/>" : ">");
+        }
+
         boolean isRecordRoot = false;
 
         if (name.equals(recordName) && namespace.equals(recordNamespace)) {
@@ -192,7 +216,6 @@ public class Producer extends InputStream {
         // this seems to be the only way to handle empty elements:
         // write it as a end-element, only.
         // note that attributes are still ok in this case
-        boolean isEmpty = xpp.isEmptyElementTag();
         if (isEmpty) {
             logger.finest("empty element");
             return;
@@ -239,7 +262,7 @@ public class Producer extends InputStream {
             }
         }
 
-        logger.finest("writing text");
+        logger.finest("writing text = " + text);
         write(text);
         return;
     }
@@ -277,7 +300,7 @@ public class Producer extends InputStream {
 
         // end of record
         logger.fine("end of record");
-        //logger.finest(buffer.toString());
+        //logger.finest(buffer.toString()); // DEBUG
         return false;
     }
 
@@ -296,7 +319,7 @@ public class Producer extends InputStream {
             buffer = new StringBuffer();
         }
 
-        // logger.finest(string);
+        //logger.finest("string = " + string); // DEBUG
         buffer.append(string);
     }
 
@@ -362,11 +385,12 @@ public class Producer extends InputStream {
         }
 
         if (byteBuffer == null) {
+            // get more bytes
             byteBuffer = buffer.toString().getBytes(outputEncoding);
             byteIndex = 0;
         }
 
-        // logger.fine("new = " + getByteBufferDescription());
+        //logger.fine("new = " + getByteBufferDescription()); // DEBUG
         return byteBuffer.length - byteIndex;
     }
 
@@ -395,8 +419,8 @@ public class Producer extends InputStream {
         }
 
         int available = readByteBuffer(len - 1);
-        // logger.fine("off = " + off + ", len = " + len + ", available = "
-        // + available);
+        // DEBUG
+        //logger.fine("off = " + off + ", len = " + len + ", avail = " + available);
 
         if (available < 0) {
             return available;
@@ -525,7 +549,6 @@ public class Producer extends InputStream {
     }
 
     public String getByteBufferDescription() {
-        //logger.info(buffer.toString());
         if (byteBuffer == null) {
             return "" + byteIndex + " in empty byteBuffer";
         }
@@ -537,10 +560,7 @@ public class Producer extends InputStream {
      * @return
      */
     public String getBuffer() {
-        if (null == buffer) {
-            return null;
-        }
-        return buffer.toString();
+        return (null != buffer) ? buffer.toString() : null;
     }
 
 }

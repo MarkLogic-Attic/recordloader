@@ -59,7 +59,9 @@ import com.marklogic.xcc.types.XSBoolean;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class Loader implements Callable {
+
+// Callable<Object> is ok: we really don't return anything
+public class Loader implements Callable<Object> {
     private SimpleLogger logger;
 
     private XmlPullParser xpp = null;

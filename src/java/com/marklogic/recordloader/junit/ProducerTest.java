@@ -4,14 +4,15 @@
 package com.marklogic.recordloader.junit;
 
 import java.io.StringReader;
+import java.util.Properties;
+
+import junit.framework.TestCase;
 
 import org.xmlpull.v1.XmlPullParser;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.Producer;
-
-import junit.framework.TestCase;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -35,7 +36,7 @@ public class ProducerTest extends TestCase {
 
         XmlPullParser xpp = config.getXppFactory().newPullParser();
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
-        
+
         String testXml = "<root><record>hello world</record></root>";
         xpp.setInput(new StringReader(testXml));
 
@@ -59,15 +60,14 @@ public class ProducerTest extends TestCase {
         while ((len = producer.read(buf)) > -1) {
             outputXml.append(new String(buf, 0, len));
         }
-        String expectedXml = "<record>hello world</record>"
-                .trim();
+        String expectedXml = "<record>hello world</record>".trim();
         // logger.info("expected = " + expectedXml);
         String actual = outputXml.toString().trim();
         // logger.info("actual = " + actual);
         assertEquals(expectedXml, actual);
         assertEquals(id, producer.getCurrentId());
-}
-    
+    }
+
     public void testPrefixes() throws Exception {
         Configuration config = new Configuration();
         config.setLogger(logger);
@@ -163,4 +163,56 @@ public class ProducerTest extends TestCase {
         assertEquals(expectedXml, actual);
     }
 
+    public void testAttributesWithEntities() throws Exception {
+        Configuration config = new Configuration();
+        Properties props = new Properties();
+        props.setProperty("LOG_LEVEL", "FINEST");
+        logger.configureLogger(props);
+        config.setLogger(logger);
+
+        config.setIdNodeName("#FILE");
+        String recordName = "record";
+        config.setRecordNamespace("");
+        config.setRecordName(recordName);
+
+        XmlPullParser xpp = config.getXppFactory().newPullParser();
+        xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+        String beginXml = "<root>\n";
+        String endXml = "</root>\n";
+        String testXml = beginXml + "<record><ISBN>\n"
+                + "<Number>0-521-79351-3</Number>\n"
+                + "<BindingType>hardcover</BindingType>\n" + "</ISBN>\n"
+                + "<ISBN Qualifier=\"Volume 1&amp;2 hardcover, set\">\n"
+                + "<Number>0-521-79351-3</Number>\n"
+                + "<BindingType>hardcover</BindingType>\n"
+                + "</ISBN></record>\n" + endXml;
+
+        xpp.setInput(new StringReader(testXml));
+        int eventType;
+        while (true) {
+            eventType = xpp.nextToken();
+            if (eventType == XmlPullParser.START_TAG) {
+                if (xpp.getName().equals(recordName)) {
+                    break;
+                }
+            }
+        }
+
+        Producer producer = new Producer(config, xpp);
+        producer.setCurrentId("test");
+
+        StringBuffer outputXml = new StringBuffer();
+        byte[] buf = new byte[READ_SIZE];
+        int len;
+        while ((len = producer.read(buf)) > -1) {
+            outputXml.append(new String(buf, 0, len));
+        }
+        String actual = outputXml.toString().trim();
+        logger.info("actual = " + actual);
+        String expectedXml = testXml.trim().substring(beginXml.length());
+        expectedXml = expectedXml.substring(0, expectedXml.length()
+                - endXml.length());
+        logger.info("expected = " + expectedXml);
+        assertEquals(expectedXml, actual);
+    }
 }

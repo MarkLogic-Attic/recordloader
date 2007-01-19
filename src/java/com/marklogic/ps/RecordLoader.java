@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2006 Mark Logic Corporation
+ * Copyright (c)2005-2007 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,7 +63,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2006-12-01.1";
+    public static final String VERSION = "2007-01-19.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -350,9 +350,7 @@ public class RecordLoader {
         submitLoader(_es, _factory.newLoader(System.in));
     }
 
-    @SuppressWarnings("unchecked")
     private static Future submitLoader(ExecutorService _es, Loader _loader) {
-        // TODO how to fix this line, without suppressing warnings?
         return _es.submit(_loader);
     }
 
