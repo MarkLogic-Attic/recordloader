@@ -31,7 +31,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
-import java.util.logging.Level;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -86,8 +85,6 @@ public class Loader implements Callable<Object> {
 
     private String currentFileBasename = null;
 
-    private long totalSkipped = 0;
-
     private Map collectionMap;
 
     private Configuration config;
@@ -139,6 +136,7 @@ public class Loader implements Callable<Object> {
      * @see java.util.concurrent.Callable#call()
      */
     public Object call() throws Exception {
+
         session = conn.newSession();
 
         logger.fine(Configuration.ID_NAME_KEY + "=" + idName);
@@ -614,10 +612,7 @@ public class Loader implements Callable<Object> {
                 }
                 // ok, must be skipExisting...
                 // count it and log the message
-                totalSkipped++;
-                logger.log((totalSkipped % 500 == 0) ? Level.INFO
-                        : Level.FINE, "skipping " + totalSkipped
-                        + " existing uri " + uri);
+                monitor.incrementSkipped("existing uri " + uri);
                 return true;
             }
         }
@@ -658,8 +653,7 @@ public class Loader implements Callable<Object> {
         // is this my cow?
         if (!startId.equals(id)) {
             // don't bother to open the stream: skip this record
-            logger.info("skipping record " + (++totalSkipped)
-                    + " with id " + id + " != " + startId);
+            monitor.incrementSkipped("id " + id + " != " + startId);
             return true;
         }
 

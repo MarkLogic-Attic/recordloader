@@ -231,6 +231,11 @@ This allows RecordLoader to resume after being interrupted.</td>
 Note that when using standard input, this value is ignored.</td>
 </tr>
 
+<tr><td>THROTTLE_EVENTS_PER_SECOND</td><td>0</td>
+<td>If non-zero, all threads will be throttled
+  to the given number of inserts per second.</td>
+</tr>
+
 <tr><td>XML_REPAIR_LEVEL</td><td>NONE</td>
 <td>To what degree should XPP3 and MarkLogic Server
 compensate for invalid XML?

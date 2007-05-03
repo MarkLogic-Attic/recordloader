@@ -1,7 +1,9 @@
 #!/bin/sh
 #
 
-CP=../lib/recordloader.jar
+BASE=`dirname $0`
+
+CP=$BASE/../lib/recordloader.jar
 CP=$CP:$HOME/lib/java/xcc.jar
 CP=$CP:$HOME/lib/java/xpp3.jar
 
@@ -16,6 +18,12 @@ for a in $*; do
     fi
 done
 
-$JAVA_HOME/bin/java -cp $CP $VMARGS com.marklogic.ps.RecordLoader $FILES
+if [ -d "$JAVA_HOME" ]; then
+  JAVA=$JAVA_HOME/bin/java
+else
+  JAVA=java
+fi
+
+$JAVA -cp $CP $VMARGS com.marklogic.ps.RecordLoader $FILES
 
 # end recordloader.sh

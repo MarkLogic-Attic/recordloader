@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.zip.ZipFile;
 
 import com.marklogic.ps.SimpleLogger;
@@ -52,6 +53,8 @@ public class Monitor extends Thread {
     private ThreadPoolExecutor pool;
 
     private Configuration config;
+
+    private int totalSkipped = 0;
 
     private Monitor() {
         // avoid no-argument constructors
@@ -180,6 +183,25 @@ public class Monitor extends Thread {
             lastUri = _uri;
         }
         timer.add(_event);
+
+        // optional throttling
+        if (config.isThrottled()) {
+            logger.finer("throttling rate " + timer.getEventsPerSecond());
+            long sleepMillis;
+            while (config.getThrottledEventsPerSecond() < timer
+                    .getEventsPerSecond()) {
+                sleepMillis = (long) (1000 / config
+                        .getThrottledEventsPerSecond() - 1000 / timer
+                        .getEventsPerSecond());
+                try {
+                    Thread.sleep(sleepMillis);
+                } catch (InterruptedException e) {
+                    logger.logException("interrupted", e);
+                }
+            }
+            logger.fine("throttled rate " + timer.getEventsPerSecond());
+        }
+
     }
 
     /**
@@ -214,6 +236,15 @@ public class Monitor extends Thread {
      */
     public void setConfig(Configuration _config) {
         config = _config;
+    }
+
+    /**
+     * 
+     */
+    public void incrementSkipped(String message) {
+        logger.log((totalSkipped % 500 == 0) ? Level.INFO
+                : Level.FINE, "skipping " + totalSkipped
+                + " " + message);        
     }
 
 }

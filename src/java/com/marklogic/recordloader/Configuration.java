@@ -188,6 +188,10 @@ public class Configuration {
      */
     static final String THREADS_KEY = "THREADS";
 
+    static final String THROTTLE_KEY = "THROTTLE_EVENTS_PER_SECOND";
+
+    static final String THROTTLE_DEFAULT = "0";
+
     /**
      * 
      */
@@ -308,6 +312,8 @@ public class Configuration {
 
     private int capacity = DEFAULT_CAPACITY;
 
+    private double throttledEventsPerSecond;
+
     /**
      * @param _props
      */
@@ -425,6 +431,12 @@ public class Configuration {
         zipInputPattern = props.getProperty(ZIP_INPUT_PATTERN_KEY,
                 ZIP_INPUT_PATTERN_DEFAULT);
         logger.fine(ZIP_INPUT_PATTERN_KEY + " = " + zipInputPattern);
+        
+        throttledEventsPerSecond = Double.parseDouble(props.getProperty(
+                THROTTLE_KEY, THROTTLE_DEFAULT));
+        if (isThrottled()) {
+            logger.info("throttle = " + throttledEventsPerSecond);
+        }
     }
 
     private void configureCollections() {
@@ -721,6 +733,17 @@ public class Configuration {
      */
     public boolean isFileBasedId() {
         return idNodeName.equals(ID_NAME_FILENAME);
+    }
+
+    /**
+     * @return
+     */
+    public boolean isThrottled() {
+        return throttledEventsPerSecond > 0;
+    }
+
+    public double getThrottledEventsPerSecond() {
+        return throttledEventsPerSecond;
     }
 
 }
