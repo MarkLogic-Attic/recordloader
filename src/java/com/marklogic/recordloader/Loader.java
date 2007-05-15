@@ -43,7 +43,6 @@ import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
 import com.marklogic.xcc.ContentSource;
 import com.marklogic.xcc.ContentSourceFactory;
-import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.ResultItem;
 import com.marklogic.xcc.ResultSequence;
@@ -219,17 +218,15 @@ public class Loader implements Callable<Object> {
             return;
         }
         boolean resolveEntities = false;
-        DocumentFormat format = DocumentFormat.XML;
-        int quality = 0;
         docOpts = new ContentCreateOptions();
         docOpts.setResolveEntities(resolveEntities);
         docOpts.setPermissions(config.getPermissions());
         docOpts.setCollections(config.getBaseCollections());
-        docOpts.setQuality(quality);
+        docOpts.setQuality(config.getQuality());
         docOpts.setNamespace(config.getOutputNamespace());
         docOpts.setRepairLevel(config.getRepairLevel());
         docOpts.setPlaceKeys(config.getPlaceKeys());
-        docOpts.setFormat(format);
+        docOpts.setFormat(config.getFormat());
     }
 
     /**

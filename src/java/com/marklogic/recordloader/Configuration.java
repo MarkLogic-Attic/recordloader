@@ -40,6 +40,7 @@ import com.marklogic.xcc.ContentPermission;
 import com.marklogic.xcc.ContentSource;
 import com.marklogic.xcc.ContentSourceFactory;
 import com.marklogic.xcc.ContentbaseMetaData;
+import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.DocumentRepairLevel;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
@@ -82,6 +83,17 @@ public class Configuration {
      * 
      */
     static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
+
+    /**
+     * 
+     */
+    static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
+
+    /**
+     * 
+     */
+    private static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
+            .toString();
 
     /**
      * 
@@ -314,6 +326,10 @@ public class Configuration {
 
     private double throttledEventsPerSecond;
 
+    private DocumentFormat format = DocumentFormat.XML;
+
+    private int quality = 0;
+
     /**
      * @param _props
      */
@@ -431,11 +447,29 @@ public class Configuration {
         zipInputPattern = props.getProperty(ZIP_INPUT_PATTERN_KEY,
                 ZIP_INPUT_PATTERN_DEFAULT);
         logger.fine(ZIP_INPUT_PATTERN_KEY + " = " + zipInputPattern);
-        
+
         throttledEventsPerSecond = Double.parseDouble(props.getProperty(
                 THROTTLE_KEY, THROTTLE_DEFAULT));
         if (isThrottled()) {
             logger.info("throttle = " + throttledEventsPerSecond);
+        }
+
+        String formatString = props.getProperty(DOCUMENT_FORMAT_KEY,
+                DOCUMENT_FORMAT_DEFAULT).toLowerCase();
+        if (formatString.equals(DocumentFormat.TEXT.toString())) {
+            format = DocumentFormat.TEXT;
+        } else if (formatString.equals(DocumentFormat.BINARY.toString())) {
+            format = DocumentFormat.BINARY;
+        } else if (formatString.equals(DocumentFormat.XML.toString())) {
+            format = DocumentFormat.XML;
+        } else {
+            logger.warning("Unexpected: " + DOCUMENT_FORMAT_KEY + "="
+                    + formatString + " (using xml)");
+            format = DocumentFormat.XML;
+        }
+        if (!format.equals(DocumentFormat.XML)) {
+            logger.info("Using " + DOCUMENT_FORMAT_KEY + "="
+                    + formatString);
         }
     }
 
@@ -744,6 +778,17 @@ public class Configuration {
 
     public double getThrottledEventsPerSecond() {
         return throttledEventsPerSecond;
+    }
+
+    public DocumentFormat getFormat() {
+        return format;
+    }
+
+    /**
+     * @return
+     */
+    public int getQuality() {
+        return quality;
     }
 
 }

@@ -63,7 +63,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2007-05-02.1";
+    public static final String VERSION = "2007-05-11.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -135,6 +135,8 @@ public class RecordLoader {
         }
 
         // override with any system props
+        System.err.println(SIMPLE_NAME + " starting, version " + VERSION);
+
         config.load(System.getProperties());
         config.setLogger(logger);
         config.configure();
@@ -147,7 +149,7 @@ public class RecordLoader {
         String inputPath = config.getInputPath();
         if (inputPath != null) {
             String inputPattern = config.getInputPattern();
-            logger.fine("finding matches for " + inputPattern + " in "
+            logger.info("finding matches for " + inputPattern + " in "
                     + inputPath);
             // find all the files
             FileFinder ff = new FileFinder(inputPath, inputPattern);
@@ -327,12 +329,14 @@ public class RecordLoader {
         iter = _xmlFiles.iterator();
         while (iter.hasNext()) {
             file = iter.next();
+            if (file.isDirectory()) {
+                logger.warning("skipping directory "
+                        + file.getCanonicalPath());
+                continue;
+            }
             logger.fine("queuing file " + file.getCanonicalPath());
             submitLoader(_es, _factory.newLoader(file));
         }
-
-        // wait for all threads to complete their work
-        logger.info("all files queued");
     }
 
     private static void handleStandardInput(Configuration _config,
