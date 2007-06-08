@@ -359,7 +359,7 @@ public class Configuration {
 
         String[] connectionStrings = props.getProperty(
                 CONNECTION_STRING_KEY, CONNECTION_STRING_DEFAULT).split(
-                "\\s+");
+                "[,\\s]+");
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
         uris = new URI[connectionStrings.length];

@@ -198,17 +198,16 @@ public class FileFinder {
             return;
 
         for (int i = 0; i < dirList.length; i++) {
-            if (dirList[i].isFile()) {
-                list.add(dirList[i]);
-                continue;
-            }
-
             if (dirList[i].isDirectory()) {
                 // recurse
                 startPath = dirList[i].getCanonicalPath();
                 find();
                 continue;
             }
+            
+            // must be a file (or something file-like, eg named pipe)
+            list.add(dirList[i]);
+            continue;
         }
     }
 
