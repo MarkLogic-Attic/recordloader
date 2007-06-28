@@ -163,6 +163,28 @@ If unset, RecordLoader will read XML directly from standard input.</td>
 The default value matches all filenames ending with <code>.xml</code></td>
 </tr>
 
+<tr><td>INPUT_STRIP_PREFIX</td><td>null</td>
+<td>If not null, characters matching this pattern (regex)
+  will be removed from all input URIs.
+  For example, Windows users may wish to set
+  <code>INPUT_STRIP_PREFIX=^[A-Z]:</code>
+  so that document URIs in the database
+  do not include drive-letter prefixes.
+</td>
+</tr>
+
+<tr><td>INPUT_NORMALIZE_PATHS</td><td>false</td>
+<td>If true, backslashes in input paths
+  will be coalesced and replaced with slashes
+  in all output document URIs.
+  This is useful for Windows users,
+  especially in combination with <code>INPUT_STRIP_PREFIX</code>.
+  With both properties set as suggested,
+  <code>C:\foo\bar\baz.xml</code> on the filesystem becomes
+  <code>/foo/bar/baz.xml</code> in the database.
+</td>
+</tr>
+
 <tr>
   <td>LOG_LEVEL</td><td>INFO</td>
   <td>java.util.logger.Level at which to log.</td>

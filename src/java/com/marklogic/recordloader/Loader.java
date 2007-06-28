@@ -55,7 +55,7 @@ import com.marklogic.xcc.types.XSBoolean;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 
 // Callable<Object> is ok: we really don't return anything
@@ -131,7 +131,7 @@ public class Loader implements Callable<Object> {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see java.util.concurrent.Callable#call()
      */
     public Object call() throws Exception {
@@ -370,7 +370,7 @@ public class Loader implements Callable<Object> {
      * @throws URISyntaxException
      * @throws IOException
      * @throws XccException
-     * 
+     *
      */
     private void processMonolith() throws URISyntaxException,
             XccException, IOException {
@@ -384,8 +384,19 @@ public class Loader implements Callable<Object> {
 
             event = new TimedEvent();
 
+            // Regex replaces any backslashes ('\') with forwardslash ('/')
+            if (config.isInputNormalizePaths()) {
+            	id = currentRecordPath.replaceAll("[\\\\]+", "/");
+            }
+
+            String inputStripPrefix = config.getInputStripPrefix();
+            if (inputStripPrefix != null && inputStripPrefix.length() > 0) {
+         	   id = id.replaceFirst(inputStripPrefix, "");
+            }
+
             // this form of URI() does escaping nicely
-            id = new URI(null, currentRecordPath, null).toString();
+            id = new URI(null, id, null).toString();
+
             logger.fine("setting currentId = " + id);
 
             boolean skippingRecord = checkId(id);

@@ -48,155 +48,170 @@ import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class Configuration {
 
     /**
-     * 
+     *
      */
     private static final String OUTPUT_URI_PREFIX_DEFAULT = "";
 
     /**
-     * 
+     *
      */
     private static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
 
     /**
-     * 
+     *
      */
     private static final String FATAL_ERRORS_DEFAULT = "true";
 
     /**
-     * 
+     *
      */
     private static final String INPUT_PATTERN_DEFAULT = "^.+\\.[Xx][Mm][Ll]$";
 
     /**
-     * 
+     *
      */
     private static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
     private static SimpleLogger logger = null;
 
     /**
-     * 
+     *
      */
     static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
     /**
-     * 
+     *
      */
     static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
 
     /**
-     * 
+     *
      */
     private static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
             .toString();
 
     /**
-     * 
+     *
      */
     static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
 
     /**
-     * 
+     *
      */
     static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
 
     /**
-     * 
+     *
      */
     static final String INPUT_PATH_KEY = "INPUT_PATH";
 
     /**
-     * 
+     *
+     */
+    static final String INPUT_STRIP_PREFIX = "INPUT_STRIP_PREFIX";
+
+    /**
+     *
+     */
+    static final String INPUT_NORMALIZE_PATHS = "INPUT_NORMALIZE_PATHS";
+
+    /**
+     *
+     */
+    static final String INPUT_NORMALIZE_PATHS_DEFAULT = "false";
+
+    /**
+     *
      */
     static final String DEFAULT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
 
     /**
-     * 
+     *
      */
     static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
 
     /**
-     * 
+     *
      */
     static public final String ID_NAME_KEY = "ID_NAME";
 
     /**
-     * 
+     *
      */
     static final String IGNORE_UNKNOWN_KEY = "IGNORE_UNKNOWN";
 
     /**
-     * 
+     *
      */
     static public final int DISPLAY_MILLIS = 15000;
 
     /**
-     * 
+     *
      */
     static public final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
 
     /**
-     * 
+     *
      */
     static public final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
 
     /**
-     * 
+     *
      */
     static public final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
             .toString();
 
     /**
-     * 
+     *
      */
     static public final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
             .toString();
 
     /**
-     * 
+     *
      */
     public static final String INPUT_MALFORMED_ACTION_REPORT = CodingErrorAction.REPORT
             .toString();
 
     /**
-     * 
+     *
      */
     public static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
 
     /**
-     * 
+     *
      */
     public static final String ID_NAME_AUTO = "#AUTO";
 
     public static final String ID_NAME_FILENAME = "#FILENAME";
 
     /**
-     * 
+     *
      */
     static public final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
 
     /**
-     * 
+     *
      */
     static public final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
 
     /**
-     * 
+     *
      */
     static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
 
     /**
-     * 
+     *
      */
     static final String START_ID_KEY = "START_ID";
 
     /**
-     * 
+     *
      */
     static final String THREADS_KEY = "THREADS";
 
@@ -205,52 +220,52 @@ public class Configuration {
     static final String THROTTLE_DEFAULT = "0";
 
     /**
-     * 
+     *
      */
     static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
 
     /**
-     * 
+     *
      */
     static final String RECORD_NAME_KEY = "RECORD_NAME";
 
     /**
-     * 
+     *
      */
     static public final int SLEEP_TIME = 500;
 
     /**
-     * 
+     *
      */
     static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
 
     /**
-     * 
+     *
      */
     static final String OUTPUT_URI_SUFFIX_KEY = "URI_SUFFIX";
 
     /**
-     * 
+     *
      */
     static final String OUTPUT_URI_PREFIX_KEY = "URI_PREFIX";
 
     /**
-     * 
+     *
      */
     static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
 
     /**
-     * 
+     *
      */
     static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
 
     /**
-     * 
+     *
      */
     static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
     /**
-     * 
+     *
      */
     static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
 
@@ -285,6 +300,10 @@ public class Configuration {
     private String inputEncoding;
 
     private String inputPath;
+
+    private String inputStripPrefix;
+
+    private boolean inputNormalizePaths;
 
     private String inputPattern;
 
@@ -340,7 +359,7 @@ public class Configuration {
     /**
      * @throws IOException
      * @throws URISyntaxException
-     * 
+     *
      */
     public void configure() throws IOException, URISyntaxException {
         logger.configureLogger(props);
@@ -442,6 +461,9 @@ public class Configuration {
         logger.fine(INPUT_PATH_KEY + " = " + inputPath);
         inputPattern = props.getProperty(INPUT_PATTERN_KEY,
                 INPUT_PATTERN_DEFAULT);
+        inputStripPrefix = props.getProperty(INPUT_STRIP_PREFIX);
+        inputNormalizePaths = Utilities.stringToBoolean(props.getProperty(
+                INPUT_NORMALIZE_PATHS, INPUT_NORMALIZE_PATHS_DEFAULT));
         logger.fine(INPUT_PATTERN_KEY + " = " + inputPattern);
 
         zipInputPattern = props.getProperty(ZIP_INPUT_PATTERN_KEY,
@@ -683,7 +705,7 @@ public class Configuration {
     }
 
     /**
-     * 
+     *
      * @throws XmlPullParserException
      * @return
      */
@@ -790,5 +812,13 @@ public class Configuration {
     public int getQuality() {
         return quality;
     }
+
+	public String getInputStripPrefix() {
+		return inputStripPrefix;
+	}
+
+	public boolean isInputNormalizePaths() {
+		return inputNormalizePaths;
+	}
 
 }
