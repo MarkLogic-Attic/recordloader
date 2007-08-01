@@ -56,6 +56,7 @@ public class Monitor extends Thread {
 
     private int totalSkipped = 0;
 
+    @SuppressWarnings("unused")
     private Monitor() {
         // avoid no-argument constructors
     }

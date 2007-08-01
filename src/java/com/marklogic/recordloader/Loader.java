@@ -64,7 +64,7 @@ public class Loader implements Callable<Object> {
 
     private XmlPullParser xpp = null;
 
-    // local cache for hot-loop config info
+    // local cache for hot-loop configuration info
     private String idName;
 
     private String startId = null;
@@ -84,7 +84,7 @@ public class Loader implements Callable<Object> {
 
     private String currentFileBasename = null;
 
-    private Map collectionMap;
+    private Map<String, String[]> collectionMap;
 
     private Configuration config;
 
@@ -377,14 +377,15 @@ public class Loader implements Callable<Object> {
         try {
             // handle the input reader as a single document,
             // without any parsing.
-            String id = null;
+
             if (!config.isUseFileNameIds()) {
                 throw new UnimplementedFeatureException("wrong code path");
             }
 
+            String id = currentRecordPath;
             event = new TimedEvent();
 
-            // Regex replaces any backslashes ('\') with forwardslash ('/')
+            // Regex replaces and coalesces any backslashes with slash
             if (config.isInputNormalizePaths()) {
             	id = currentRecordPath.replaceAll("[\\\\]+", "/");
             }
@@ -543,7 +544,7 @@ public class Loader implements Callable<Object> {
         // docOptions have already been initialized,
         // but may need more work:
         // handle collectionsMap, if present
-        if (collectionMap == null) {
+        if (null == collectionMap) {
             return;
         }
 
@@ -557,7 +558,7 @@ public class Loader implements Callable<Object> {
         }
         if (collectionMap.containsKey(_id)) {
             // each map entry is a String[]
-            collections.addAll(Arrays.asList((String[]) collectionMap
+            collections.addAll(Arrays.asList(collectionMap
                     .get(_id)));
         }
         docOpts.setCollections(collections.toArray(new String[0]));
