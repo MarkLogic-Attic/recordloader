@@ -205,22 +205,12 @@ Use whitespace to separate multiple collection uris.</td>
 Use whitespace or the characters <code>,:;</code> to separate values.</td>
 </tr>
 
-<tr><td>OUTPUT_READ_ROLES</td><td>null</td>
+<tr><td>READ_ROLES</td><td>null</td>
 <td>One or more existing role name, separated by whitespace.
 If set, every document inserted by RecordLoader
 will have read permission for these roles.
 If any of the supplied role-names do not exist,
 the first document insert will throw a fatal error.</td>
-</tr>
-
-<tr><td>URI_PREFIX</td><td>null</td>
-<td>Prefix used before the ID_NAME value, to compose all document uris.
-If the prefix does not end in '/', RecordLoader will add a '/' to it.
-</td>
-</tr>
-
-<tr><td>URI_SUFFIX</td><td>null</td>
-<td>Suffix used after the ID_NAME value, to compose all document uris.</td>
 </tr>
 
 <tr><td>RECORD_NAME</td><td>null</td>
@@ -263,6 +253,16 @@ Note that when using standard input, this value is ignored.</td>
 <tr><td>THROTTLE_EVENTS_PER_SECOND</td><td>0</td>
 <td>If non-zero, all threads will be throttled
   to the given number of inserts per second.</td>
+</tr>
+
+<tr><td>URI_PREFIX</td><td>null</td>
+<td>Prefix used before the ID_NAME value, to compose all document uris.
+If the prefix does not end in '/', RecordLoader will add a '/' to it.
+</td>
+</tr>
+
+<tr><td>URI_SUFFIX</td><td>null</td>
+<td>Suffix used after the ID_NAME value, to compose all document uris.</td>
 </tr>
 
 <tr><td>XML_REPAIR_LEVEL</td><td>NONE</td>
