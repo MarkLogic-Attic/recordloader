@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2006 Mark Logic Corporation
+ * Copyright (c)2006-2007 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -133,6 +133,8 @@ public class Loader implements Callable<Object> {
      * (non-Javadoc)
      *
      * @see java.util.concurrent.Callable#call()
+     * 
+     * NB - always returns null
      */
     public Object call() throws Exception {
 
@@ -378,12 +380,15 @@ public class Loader implements Callable<Object> {
             // handle the input reader as a single document,
             // without any parsing.
 
-            if (!config.isUseFileNameIds()) {
+            boolean useFileNameIds = config.isUseFileNameIds();
+            logger.fine("isUseFileNameIds=" + useFileNameIds);
+            if (!useFileNameIds) {
                 throw new UnimplementedFeatureException("wrong code path");
             }
 
-            String id = currentRecordPath;
             event = new TimedEvent();
+            
+            String id = currentRecordPath;
 
             // Regex replaces and coalesces any backslashes with slash
             if (config.isInputNormalizePaths()) {

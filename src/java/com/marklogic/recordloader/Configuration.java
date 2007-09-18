@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2007 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,224 +48,224 @@ import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class Configuration {
 
     /**
-     *
+     * 
      */
     private static final String OUTPUT_URI_PREFIX_DEFAULT = "";
 
     /**
-     *
+     * 
      */
     private static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
 
     /**
-     *
+     * 
      */
     private static final String FATAL_ERRORS_DEFAULT = "true";
 
     /**
-     *
+     * 
      */
     private static final String INPUT_PATTERN_DEFAULT = "^.+\\.[Xx][Mm][Ll]$";
 
     /**
-     *
+     * 
      */
     private static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
     private static SimpleLogger logger = null;
 
     /**
-     *
+     * 
      */
     static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
     /**
-     *
+     * 
      */
     static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
 
     /**
-     *
+     * 
      */
     private static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
             .toString();
 
     /**
-     *
+     * 
      */
     static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
 
     /**
-     *
+     * 
      */
     static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
 
     /**
-     *
+     * 
      */
     static final String INPUT_PATH_KEY = "INPUT_PATH";
 
     /**
-     *
+     * 
      */
     static final String INPUT_STRIP_PREFIX = "INPUT_STRIP_PREFIX";
 
     /**
-     *
+     * 
      */
     static final String INPUT_NORMALIZE_PATHS = "INPUT_NORMALIZE_PATHS";
 
     /**
-     *
+     * 
      */
     static final String INPUT_NORMALIZE_PATHS_DEFAULT = "false";
 
     /**
-     *
+     * 
      */
     static final String DEFAULT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
 
     /**
-     *
+     * 
      */
     static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
 
     /**
-     *
+     * 
      */
     static public final String ID_NAME_KEY = "ID_NAME";
 
     /**
-     *
+     * 
      */
     static final String IGNORE_UNKNOWN_KEY = "IGNORE_UNKNOWN";
 
     /**
-     *
+     * 
      */
     static public final int DISPLAY_MILLIS = 15000;
 
     /**
-     *
+     * 
      */
     static public final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
 
     /**
-     *
+     * 
      */
     static public final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
 
     /**
-     *
+     * 
      */
     static public final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
             .toString();
 
     /**
-     *
+     * 
      */
     static public final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
             .toString();
 
     /**
-     *
+     * 
      */
     public static final String INPUT_MALFORMED_ACTION_REPORT = CodingErrorAction.REPORT
             .toString();
 
     /**
-     *
+     * 
      */
     public static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
 
     /**
-     *
+     * 
      */
     public static final String ID_NAME_AUTO = "#AUTO";
 
     public static final String ID_NAME_FILENAME = "#FILENAME";
 
     /**
-     *
+     * 
      */
     static public final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
 
     /**
-     *
+     * 
      */
     static public final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
 
     /**
-     *
+     * 
      */
     static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
 
     /**
-     *
+     * 
      */
     static final String START_ID_KEY = "START_ID";
 
     /**
-     *
+     * 
      */
-    static final String THREADS_KEY = "THREADS";
+    public static final String THREADS_KEY = "THREADS";
 
     static final String THROTTLE_KEY = "THROTTLE_EVENTS_PER_SECOND";
 
     static final String THROTTLE_DEFAULT = "0";
 
     /**
-     *
+     * 
      */
     static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
 
     /**
-     *
+     * 
      */
     static final String RECORD_NAME_KEY = "RECORD_NAME";
 
     /**
-     *
+     * 
      */
     static public final int SLEEP_TIME = 500;
 
     /**
-     *
+     * 
      */
     static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
 
     /**
-     *
+     * 
      */
     static final String OUTPUT_URI_SUFFIX_KEY = "URI_SUFFIX";
 
     /**
-     *
+     * 
      */
     static final String OUTPUT_URI_PREFIX_KEY = "URI_PREFIX";
 
     /**
-     *
+     * 
      */
     static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
 
     /**
-     *
+     * 
      */
     static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
 
     /**
-     *
+     * 
      */
     static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
     /**
-     *
+     * 
      */
     static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
 
@@ -357,23 +357,16 @@ public class Configuration {
     }
 
     /**
-     * @throws IOException
      * @throws URISyntaxException
-     *
+     * 
      */
-    public void configure() throws IOException, URISyntaxException {
+    public void configure() throws URISyntaxException {
         logger.configureLogger(props);
 
-        idNodeName = props.getProperty(ID_NAME_KEY);
-        if (idNodeName == null) {
-            throw new IOException("missing required property: "
-                    + ID_NAME_KEY);
-        }
-        logger.fine(ID_NAME_KEY + " = " + idNodeName);
+        setIdNodeName(props.getProperty(ID_NAME_KEY));
 
         // some or all of these may be null
         configureOptions();
-
         configureCollections();
 
         String[] connectionStrings = props.getProperty(
@@ -423,16 +416,6 @@ public class Configuration {
                 ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
-        if (idNodeName.equals(ID_NAME_AUTO)) {
-            logger.info("generating automatic ids");
-            useAutomaticIds = true;
-        }
-
-        if (idNodeName.equals(ID_NAME_FILENAME)) {
-            logger.info("generating ids from file names");
-            useFileNameIds = true;
-        }
-
         String repairString = props.getProperty(REPAIR_LEVEL_KEY, "NONE");
         if (repairString.equals("FULL")) {
             logger.fine(REPAIR_LEVEL_KEY + "=" + repairString);
@@ -462,8 +445,9 @@ public class Configuration {
         inputPattern = props.getProperty(INPUT_PATTERN_KEY,
                 INPUT_PATTERN_DEFAULT);
         inputStripPrefix = props.getProperty(INPUT_STRIP_PREFIX);
-        inputNormalizePaths = Utilities.stringToBoolean(props.getProperty(
-                INPUT_NORMALIZE_PATHS, INPUT_NORMALIZE_PATHS_DEFAULT));
+        inputNormalizePaths = Utilities.stringToBoolean(props
+                .getProperty(INPUT_NORMALIZE_PATHS,
+                        INPUT_NORMALIZE_PATHS_DEFAULT));
         logger.fine(INPUT_PATTERN_KEY + " = " + inputPattern);
 
         zipInputPattern = props.getProperty(ZIP_INPUT_PATTERN_KEY,
@@ -684,7 +668,7 @@ public class Configuration {
                     Session session = cs.newSession();
                     ContentbaseMetaData meta = session
                             .getContentbaseMetaData();
-                    Map forestMap = meta.getForestMap();
+                    Map<?, ?> forestMap = meta.getForestMap();
                     placeKeys = new BigInteger[placeNames.length];
                     for (int i = 0; i < placeNames.length; i++) {
                         logger.finest("looking up " + placeNames[i]);
@@ -705,7 +689,7 @@ public class Configuration {
     }
 
     /**
-     *
+     * 
      * @throws XmlPullParserException
      * @return
      */
@@ -768,6 +752,26 @@ public class Configuration {
      */
     public void setIdNodeName(String _name) {
         idNodeName = _name;
+
+        if (null == _name) {
+            logger.warning("no " + ID_NAME_KEY + " specified: using "
+                    + ID_NAME_FILENAME);
+            // just in case...
+            props.setProperty(ID_NAME_KEY, ID_NAME_FILENAME);
+            idNodeName = ID_NAME_FILENAME;
+        }
+        
+        logger.fine(ID_NAME_KEY + "=" + idNodeName);
+        
+        if (idNodeName.equals(ID_NAME_AUTO)) {
+            logger.info("generating automatic ids");
+            useAutomaticIds = true;
+            useFileNameIds = false;
+        } else if (idNodeName.equals(ID_NAME_FILENAME)) {
+            logger.info("generating ids from file names");
+            useAutomaticIds = false;
+            useFileNameIds = true;
+        }
     }
 
     /**
@@ -813,12 +817,12 @@ public class Configuration {
         return quality;
     }
 
-	public String getInputStripPrefix() {
-		return inputStripPrefix;
-	}
+    public String getInputStripPrefix() {
+        return inputStripPrefix;
+    }
 
-	public boolean isInputNormalizePaths() {
-		return inputNormalizePaths;
-	}
+    public boolean isInputNormalizePaths() {
+        return inputNormalizePaths;
+    }
 
 }

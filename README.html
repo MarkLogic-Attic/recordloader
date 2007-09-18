@@ -61,13 +61,14 @@ for sample property files.
   XML Pull-Parser
   (here's a link to the
   <a href="http://www.extreme.indiana.edu/dist/java-repository/xpp3/jars/">jar
-  files</a>)
+  files</a> - be sure to use xpp3-1.1.4c.jar or later)
 </ul>
 
 <h2>Required inputs:</h2>
-<ul>
-  <li>ID_NAME</li>
-</ul>
+<p>
+None. If <code>ID_NAME</code> is missing,
+then the default value <code>#FILENAME</code> will be used.
+</p>
 
 <h2>Available properties:</h2>
 <table border="1">
@@ -103,7 +104,7 @@ to use for all queries and inserts.
 </td>
 </tr>
 
-<tr><td>ID_NAME</td><td>null</td>
+<tr><td>ID_NAME</td><td><code>#FILENAME</code></td>
 <td>Required parameter: the text value of any element with this local-name
 (or attribute value if ID_NAME starts with '@')
 will be used to compose the final document uri.
@@ -113,6 +114,8 @@ The special value <code>ID_NAME=#AUTO</code> will cause RecordLoader
 to automatically generate ids, in sequence, for each input record.
 Since RecordLoader automatically includes the base filename
 in each output URI, this is safe.
+Note that when the input is standard input,
+the default value is <code>#AUTO</code> - not <code>#FILENAME</code>.
 <br/>
 The special value <code>ID_NAME=#FILENAME</code> will cause RecordLoader
 to automatically load each input file into

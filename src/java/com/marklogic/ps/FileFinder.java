@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2004-2006 Mark Logic Corporation
+ * Copyright (c)2004-2007 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -223,7 +223,7 @@ public class FileFinder {
         return list.size();
     }
 
-    public Vector list() {
+    public Vector<File> list() {
         return list;
     }
 
@@ -231,13 +231,13 @@ public class FileFinder {
      * @return
      * @throws IOException
      */
-    public List listCanonicalPaths() throws IOException {
+    public List<String> listCanonicalPaths() throws IOException {
         int size = list.size();
         List<String> paths = new ArrayList<String>(size);
-        Iterator iter = list.iterator();
+        Iterator<File> iter = list.iterator();
         File f;
         while (iter.hasNext()) {
-            f = (File) iter.next();
+            f = iter.next();
             paths.add(f.getCanonicalPath());
         }
         return paths;
@@ -247,14 +247,14 @@ public class FileFinder {
      * @param _root
      * @return
      */
-    public List listRelativePaths(String _root) {
+    public List<String> listRelativePaths(String _root) {
         int rootLength = _root.length();
         int size = list.size();
         List<String> paths = new ArrayList<String>(size);
-        Iterator iter = list.iterator();
+        Iterator<File> iter = list.iterator();
         File f;
         while (iter.hasNext()) {
-            f = (File) iter.next();
+            f = iter.next();
             paths.add(f.getAbsolutePath().substring(rootLength));
         }
         return paths;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2007 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,9 @@ public class Producer extends InputStream {
         // handle automatic id generation here
         String newId;
         boolean useAutomaticIds = config.isUseAutomaticIds();
+        logger.fine("useAutomaticIds=" + useAutomaticIds);
         boolean useFileNameIds = config.isUseFileNameIds();
+        logger.fine("useFileNameIds=" + useFileNameIds);
         if (useAutomaticIds || useFileNameIds || idName.startsWith("@")) {
             if (useAutomaticIds) {
                 // automatic ids, starting from 1

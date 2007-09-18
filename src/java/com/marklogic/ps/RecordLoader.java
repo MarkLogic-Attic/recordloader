@@ -24,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
@@ -31,7 +32,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -40,6 +40,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -63,7 +65,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2007-08-01.1";
+    public static final String VERSION = "2007-09-18.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -95,21 +97,77 @@ public class RecordLoader {
 
     }
 
-    public static void main(String[] args) throws FileNotFoundException,
-            IOException, XccException, XmlPullParserException,
-            URISyntaxException {
+    private Configuration config;
+
+    private ArrayList<File> xmlFiles;
+
+    private ArrayList<File> zipFiles;
+
+    private CharsetDecoder inputDecoder;
+
+    public RecordLoader(String[] args) throws FileNotFoundException,
+            IOException, URISyntaxException {
         // use system properties as a basis
         // this allows any number of properties at the command-line,
         // using -DPROPNAME=foo
         // as a result, we no longer need any args: default to stdin
-        Configuration config = new Configuration();
-        List<File> xmlFiles = new ArrayList<File>();
-        List<File> zipFiles = new ArrayList<File>();
-        Iterator iter = Arrays.asList(args).iterator();
+        config = new Configuration();
+        xmlFiles = new ArrayList<File>();
+        zipFiles = new ArrayList<File>();
+        Iterator<String> iter = Arrays.asList(args).iterator();
+        configureFiles(iter);
+
+        // override with any system props
+        config.load(System.getProperties());
+        config.setLogger(logger);
+        config.configure();
+
+        logger.info(SIMPLE_NAME + " starting, version " + VERSION);
+
+        // is the environment healthy?
+        checkEnvironment();
+
+        inputDecoder = getDecoder(config.getInputEncoding(), config
+                .getMalformedInputAction());
+
+        expandConfiguredFiles();
+    }
+
+    /**
+     * @throws IOException
+     */
+    private void expandConfiguredFiles() throws IOException {
+        String inputPath = config.getInputPath();
+        if (inputPath != null) {
+            String inputPattern = config.getInputPattern();
+            logger.info("finding matches for " + inputPattern + " in "
+                    + inputPath);
+            // find all the files
+            File file;
+            FileFinder ff = new FileFinder(inputPath, inputPattern);
+            ff.find();
+            while (ff.size() > 0) {
+                file = ff.remove();
+                if (file.getName().endsWith(".zip")) {
+                    zipFiles.add(file);
+                } else {
+                    xmlFiles.add(file);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param iter
+     * @throws IOException
+     * @throws FileNotFoundException
+     */
+    private void configureFiles(Iterator<String> iter)
+            throws IOException, FileNotFoundException {
         File file = null;
         String arg = null;
         while (iter.hasNext()) {
-            arg = (String) iter.next();
+            arg = iter.next();
             logger.info("processing argument: " + arg);
             file = new File(arg);
             if (!file.exists()) {
@@ -133,37 +191,17 @@ public class RecordLoader {
                 xmlFiles.add(file);
             }
         }
+    }
 
-        // override with any system props
+    public static void main(String[] args) throws FileNotFoundException,
+            IOException, XccException, XmlPullParserException,
+            URISyntaxException {
         System.err.println(SIMPLE_NAME + " starting, version " + VERSION);
+        new RecordLoader(args).run();
+    }
 
-        config.load(System.getProperties());
-        config.setLogger(logger);
-        config.configure();
-
-        logger.info(SIMPLE_NAME + " starting, version " + VERSION);
-
-        CharsetDecoder inputDecoder = getDecoder(config
-                .getInputEncoding(), config.getMalformedInputAction());
-
-        String inputPath = config.getInputPath();
-        if (inputPath != null) {
-            String inputPattern = config.getInputPattern();
-            logger.info("finding matches for " + inputPattern + " in "
-                    + inputPath);
-            // find all the files
-            FileFinder ff = new FileFinder(inputPath, inputPattern);
-            ff.find();
-            while (ff.size() > 0) {
-                file = ff.remove();
-                if (file.getName().endsWith(".zip")) {
-                    zipFiles.add(file);
-                } else {
-                    xmlFiles.add(file);
-                }
-            }
-        }
-
+    private void run() throws FileNotFoundException, IOException,
+            XccException, XmlPullParserException {
         logger.finer("zipFiles.size = " + zipFiles.size());
         logger.finer("xmlFiles.size = " + xmlFiles.size());
 
@@ -180,8 +218,7 @@ public class RecordLoader {
 
         BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(
                 config.getQueueCapacity());
-        RecordLoader rl = new RecordLoader();
-        CallerBlocksPolicy policy = rl.getPolicy();
+        CallerBlocksPolicy policy = this.getPolicy();
         ThreadPoolExecutor pool = new ThreadPoolExecutor(config
                 .getThreadCount(), config.getThreadCount(), config
                 .getKeepAliveSeconds(), TimeUnit.SECONDS, workQueue,
@@ -195,15 +232,14 @@ public class RecordLoader {
                     inputDecoder, config);
 
             if (zipFiles.size() > 0 || xmlFiles.size() > 0) {
-                handleFileInput(config, xmlFiles, zipFiles, inputDecoder,
-                        monitor, pool, factory);
+                handleFileInput(monitor, pool, factory);
             } else {
                 if (config.getThreadCount() > 1) {
                     logger.warning("Will not use multiple threads!");
                     pool.setCorePoolSize(1);
                     pool.setMaximumPoolSize(1);
                 }
-                handleStandardInput(config, inputDecoder, pool, factory);
+                handleStandardInput(pool, factory);
             }
 
             pool.shutdown();
@@ -232,13 +268,98 @@ public class RecordLoader {
     }
 
     /**
+     * @throws IOException
+     * 
+     */
+    private void checkEnvironment() throws IOException {
+        // check the XPP3 version
+        String resourceName = "META-INF/services/org.xmlpull.v1.XmlPullParserFactory";
+        String versionSuffix = "_VERSION";
+        String versionPrefix = "XPP3_";
+
+        ClassLoader loader = RecordLoader.class.getClassLoader();
+        URL xppUrl = loader.getResource(resourceName);
+        if (null == xppUrl) {
+            throw new UnimplementedFeatureException(
+                    "Please configure your classpath to include"
+                            + " XPP3 (version 1.1.4 or later).");
+        }
+        // the xppUrl should look something like...
+        // jar:file:/foo/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
+        String proto = xppUrl.getProtocol();
+        // TODO handle file protocol directly, too?
+        if (!"jar".equals(proto)) {
+            throw new UnimplementedFeatureException("xppUrl protocol: "
+                    + proto);
+        }
+        // the file portion should look something like...
+        // file:/foo/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
+        String file = xppUrl.getFile();
+        URL fileUrl = new URL(file);
+        proto = fileUrl.getProtocol();
+        if (!"file".equals(proto)) {
+            throw new UnimplementedFeatureException("fileUrl protocol: "
+                    + proto);
+        }
+        file = fileUrl.getFile();
+        // allow for "!/"
+        String jarPath = file.substring(0, file.length()
+                - resourceName.length() - 2);
+        JarFile jar = new JarFile(jarPath);
+        String name;
+        String[] version = null;
+        for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
+            name = e.nextElement().getName();
+            if (name.startsWith(versionPrefix)
+                    && name.endsWith(versionSuffix)) {
+                name = name.substring(versionPrefix.length(), name
+                        .length()
+                        - versionSuffix.length());
+                logger.info("XPP3 version = " + name);
+                version = name.split("\\.");
+                break;
+            }
+        }
+
+        checkXppVersion(version);
+    }
+
+    /**
+     * @param version
+     */
+    private void checkXppVersion(String[] version) {
+        if (null == version) {
+            throw new UnimplementedFeatureException(
+                    "No version info found - XPP3 is probably too old.");
+        }
+
+        // check major, minor, patch for 1+, 1+, and 4+
+        int major = Integer.parseInt(version[0]);
+        if (major < 1) {
+            throw new UnimplementedFeatureException(
+                    "The XPP3 major version is too old: " + major);
+        }
+        int minor = Integer.parseInt(version[1]);
+        if (1 == major && minor < 1) {
+            throw new UnimplementedFeatureException(
+                    "The XPP3 minor version is too old: " + minor);
+        }
+        int patch = Integer.parseInt(version[2].replaceFirst(
+                "(\\d+)\\D+", "$1"));
+        if (1 == major && 1 == minor && patch < 4) {
+            throw new UnimplementedFeatureException(
+                    "The XPP3 patch version is too old: " + version[2]);
+        }
+    }
+
+    /**
      * @return
      */
     private CallerBlocksPolicy getPolicy() {
         return new CallerBlocksPolicy();
     }
 
-    private static CharsetDecoder getDecoder(String inputEncoding,
+    private CharsetDecoder getDecoder(String inputEncoding,
             String malformedInputAction) {
         CharsetDecoder inputDecoder;
         logger.info("using input encoding " + inputEncoding);
@@ -259,13 +380,10 @@ public class RecordLoader {
         return inputDecoder;
     }
 
-    private static void handleFileInput(Configuration _config,
-            List<File> _xmlFiles, List<File> _zipFiles,
-            CharsetDecoder _inputDecoder, Monitor _monitor,
-            ExecutorService _es, LoaderFactory _factory)
-            throws IOException, ZipException, FileNotFoundException,
-            XccException, XmlPullParserException {
-        String zipInputPattern = _config.getZipInputPattern();
+    private void handleFileInput(Monitor _monitor, ExecutorService _es,
+            LoaderFactory _factory) throws IOException, ZipException,
+            FileNotFoundException, XccException, XmlPullParserException {
+        String zipInputPattern = config.getZipInputPattern();
         Iterator<File> iter;
         File file;
         ZipFile zipFile;
@@ -276,7 +394,7 @@ public class RecordLoader {
 
         // queue any zip-entries first
         // NOTE this technique will intentionally leak zipfile objects!
-        iter = _zipFiles.iterator();
+        iter = zipFiles.iterator();
         int size;
         if (iter.hasNext()) {
             Enumeration<? extends ZipEntry> entries;
@@ -299,7 +417,7 @@ public class RecordLoader {
                         // skip it
                         continue;
                     }
-                    if (!ze.getName().matches(_config.getInputPattern())) {
+                    if (!ze.getName().matches(config.getInputPattern())) {
                         // skip it
                         continue;
                     }
@@ -326,7 +444,7 @@ public class RecordLoader {
         }
 
         // queue any xml files
-        iter = _xmlFiles.iterator();
+        iter = xmlFiles.iterator();
         while (iter.hasNext()) {
             file = iter.next();
             if (file.isDirectory()) {
@@ -339,22 +457,25 @@ public class RecordLoader {
         }
     }
 
-    private static void handleStandardInput(Configuration _config,
-            CharsetDecoder _inputDecoder, ExecutorService _es,
+    private void handleStandardInput(ExecutorService _es,
             LoaderFactory _factory) throws XccException,
             XmlPullParserException {
-        // use stdin by default
-        // NOTE: will not use multiple threads
-        if (_config.isFileBasedId()) {
-            throw new UnimplementedFeatureException("Must specify "
-                    + Configuration.ID_NAME_KEY
-                    + " when using standard input");
+        // use standard input by default
+        // NOTE: cannot use file-based ids
+        if (config.isFileBasedId()) {
+            logger.warning("Ignoring configured "
+                    + Configuration.ID_NAME_KEY + "="
+                    + config.getIdNodeName() + " for standard input");
+            config.setIdNodeName(Configuration.ID_NAME_AUTO);
+            logger.warning("Using " + Configuration.ID_NAME_KEY + "="
+                    + config.getIdNodeName());
         }
         logger.info("Reading from standard input...");
         submitLoader(_es, _factory.newLoader(System.in));
     }
 
-    private static Future submitLoader(ExecutorService _es, Loader _loader) {
+    private Future<Object> submitLoader(ExecutorService _es,
+            Loader _loader) {
         return _es.submit(_loader);
     }
 
