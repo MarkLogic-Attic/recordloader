@@ -65,7 +65,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2007-09-18.1";
+    public static final String VERSION = "2007-11-08.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -122,7 +122,7 @@ public class RecordLoader {
         config.setLogger(logger);
         config.configure();
 
-        logger.info(SIMPLE_NAME + " starting, version " + VERSION);
+        logger.info(printVersion());
 
         // is the environment healthy?
         checkEnvironment();
@@ -196,8 +196,16 @@ public class RecordLoader {
     public static void main(String[] args) throws FileNotFoundException,
             IOException, XccException, XmlPullParserException,
             URISyntaxException {
-        System.err.println(SIMPLE_NAME + " starting, version " + VERSION);
+        System.err.println(printVersion());
         new RecordLoader(args).run();
+    }
+
+    /**
+     * 
+     */
+    protected static String printVersion() {
+        return SIMPLE_NAME + " starting, version " + VERSION + " on "
+                + System.getProperty("java.version");
     }
 
     private void run() throws FileNotFoundException, IOException,
