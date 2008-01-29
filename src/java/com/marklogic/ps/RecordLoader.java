@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2007 Mark Logic Corporation
+ * Copyright (c)2005-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -32,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
@@ -49,11 +51,11 @@ import java.util.zip.ZipFile;
 import org.xmlpull.v1.XmlPullParserException;
 
 import com.marklogic.recordloader.Configuration;
+import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.Loader;
+import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.LoaderFactory;
 import com.marklogic.recordloader.Monitor;
-import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
-import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
@@ -65,7 +67,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2007-11-08.1";
+    public static final String VERSION = "2008-01-23.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -107,19 +109,34 @@ public class RecordLoader {
 
     public RecordLoader(String[] args) throws FileNotFoundException,
             IOException, URISyntaxException {
-        // use system properties as a basis
-        // this allows any number of properties at the command-line,
-        // using -DPROPNAME=foo
-        // as a result, we no longer need any args: default to stdin
         config = new Configuration();
+
         xmlFiles = new ArrayList<File>();
         zipFiles = new ArrayList<File>();
         Iterator<String> iter = Arrays.asList(args).iterator();
         configureFiles(iter);
 
-        // override with any system props
+        // use system properties as a basis
+        // this allows any number of properties at the command-line,
+        // using -DPROPNAME=foo
+        // as a result, we no longer need any args: default to stdin
         config.load(System.getProperties());
         config.setLogger(logger);
+
+        // TODO modularize Configuration constructor
+
+        // now that we have a base configuration, we can bootstrap into the
+        // correct modularized configuration
+        try {
+            Constructor<? extends Configuration> configurationConstructor = config
+                    .getConfigurationConstructor();
+            Properties props = config.getProperties();
+            config = configurationConstructor.newInstance(new Object[0]);
+            config.load(props);
+        } catch (Exception e) {
+            throw new FatalException(e);
+        }
+
         config.configure();
 
         logger.info(printVersion());
@@ -194,8 +211,8 @@ public class RecordLoader {
     }
 
     public static void main(String[] args) throws FileNotFoundException,
-            IOException, XccException, XmlPullParserException,
-            URISyntaxException {
+            IOException, XmlPullParserException, URISyntaxException,
+            LoaderException {
         System.err.println(printVersion());
         new RecordLoader(args).run();
     }
@@ -209,7 +226,7 @@ public class RecordLoader {
     }
 
     private void run() throws FileNotFoundException, IOException,
-            XccException, XmlPullParserException {
+            XmlPullParserException, LoaderException {
         logger.finer("zipFiles.size = " + zipFiles.size());
         logger.finer("xmlFiles.size = " + xmlFiles.size());
 
@@ -288,7 +305,7 @@ public class RecordLoader {
         ClassLoader loader = RecordLoader.class.getClassLoader();
         URL xppUrl = loader.getResource(resourceName);
         if (null == xppUrl) {
-            throw new UnimplementedFeatureException(
+            throw new FatalException(
                     "Please configure your classpath to include"
                             + " XPP3 (version 1.1.4 or later).");
         }
@@ -297,8 +314,7 @@ public class RecordLoader {
         String proto = xppUrl.getProtocol();
         // TODO handle file protocol directly, too?
         if (!"jar".equals(proto)) {
-            throw new UnimplementedFeatureException("xppUrl protocol: "
-                    + proto);
+            throw new FatalException("xppUrl protocol: " + proto);
         }
         // the file portion should look something like...
         // file:/foo/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
@@ -306,8 +322,7 @@ public class RecordLoader {
         URL fileUrl = new URL(file);
         proto = fileUrl.getProtocol();
         if (!"file".equals(proto)) {
-            throw new UnimplementedFeatureException("fileUrl protocol: "
-                    + proto);
+            throw new FatalException("fileUrl protocol: " + proto);
         }
         file = fileUrl.getFile();
         // allow for "!/"
@@ -337,25 +352,25 @@ public class RecordLoader {
      */
     private void checkXppVersion(String[] version) {
         if (null == version) {
-            throw new UnimplementedFeatureException(
+            throw new FatalException(
                     "No version info found - XPP3 is probably too old.");
         }
 
         // check major, minor, patch for 1+, 1+, and 4+
         int major = Integer.parseInt(version[0]);
         if (major < 1) {
-            throw new UnimplementedFeatureException(
+            throw new FatalException(
                     "The XPP3 major version is too old: " + major);
         }
         int minor = Integer.parseInt(version[1]);
         if (1 == major && minor < 1) {
-            throw new UnimplementedFeatureException(
+            throw new FatalException(
                     "The XPP3 minor version is too old: " + minor);
         }
         int patch = Integer.parseInt(version[2].replaceFirst(
                 "(\\d+)\\D+", "$1"));
         if (1 == major && 1 == minor && patch < 4) {
-            throw new UnimplementedFeatureException(
+            throw new FatalException(
                     "The XPP3 patch version is too old: " + version[2]);
         }
     }
@@ -390,7 +405,8 @@ public class RecordLoader {
 
     private void handleFileInput(Monitor _monitor, ExecutorService _es,
             LoaderFactory _factory) throws IOException, ZipException,
-            FileNotFoundException, XccException, XmlPullParserException {
+            FileNotFoundException, LoaderException,
+            XmlPullParserException {
         String zipInputPattern = config.getZipInputPattern();
         Iterator<File> iter;
         File file;
@@ -466,8 +482,8 @@ public class RecordLoader {
     }
 
     private void handleStandardInput(ExecutorService _es,
-            LoaderFactory _factory) throws XccException,
-            XmlPullParserException {
+            LoaderFactory _factory) throws XmlPullParserException,
+            LoaderException {
         // use standard input by default
         // NOTE: cannot use file-based ids
         if (config.isFileBasedId()) {

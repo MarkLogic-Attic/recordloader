@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2007 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2008 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
-import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -106,7 +105,7 @@ public class Producer extends InputStream {
                 // the constructor had better have set our id!
                 // note that skipping won't work for this case
                 if (null == currentId) {
-                    throw new UnimplementedFeatureException(
+                    throw new FatalException(
                             "Cannot use filename ids unless the constructor sets currentId");
                 }
                 logger.fine("using filename id " + currentId);
@@ -178,6 +177,7 @@ public class Producer extends InputStream {
         // allow for repeated idName elements: first one wins
         // NOTE: idName is namespace-insensitive
         if (null == currentId && name.equals(idName)) {
+            // TODO support idNameAttribute or similar
             // pick out the contents and use it for the uri
             if (xpp.nextToken() != XmlPullParser.TEXT) {
                 throw new XmlPullParserException(
@@ -302,7 +302,7 @@ public class Producer extends InputStream {
 
         // end of record
         logger.fine("end of record");
-        //logger.finest(buffer.toString()); // DEBUG
+        // logger.finest(buffer.toString()); // DEBUG
         return false;
     }
 
@@ -321,7 +321,7 @@ public class Producer extends InputStream {
             buffer = new StringBuffer();
         }
 
-        //logger.finest("string = " + string); // DEBUG
+        // logger.finest("string = " + string); // DEBUG
         buffer.append(string);
     }
 
@@ -334,6 +334,7 @@ public class Producer extends InputStream {
 
     public String getCurrentId() throws XmlPullParserException,
             IOException {
+        // buffer up content until we find the id node
         if (currentId == null) {
             logger.finer("parsing for id");
             while (keepGoing && currentId == null) {
@@ -392,7 +393,7 @@ public class Producer extends InputStream {
             byteIndex = 0;
         }
 
-        //logger.fine("new = " + getByteBufferDescription()); // DEBUG
+        // logger.fine("new = " + getByteBufferDescription()); // DEBUG
         return byteBuffer.length - byteIndex;
     }
 
@@ -422,7 +423,8 @@ public class Producer extends InputStream {
 
         int available = readByteBuffer(len - 1);
         // DEBUG
-        //logger.fine("off = " + off + ", len = " + len + ", avail = " + available);
+        // logger.fine("off = " + off + ", len = " + len + ", avail = " +
+        // available);
 
         if (available < 0) {
             return available;

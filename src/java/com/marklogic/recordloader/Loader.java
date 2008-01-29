@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2006-2007 Mark Logic Corporation
+ * Copyright (c)2006-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,14 +22,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.MalformedInputException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -38,24 +33,10 @@ import org.xmlpull.v1.XmlPullParserException;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
-import com.marklogic.xcc.Content;
-import com.marklogic.xcc.ContentCreateOptions;
-import com.marklogic.xcc.ContentFactory;
-import com.marklogic.xcc.ContentSource;
-import com.marklogic.xcc.ContentSourceFactory;
-import com.marklogic.xcc.Request;
-import com.marklogic.xcc.ResultItem;
-import com.marklogic.xcc.ResultSequence;
-import com.marklogic.xcc.Session;
-import com.marklogic.xcc.exceptions.RequestException;
-import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
-import com.marklogic.xcc.exceptions.XQueryException;
-import com.marklogic.xcc.exceptions.XccException;
-import com.marklogic.xcc.types.XSBoolean;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 
 // Callable<Object> is ok: we really don't return anything
@@ -74,17 +55,10 @@ public class Loader implements Callable<Object> {
     private String recordNamespace;
 
     // actual fields
-    private ContentSource conn;
-
-    private Session session;
 
     private TimedEvent event;
 
-    private ContentCreateOptions docOpts;
-
     private String currentFileBasename = null;
-
-    private Map<String, String[]> collectionMap;
 
     private Configuration config;
 
@@ -92,7 +66,7 @@ public class Loader implements Callable<Object> {
 
     private Producer producer;
 
-    private ProducerFactory factory;
+    private ProducerFactory producerFactory;
 
     private boolean foundRoot = false;
 
@@ -100,49 +74,57 @@ public class Loader implements Callable<Object> {
 
     private String currentRecordPath;
 
-    private Content currentContent;
-
     private String currentUri;
 
     private Reader input;
+
+    private ContentInterface content;
+
+    private ContentFactory contentFactory;
 
     /**
      * @param _monitor
      * @param _uri
      * @param _config
-     * @throws XccException
+     * @throws LoaderException
      */
     public Loader(Monitor _monitor, URI _uri, Configuration _config)
-            throws XccException {
+            throws LoaderException {
         monitor = _monitor;
         config = _config;
-        conn = ContentSourceFactory.newContentSource(_uri);
 
         // error if null
         idName = config.getIdNodeName();
         if (idName == null) {
-            throw new UnimplementedFeatureException(
-                    "Missing required property: "
-                            + Configuration.ID_NAME_KEY);
+            throw new FatalException("Missing required property: "
+                    + Configuration.ID_NAME_KEY);
         }
 
         logger = config.getLogger();
+
+        // try to load the correct content factory
+        try {
+            contentFactory = config.getContentFactoryConstructor()
+                    .newInstance(new Object[] {});
+        } catch (Exception e) {
+            logger.logException(e);
+            throw new FatalException(e);
+        }
+        contentFactory.setConnectionUri(_uri);
+        contentFactory.setConfiguration(config);
+
     }
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see java.util.concurrent.Callable#call()
      * 
      * NB - always returns null
      */
     public Object call() throws Exception {
 
-        session = conn.newSession();
-
         logger.fine(Configuration.ID_NAME_KEY + "=" + idName);
-
-        initDocumentOptions();
 
         initParser();
         // TODO feature isn't supported by xpp3 - look at xpp5?
@@ -151,7 +133,7 @@ public class Loader implements Callable<Object> {
         // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
         xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
 
-        factory = new ProducerFactory(config, xpp);
+        producerFactory = new ProducerFactory(config, xpp);
 
         // cache certain info locally
         startId = config.getStartId();
@@ -172,6 +154,9 @@ public class Loader implements Callable<Object> {
                 setInput(fileReader);
             }
             process();
+            // don't rely on the finally block too much
+            contentFactory.close();
+            contentFactory = null;
             return null;
         } catch (Exception e) {
             if (null != inputFile) {
@@ -211,24 +196,10 @@ public class Loader implements Callable<Object> {
             if (fileReader != null) {
                 fileReader.close();
             }
+            if (null != contentFactory) {
+                contentFactory.close();
+            }
         }
-    }
-
-    private void initDocumentOptions() throws XccException {
-        // only initialize docOpts once
-        if (null != docOpts) {
-            return;
-        }
-        boolean resolveEntities = false;
-        docOpts = new ContentCreateOptions();
-        docOpts.setResolveEntities(resolveEntities);
-        docOpts.setPermissions(config.getPermissions());
-        docOpts.setCollections(config.getBaseCollections());
-        docOpts.setQuality(config.getQuality());
-        docOpts.setNamespace(config.getOutputNamespace());
-        docOpts.setRepairLevel(config.getRepairLevel());
-        docOpts.setPlaceKeys(config.getPlaceKeys());
-        docOpts.setFormat(config.getFormat());
     }
 
     /**
@@ -262,19 +233,13 @@ public class Loader implements Callable<Object> {
     /**
      * @param _path
      */
-    public void setFileBasename(String _name) throws XccException {
-        currentFileBasename = _name;
-        // update collections
-        initDocumentOptions();
-        if (currentFileBasename == null) {
-            docOpts.setCollections(config.getBaseCollections());
-        } else {
-            List<String> newCollections = new ArrayList<String>(Arrays
-                    .asList(config.getBaseCollections()));
-            newCollections.add(_name);
-            docOpts.setCollections(newCollections.toArray(new String[0]));
+    public void setFileBasename(String _name) throws LoaderException {
+        logger.fine("using fileBasename = " + _name);
+        if (null == _name) {
+            return;
         }
-        logger.fine("using fileBasename = " + currentFileBasename);
+        currentFileBasename = _name;
+        contentFactory.setFileBasename(_name);
     }
 
     private void process() throws Exception {
@@ -311,13 +276,12 @@ public class Loader implements Callable<Object> {
                             + (currentRecordPath == null ? ""
                                     : (" at " + currentRecordPath)));
                 }
+                if (null != currentUri) {
+                    logger.warning("current URI = " + currentUri);
+                }
                 if (producer != null) {
                     logger.warning(producer.getByteBufferDescription());
-                    if (e instanceof XQueryException) {
-                        logger
-                                .warning("buffer = "
-                                        + producer.getBuffer());
-                    }
+                    logger.warning("buffer = " + producer.getBuffer());
                 }
                 if (xpp != null) {
                     logger.warning("pos = "
@@ -333,8 +297,8 @@ public class Loader implements Callable<Object> {
                     event.stop(true);
                     monitor.add(currentUri, event);
 
-                    if (currentContent != null) {
-                        currentContent.close();
+                    if (content != null) {
+                        content.close();
                     }
 
                     if (config.isUseFileNameIds()) {
@@ -349,7 +313,7 @@ public class Loader implements Callable<Object> {
             }
         }
 
-        if (currentContent != null) {
+        if (null != content) {
             XmlPullParserException e = new XmlPullParserException(
                     "end of document before end of current record!\n"
                             + "recordName = " + recordName
@@ -360,22 +324,18 @@ public class Loader implements Callable<Object> {
                 throw e;
             }
             logger.logException("non-fatal", e);
-            if (currentContent != null) {
-                currentContent.close();
-            }
-            currentUri = null;
-            producer = null;
+            cleanup();
         }
     }
 
     /**
      * @throws URISyntaxException
      * @throws IOException
-     * @throws XccException
-     *
+     * @throws LoaderException
+     * 
      */
     private void processMonolith() throws URISyntaxException,
-            XccException, IOException {
+            LoaderException, IOException {
         try {
             // handle the input reader as a single document,
             // without any parsing.
@@ -383,21 +343,21 @@ public class Loader implements Callable<Object> {
             boolean useFileNameIds = config.isUseFileNameIds();
             logger.fine("isUseFileNameIds=" + useFileNameIds);
             if (!useFileNameIds) {
-                throw new UnimplementedFeatureException("wrong code path");
+                throw new FatalException("wrong code path");
             }
 
             event = new TimedEvent();
-            
+
             String id = currentRecordPath;
 
             // Regex replaces and coalesces any backslashes with slash
             if (config.isInputNormalizePaths()) {
-            	id = currentRecordPath.replaceAll("[\\\\]+", "/");
+                id = currentRecordPath.replaceAll("[\\\\]+", "/");
             }
 
             String inputStripPrefix = config.getInputStripPrefix();
             if (inputStripPrefix != null && inputStripPrefix.length() > 0) {
-         	   id = id.replaceFirst(inputStripPrefix, "");
+                id = id.replaceFirst(inputStripPrefix, "");
             }
 
             // this form of URI() does escaping nicely
@@ -405,10 +365,11 @@ public class Loader implements Callable<Object> {
 
             logger.fine("setting currentId = " + id);
 
-            boolean skippingRecord = checkId(id);
-
+            // we need the content object, hence the URI, before we can check
+            // its existence
             currentUri = composeUri(id);
-            composeDocOptions(id);
+            content = contentFactory.newContent(currentUri);
+            boolean skippingRecord = checkId(id);
 
             // grab the entire document
             // uses a reader, so charset translation should be ok
@@ -422,9 +383,8 @@ public class Loader implements Callable<Object> {
 
             if (!skippingRecord) {
                 logger.fine("inserting " + currentUri);
-                currentContent = ContentFactory.newContent(currentUri,
-                        xml, docOpts);
-                session.insertContent(currentContent);
+                content.setXml(xml);
+                content.insert();
             }
 
             // handle monitor accounting
@@ -435,7 +395,7 @@ public class Loader implements Callable<Object> {
             if (config.isFatalErrors()) {
                 throw e;
             }
-        } catch (XccException e) {
+        } catch (LoaderException e) {
             if (config.isFatalErrors()) {
                 throw e;
             }
@@ -444,17 +404,25 @@ public class Loader implements Callable<Object> {
                 throw e;
             }
         } finally {
-            // clean up
-            if (null != currentContent) {
-                currentContent.close();
-            }
-            producer = null;
-            currentContent = null;
-            currentUri = null;
+            cleanup();
         }
     }
 
-    private void processStartElement() throws Exception {
+    /**
+     * 
+     */
+    private void cleanup() {
+        // clean up
+        if (null != content) {
+            content.close();
+        }
+        producer = null;
+        content = null;
+        currentUri = null;
+    }
+
+    private void processStartElement() throws LoaderException,
+            URISyntaxException, XmlPullParserException, IOException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
         logger.finest(name + " in '" + namespace + "'");
@@ -493,7 +461,7 @@ public class Loader implements Callable<Object> {
             event = new TimedEvent();
 
             // hand off the work to a new producer
-            producer = factory.newProducer();
+            producer = producerFactory.newProducer();
             String id = null;
             if (config.isUseFileNameIds()) {
                 // this form of URI() does escaping nicely
@@ -506,20 +474,19 @@ public class Loader implements Callable<Object> {
             }
 
             if (id == null) {
-                throw new UnimplementedFeatureException(
+                throw new LoaderException(
                         "producer exited without currentId");
             }
 
-            producer.setSkippingRecord(checkId(id));
-
+            // must create content object before checking its uri
             currentUri = composeUri(id);
-            composeDocOptions(id);
-            currentContent = ContentFactory.newUnBufferedContent(
-                    currentUri, producer, docOpts);
+            content = contentFactory.newContent(currentUri);
+            producer.setSkippingRecord(checkId(id));
+            content.setProducer(producer);
 
             if (!producer.isSkippingRecord()) {
                 logger.fine("inserting " + currentUri);
-                session.insertContent(currentContent);
+                content.insert();
             }
 
             // handle monitor accounting
@@ -527,12 +494,7 @@ public class Loader implements Callable<Object> {
             event.increment(producer.getBytesRead());
             monitor.add(currentUri, event);
 
-            // clean up
-            currentContent.close();
-            producer = null;
-            currentContent = null;
-            currentUri = null;
-
+            cleanup();
             return;
         }
 
@@ -545,78 +507,18 @@ public class Loader implements Callable<Object> {
         }
     }
 
-    private void composeDocOptions(String _id) {
-        // docOptions have already been initialized,
-        // but may need more work:
-        // handle collectionsMap, if present
-        if (null == collectionMap) {
-            return;
-        }
-
-        // in this case we have to reset the whole collection list every
-        // time, to prevent any carryover from the previous call to
-        // docOptions.setCollections().
-        List<String> collections = new ArrayList<String>(Arrays
-                .asList(config.getBaseCollections()));
-        if (currentFileBasename != null) {
-            collections.add(currentFileBasename);
-        }
-        if (collectionMap.containsKey(_id)) {
-            // each map entry is a String[]
-            collections.addAll(Arrays.asList(collectionMap
-                    .get(_id)));
-        }
-        docOpts.setCollections(collections.toArray(new String[0]));
-
-        BigInteger[] placeKeys = docOpts.getPlaceKeys();
-        logger.fine("placeKeys = "
-                + (placeKeys == null ? null : Utilities.join(placeKeys,
-                        ",")));
-    }
-
-    /**
-     * @param _uri
-     * @return
-     */
-    private boolean checkDocumentUri(String _uri) throws XccException {
-        // TODO this is a common pattern: should be in a reusable class
-        String query = "define variable $URI as xs:string external\n"
-                + "xdmp:exists(doc($URI))\n";
-        ResultSequence result = null;
-        boolean exists = false;
-        try {
-            Request request = session.newAdhocQuery(query);
-            request.setNewStringVariable("URI", _uri);
-
-            result = session.submitRequest(request);
-
-            if (!result.hasNext()) {
-                throw new RequestException("unexpected null result",
-                        request);
-            }
-
-            ResultItem item = result.next();
-
-            exists = ((XSBoolean) item.getItem()).asPrimitiveBoolean();
-        } finally {
-            if (result != null && !result.isClosed())
-                result.close();
-        }
-        return exists;
-    }
-
     /**
      * @param uri
      * @return
      * @throws IOException
-     * @throws XccException
+     * @throws LoaderException
      */
-    private boolean checkExistingUri(String uri) throws XccException,
+    private boolean checkExistingUri(String uri) throws LoaderException,
             IOException {
         // return true if we're supposed to check,
         // and if the document already exists
         if (config.isSkipExisting() || config.isErrorExisting()) {
-            boolean exists = checkDocumentUri(uri);
+            boolean exists = content.checkDocumentUri(uri);
             logger.fine("checking for uri " + uri + " = " + exists);
             if (exists) {
                 if (config.isErrorExisting()) {
@@ -682,9 +584,10 @@ public class Loader implements Callable<Object> {
      * @param _id
      * @return
      * @throws IOException
-     * @throws XccException
+     * @throws LoaderException
      */
-    private boolean checkId(String _id) throws XccException, IOException {
+    private boolean checkId(String _id) throws LoaderException,
+            IOException {
         return checkStartId(_id) || checkExistingUri(composeUri(_id));
     }
 

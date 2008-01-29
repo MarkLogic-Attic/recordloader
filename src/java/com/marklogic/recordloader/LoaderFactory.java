@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2008 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.CharsetDecoder;
 
 import org.xmlpull.v1.XmlPullParserException;
-
-import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -54,7 +52,7 @@ public class LoaderFactory {
         config = _config;
     }
 
-    private Loader getLoader() throws XccException {
+    private Loader getLoader() throws LoaderException {
         // if multiple connString are available, we round-robin
         int x = (int) (count++ % config.getConnectionStrings().length);
         return new Loader(monitor, config.getConnectionStrings()[x],
@@ -65,11 +63,11 @@ public class LoaderFactory {
      * @param stream
      * @param _name
      * @return
-     * @throws XccException
+     * @throws LoaderException
      * @throws XmlPullParserException
      */
     public Loader newLoader(InputStream stream, String _name, String _path)
-            throws XccException, XmlPullParserException {
+            throws LoaderException, XmlPullParserException {
         Loader loader = getLoader();
         BufferedReader br = new BufferedReader(new InputStreamReader(stream,
                         decoder));
@@ -84,9 +82,9 @@ public class LoaderFactory {
     /**
      * @param file
      * @return
-     * @throws XccException
+     * @throws LoaderException
      */
-    public Loader newLoader(File file) throws XccException {
+    public Loader newLoader(File file) throws LoaderException {
         Loader loader = getLoader();
         loader.setInput(file);
         loader.setFileBasename(stripExtension(file.getName()));
@@ -115,9 +113,9 @@ public class LoaderFactory {
      * @param _in
      * @return
      * @throws XmlPullParserException
-     * @throws XccException
+     * @throws LoaderException
      */
-    public Loader newLoader(InputStream _in) throws XccException,
+    public Loader newLoader(InputStream _in) throws LoaderException,
             XmlPullParserException {
         return newLoader(_in, null, null);
     }

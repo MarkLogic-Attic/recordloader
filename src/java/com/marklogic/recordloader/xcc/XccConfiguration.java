@@ -1,0 +1,135 @@
+/**
+ * Copyright (c) 2008 Mark Logic Corporation. All rights reserved.
+ */
+package com.marklogic.recordloader.xcc;
+
+import java.math.BigInteger;
+import java.net.URI;
+import java.util.Map;
+
+import com.marklogic.recordloader.Configuration;
+import com.marklogic.recordloader.FatalException;
+import com.marklogic.xcc.ContentPermission;
+import com.marklogic.xcc.ContentSource;
+import com.marklogic.xcc.ContentSourceFactory;
+import com.marklogic.xcc.ContentbaseMetaData;
+import com.marklogic.xcc.Session;
+import com.marklogic.xcc.exceptions.XccConfigException;
+import com.marklogic.xcc.exceptions.XccException;
+
+/**
+ * @author Michael Blakeley, michael.blakeley@marklogic.com
+ *
+ */
+public class XccConfiguration extends Configuration {
+
+    /**
+     */
+    static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
+    private BigInteger[] placeKeys;
+    private Object placeKeysMutex = new Object();
+    private ContentbaseMetaData metadata;
+    private Object metadataMutex = new Object();
+    private int quality = 0;
+
+    /**
+     * @return
+     */
+    public String getOutputNamespace() {
+        return properties
+                .getProperty(DEFAULT_NAMESPACE_KEY);
+    }
+
+    /**
+     * @return
+     */
+    public ContentPermission[] getPermissions() {
+        ContentPermission[] permissions = null;
+        String readRolesString = properties
+                .getProperty(OUTPUT_READ_ROLES_KEY);
+        if (readRolesString != null && readRolesString.length() > 0) {
+            String[] readRoles = readRolesString.trim().split("\\s+");
+            if (readRoles != null && readRoles.length > 0) {
+                permissions = new ContentPermission[readRoles.length];
+                for (int i = 0; i < readRoles.length; i++) {
+                    if (readRoles[i] != null && !readRoles[i].equals(""))
+                        permissions[i] = new ContentPermission(
+                                ContentPermission.READ, readRoles[i]);
+                }
+            }
+        }
+        return permissions;
+    }
+
+    /**
+     * @return
+     * @throws XccException
+     */
+    public BigInteger[] getPlaceKeys() throws XccException {
+        // lazy initialization
+        if (null != placeKeys) {
+            return placeKeys;
+        }
+    
+        synchronized (placeKeysMutex) {
+            String forestNames = properties
+                    .getProperty(OUTPUT_FORESTS_KEY);
+            // check again, to avoid any race for the mutex
+            if (forestNames != null) {
+                forestNames = forestNames.trim();
+                if (!forestNames.equals("")) {
+                    logger.info("sending output to forests: "
+                            + forestNames);
+                    logger.fine("querying for Forest ids");
+                    String[] placeNames = forestNames.split("\\s+");
+                    ContentbaseMetaData meta = getMetaData();
+                    Map<?, ?> forestMap = meta.getForestMap();
+                    placeKeys = new BigInteger[placeNames.length];
+                    for (int i = 0; i < placeNames.length; i++) {
+                        logger.finest("looking up " + placeNames[i]);
+                        placeKeys[i] = (BigInteger) forestMap
+                                .get(placeNames[i]);
+                        if (null == placeKeys[i]) {
+                            throw new FatalException("no forest named "
+                                    + placeNames[i]);
+                        }
+                        logger.fine("mapping " + placeNames[i] + " to "
+                                + placeKeys[i]);
+                    }
+                }
+            }
+        }
+        return placeKeys;
+    }
+
+    /**
+     * @return
+     * @return
+     * @throws XccConfigException
+     */
+    public ContentbaseMetaData getMetaData() throws XccConfigException {
+        if (null != metadata) {
+            return metadata;
+        }
+        synchronized (metadataMutex) {
+            // check again, to prevent races
+            if (null == metadata) {
+                URI uri = getConnectionStrings()[0];
+                ContentSource cs = ContentSourceFactory
+                        .newContentSource(uri);
+                // be sure to use the default db
+                Session session = cs.newSession();
+                metadata = session.getContentbaseMetaData();
+            }
+        }
+        return metadata;
+    }
+
+    /**
+     * @return
+     */
+    public int getQuality() {
+        return quality;
+    }
+
+}

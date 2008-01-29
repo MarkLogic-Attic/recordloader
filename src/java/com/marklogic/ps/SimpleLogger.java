@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2006 Mark Logic Corporation
+ * Copyright (c)2005-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -248,6 +248,13 @@ public class SimpleLogger extends Logger implements
      */
     public void setProperties(Properties _properties) {
         configureLogger(_properties);
+    }
+
+    /**
+     * @param t
+     */
+    public void logException(Throwable t) {
+        logException(null, t);
     }
 
 }

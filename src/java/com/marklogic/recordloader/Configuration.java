@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2007 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2008 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,14 +20,14 @@ package com.marklogic.recordloader;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -36,15 +36,10 @@ import org.xmlpull.v1.XmlPullParserFactory;
 import com.marklogic.ps.RecordLoader;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
-import com.marklogic.xcc.ContentPermission;
-import com.marklogic.xcc.ContentSource;
-import com.marklogic.xcc.ContentSourceFactory;
-import com.marklogic.xcc.ContentbaseMetaData;
+import com.marklogic.recordloader.xcc.XccConfiguration;
+import com.marklogic.recordloader.xcc.XccContentFactory;
 import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.DocumentRepairLevel;
-import com.marklogic.xcc.Session;
-import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
-import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -77,7 +72,7 @@ public class Configuration {
      */
     private static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
-    private static SimpleLogger logger = null;
+    protected static SimpleLogger logger = null;
 
     /**
      * 
@@ -128,7 +123,7 @@ public class Configuration {
     /**
      * 
      */
-    static final String DEFAULT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
+    public static final String DEFAULT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
 
     /**
      * 
@@ -257,12 +252,7 @@ public class Configuration {
     /**
      * 
      */
-    static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
-
-    /**
-     * 
-     */
-    static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
+    public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
     /**
      * 
@@ -281,7 +271,17 @@ public class Configuration {
 
     private static final int DEFAULT_CAPACITY = 1000;
 
-    private Properties props = new Properties();
+    public static final String CONTENT_FACTORY_CLASSNAME_KEY = "CONTENT_FACTORY_CLASSNAME";
+
+    public static final String CONTENT_FACTORY_CLASSNAME_DEFAULT = XccContentFactory.class
+            .getCanonicalName();
+
+    public static final String CONFIGURATION_CLASSNAME_KEY = "CONFIGURATION_CLASSNAME";
+
+    public static final String CONFIGURATION_CLASSNAME_DEFAULT = XccConfiguration.class
+            .getCanonicalName();
+
+    protected Properties properties = new Properties();
 
     private String[] baseCollections;
 
@@ -329,10 +329,6 @@ public class Configuration {
 
     private boolean useFileNameIds = false;
 
-    private BigInteger[] placeKeys;
-
-    private Object placeKeysMutex = new Object();
-
     private Object autoIdMutex = new Object();
 
     private int autoid = 1;
@@ -347,13 +343,15 @@ public class Configuration {
 
     private DocumentFormat format = DocumentFormat.XML;
 
-    private int quality = 0;
+    private Constructor<? extends ContentFactory> contentFactoryConstructor;
+
+    private Object contentFactoryMutex = new Object();
 
     /**
      * @param _props
      */
     public void load(Properties _props) {
-        props.putAll(_props);
+        properties.putAll(_props);
     }
 
     /**
@@ -361,15 +359,15 @@ public class Configuration {
      * 
      */
     public void configure() throws URISyntaxException {
-        logger.configureLogger(props);
+        logger.configureLogger(properties);
 
-        setIdNodeName(props.getProperty(ID_NAME_KEY));
+        setIdNodeName(properties.getProperty(ID_NAME_KEY));
 
         // some or all of these may be null
         configureOptions();
         configureCollections();
 
-        String[] connectionStrings = props.getProperty(
+        String[] connectionStrings = properties.getProperty(
                 CONNECTION_STRING_KEY, CONNECTION_STRING_DEFAULT).split(
                 "[,\\s]+");
         logger.info("connecting to "
@@ -381,16 +379,16 @@ public class Configuration {
     }
 
     private void configureOptions() {
-        recordName = props.getProperty(RECORD_NAME_KEY);
-        recordNamespace = props.getProperty(RECORD_NAMESPACE_KEY);
+        recordName = properties.getProperty(RECORD_NAME_KEY);
+        recordNamespace = properties.getProperty(RECORD_NAMESPACE_KEY);
         if (recordName != null && recordNamespace == null)
             recordNamespace = RECORD_NAMESPACE_DEFAULT;
 
-        ignoreUnknown = Utilities.stringToBoolean(props.getProperty(
+        ignoreUnknown = Utilities.stringToBoolean(properties.getProperty(
                 IGNORE_UNKNOWN_KEY, "false"));
 
         // use prefix to set document-uri patterns
-        uriPrefix = props.getProperty(OUTPUT_URI_PREFIX_KEY,
+        uriPrefix = properties.getProperty(OUTPUT_URI_PREFIX_KEY,
                 OUTPUT_URI_PREFIX_DEFAULT);
         if (!uriPrefix.equals(OUTPUT_URI_PREFIX_DEFAULT)
                 && !uriPrefix.endsWith("/")) {
@@ -398,69 +396,70 @@ public class Configuration {
         }
         logger.fine(OUTPUT_URI_PREFIX_KEY + " = " + uriPrefix);
 
-        uriSuffix = props.getProperty(OUTPUT_URI_SUFFIX_KEY,
+        uriSuffix = properties.getProperty(OUTPUT_URI_SUFFIX_KEY,
                 OUTPUT_URI_SUFFIX_DEFAULT);
         logger.fine(OUTPUT_URI_SUFFIX_KEY + " = " + uriSuffix);
 
         // look for startId, to skip records
-        startId = props.getProperty(START_ID_KEY);
+        startId = properties.getProperty(START_ID_KEY);
         logger.fine("START_ID=" + startId);
 
         // should we check for existing docs?
-        skipExisting = Utilities.stringToBoolean(props.getProperty(
+        skipExisting = Utilities.stringToBoolean(properties.getProperty(
                 SKIP_EXISTING_KEY, "false"));
         logger.fine("SKIP_EXISTING=" + skipExisting);
 
         // should we throw an error for existing docs?
-        errorExisting = Utilities.stringToBoolean(props.getProperty(
+        errorExisting = Utilities.stringToBoolean(properties.getProperty(
                 ERROR_EXISTING_KEY, "false"));
         logger.fine("ERROR_EXISTING=" + errorExisting);
 
-        String repairString = props.getProperty(REPAIR_LEVEL_KEY, "NONE");
+        String repairString = properties.getProperty(REPAIR_LEVEL_KEY,
+                "NONE");
         if (repairString.equals("FULL")) {
             logger.fine(REPAIR_LEVEL_KEY + "=" + repairString);
             repairLevel = DocumentRepairLevel.FULL;
         }
 
         copyNamespaceDeclarations = Utilities
-                .stringToBoolean(props.getProperty(COPY_NAMESPACES_KEY,
-                        COPY_NAMESPACES_DEFAULT));
+                .stringToBoolean(properties.getProperty(
+                        COPY_NAMESPACES_KEY, COPY_NAMESPACES_DEFAULT));
 
-        fatalErrors = Utilities.stringToBoolean(props.getProperty(
+        fatalErrors = Utilities.stringToBoolean(properties.getProperty(
                 FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
 
-        inputEncoding = props.getProperty(INPUT_ENCODING_KEY,
+        inputEncoding = properties.getProperty(INPUT_ENCODING_KEY,
                 OUTPUT_ENCODING_DEFAULT);
-        malformedInputAction = props.getProperty(
+        malformedInputAction = properties.getProperty(
                 INPUT_MALFORMED_ACTION_KEY,
                 INPUT_MALFORMED_ACTION_DEFAULT);
         logger.info("using output encoding " + OUTPUT_ENCODING_DEFAULT);
 
-        threadCount = Integer.parseInt(props
-                .getProperty(THREADS_KEY, "1"));
+        threadCount = Integer.parseInt(properties.getProperty(
+                THREADS_KEY, "1"));
         capacity = DEFAULT_CAPACITY * threadCount;
 
-        inputPath = props.getProperty(INPUT_PATH_KEY);
+        inputPath = properties.getProperty(INPUT_PATH_KEY);
         logger.fine(INPUT_PATH_KEY + " = " + inputPath);
-        inputPattern = props.getProperty(INPUT_PATTERN_KEY,
+        inputPattern = properties.getProperty(INPUT_PATTERN_KEY,
                 INPUT_PATTERN_DEFAULT);
-        inputStripPrefix = props.getProperty(INPUT_STRIP_PREFIX);
-        inputNormalizePaths = Utilities.stringToBoolean(props
+        inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX);
+        inputNormalizePaths = Utilities.stringToBoolean(properties
                 .getProperty(INPUT_NORMALIZE_PATHS,
                         INPUT_NORMALIZE_PATHS_DEFAULT));
         logger.fine(INPUT_PATTERN_KEY + " = " + inputPattern);
 
-        zipInputPattern = props.getProperty(ZIP_INPUT_PATTERN_KEY,
+        zipInputPattern = properties.getProperty(ZIP_INPUT_PATTERN_KEY,
                 ZIP_INPUT_PATTERN_DEFAULT);
         logger.fine(ZIP_INPUT_PATTERN_KEY + " = " + zipInputPattern);
 
-        throttledEventsPerSecond = Double.parseDouble(props.getProperty(
-                THROTTLE_KEY, THROTTLE_DEFAULT));
+        throttledEventsPerSecond = Double.parseDouble(properties
+                .getProperty(THROTTLE_KEY, THROTTLE_DEFAULT));
         if (isThrottled()) {
             logger.info("throttle = " + throttledEventsPerSecond);
         }
 
-        String formatString = props.getProperty(DOCUMENT_FORMAT_KEY,
+        String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY,
                 DOCUMENT_FORMAT_DEFAULT).toLowerCase();
         if (formatString.equals(DocumentFormat.TEXT.toString())) {
             format = DocumentFormat.TEXT;
@@ -485,7 +484,7 @@ public class Configuration {
         collections.add(RecordLoader.NAME + "."
                 + System.currentTimeMillis());
         logger.info("adding extra collection: " + collections.get(0));
-        String collectionsString = props
+        String collectionsString = properties
                 .getProperty(OUTPUT_COLLECTIONS_KEY);
         if (collectionsString != null && !collectionsString.equals("")) {
             collections.addAll(Arrays.asList(collectionsString
@@ -577,7 +576,7 @@ public class Configuration {
      * @throws IOException
      */
     public void load(InputStream _stream) throws IOException {
-        props.load(_stream);
+        properties.load(_stream);
     }
 
     public String getMalformedInputAction() {
@@ -616,79 +615,6 @@ public class Configuration {
     }
 
     /**
-     * @return
-     */
-    public ContentPermission[] getPermissions() {
-        ContentPermission[] permissions = null;
-        String readRolesString = props.getProperty(OUTPUT_READ_ROLES_KEY);
-        if (readRolesString != null && readRolesString.length() > 0) {
-            String[] readRoles = readRolesString.trim().split("\\s+");
-            if (readRoles != null && readRoles.length > 0) {
-                permissions = new ContentPermission[readRoles.length];
-                for (int i = 0; i < readRoles.length; i++) {
-                    if (readRoles[i] != null && !readRoles[i].equals(""))
-                        permissions[i] = new ContentPermission(
-                                ContentPermission.READ, readRoles[i]);
-                }
-            }
-        }
-        return permissions;
-    }
-
-    /**
-     * @return
-     */
-    public String getOutputNamespace() {
-        return props.getProperty(DEFAULT_NAMESPACE_KEY);
-    }
-
-    /**
-     * @return
-     * @throws XccException
-     */
-    public BigInteger[] getPlaceKeys() throws XccException {
-        // lazy initialization
-        if (null != placeKeys) {
-            return placeKeys;
-        }
-
-        synchronized (placeKeysMutex) {
-            String forestNames = props.getProperty(OUTPUT_FORESTS_KEY);
-            if (forestNames != null) {
-                forestNames = forestNames.trim();
-                if (!forestNames.equals("")) {
-                    logger.info("sending output to forests: "
-                            + forestNames);
-                    logger.fine("querying for Forest ids");
-                    String[] placeNames = forestNames.split("\\s+");
-                    URI uri = getConnectionStrings()[0];
-                    ContentSource cs = ContentSourceFactory
-                            .newContentSource(uri);
-                    // be sure to use the default db
-                    Session session = cs.newSession();
-                    ContentbaseMetaData meta = session
-                            .getContentbaseMetaData();
-                    Map<?, ?> forestMap = meta.getForestMap();
-                    placeKeys = new BigInteger[placeNames.length];
-                    for (int i = 0; i < placeNames.length; i++) {
-                        logger.finest("looking up " + placeNames[i]);
-                        placeKeys[i] = (BigInteger) forestMap
-                                .get(placeNames[i]);
-                        if (null == placeKeys[i]) {
-                            throw new UnimplementedFeatureException(uri
-                                    + " has no forest named "
-                                    + placeNames[i]);
-                        }
-                        logger.fine("mapping " + placeNames[i] + " to "
-                                + placeKeys[i]);
-                    }
-                }
-            }
-        }
-        return placeKeys;
-    }
-
-    /**
      * 
      * @throws XmlPullParserException
      * @return
@@ -697,7 +623,7 @@ public class Configuration {
             throws XmlPullParserException {
         // get a new factory
         if (factory == null) {
-            factory = XmlPullParserFactory.newInstance(props
+            factory = XmlPullParserFactory.newInstance(properties
                     .getProperty(XmlPullParserFactory.PROPERTY_NAME),
                     null);
             factory.setNamespaceAware(true);
@@ -757,12 +683,12 @@ public class Configuration {
             logger.warning("no " + ID_NAME_KEY + " specified: using "
                     + ID_NAME_FILENAME);
             // just in case...
-            props.setProperty(ID_NAME_KEY, ID_NAME_FILENAME);
+            properties.setProperty(ID_NAME_KEY, ID_NAME_FILENAME);
             idNodeName = ID_NAME_FILENAME;
         }
-        
+
         logger.fine(ID_NAME_KEY + "=" + idNodeName);
-        
+
         if (idNodeName.equals(ID_NAME_AUTO)) {
             logger.info("generating automatic ids");
             useAutomaticIds = true;
@@ -810,13 +736,6 @@ public class Configuration {
         return format;
     }
 
-    /**
-     * @return
-     */
-    public int getQuality() {
-        return quality;
-    }
-
     public String getInputStripPrefix() {
         return inputStripPrefix;
     }
@@ -825,4 +744,93 @@ public class Configuration {
         return inputNormalizePaths;
     }
 
+    /**
+     * @return
+     */
+    public Properties getProperties() {
+        return properties;
+    }
+
+    /**
+     * @return
+     */
+    public String getContentFactoryClassName() {
+        return properties.getProperty(CONTENT_FACTORY_CLASSNAME_KEY,
+                CONTENT_FACTORY_CLASSNAME_DEFAULT);
+    }
+
+    /**
+     * @return
+     * @throws InvocationTargetException
+     * @throws IllegalAccessException
+     * @throws InstantiationException
+     * @throws IllegalArgumentException
+     * @throws LoaderException
+     */
+    public Constructor<? extends ContentFactory> getContentFactoryConstructor()
+            throws IllegalArgumentException, InstantiationException,
+            IllegalAccessException, InvocationTargetException,
+            LoaderException {
+        if (null != contentFactoryConstructor) {
+            return contentFactoryConstructor;
+        }
+
+        // singleton constructor - thread-safe?
+        synchronized (contentFactoryMutex) {
+            // check again, to avoid any race for the mutex
+            if (null == contentFactoryConstructor) {
+                // first time
+                String className = getContentFactoryClassName();
+                logger.info("ContentFactory is " + className);
+                try {
+                    Class<? extends ContentFactory> contentFactoryClass = Class
+                            .forName(className, true,
+                                    ClassLoader.getSystemClassLoader())
+                            .asSubclass(ContentFactory.class);
+                    contentFactoryConstructor = contentFactoryClass
+                            .getConstructor(new Class[] {});
+                } catch (Exception e) {
+                    throw new FatalException("Bad "
+                            + Configuration.CONTENT_FACTORY_CLASSNAME_KEY
+                            + ": " + className, e);
+                }
+                // log version info
+                ContentFactory cf = contentFactoryConstructor
+                        .newInstance(new Object[] {});
+                cf.setConfiguration(this);
+                logger.info(cf.getVersionString());
+            }
+        }
+        return contentFactoryConstructor;
+    }
+
+    /**
+     * @return
+     */
+    public String getConfigurationClassName() {
+        return properties.getProperty(CONFIGURATION_CLASSNAME_KEY,
+                CONFIGURATION_CLASSNAME_DEFAULT);
+    }
+
+    /**
+     * @return
+     * @throws IllegalArgumentException
+     * @throws ClassNotFoundException
+     * @throws NoSuchMethodException
+     * @throws SecurityException
+     */
+    public Constructor<? extends Configuration> getConfigurationConstructor()
+            throws IllegalArgumentException, ClassNotFoundException,
+            SecurityException, NoSuchMethodException {
+        // this should only be called once, in a single-threaded main() context
+        String className = getConfigurationClassName();
+        logger.info("Configuration is " + className);
+        Class<? extends Configuration> configurationClass = Class
+                .forName(className, true,
+                        ClassLoader.getSystemClassLoader()).asSubclass(
+                        Configuration.class);
+        Constructor<? extends Configuration> configurationConstructor = configurationClass
+                .getConstructor(new Class[] {});
+        return configurationConstructor;
+    }
 }
