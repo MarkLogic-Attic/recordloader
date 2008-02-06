@@ -252,18 +252,13 @@ public class Configuration {
     /**
      * 
      */
-    public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
+    public static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
 
-    /**
-     * 
-     */
-    static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
+    public static final String ZIP_INPUT_PATTERN_KEY = "ZIP_INPUT_PATTERN";
 
-    private static final String ZIP_INPUT_PATTERN_KEY = "ZIP_INPUT_PATTERN";
+    public static final String ZIP_INPUT_PATTERN_DEFAULT = null;
 
-    private static final String ZIP_INPUT_PATTERN_DEFAULT = null;
-
-    private static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
+    public static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
 
     private static final String COPY_NAMESPACES_DEFAULT = "true";
 

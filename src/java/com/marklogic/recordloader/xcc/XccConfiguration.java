@@ -19,25 +19,36 @@ import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class XccConfiguration extends Configuration {
 
     /**
      */
-    static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
+    public static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
+
+    /**
+     * 
+     */
+    public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
+
+    public static final String CONTENT_MODULE_KEY = "CONTENT_MODULE_URI";
+
     private BigInteger[] placeKeys;
+
     private Object placeKeysMutex = new Object();
+
     private ContentbaseMetaData metadata;
+
     private Object metadataMutex = new Object();
+
     private int quality = 0;
 
     /**
      * @return
      */
     public String getOutputNamespace() {
-        return properties
-                .getProperty(DEFAULT_NAMESPACE_KEY);
+        return properties.getProperty(DEFAULT_NAMESPACE_KEY);
     }
 
     /**
@@ -45,20 +56,28 @@ public class XccConfiguration extends Configuration {
      */
     public ContentPermission[] getPermissions() {
         ContentPermission[] permissions = null;
-        String readRolesString = properties
-                .getProperty(OUTPUT_READ_ROLES_KEY);
-        if (readRolesString != null && readRolesString.length() > 0) {
-            String[] readRoles = readRolesString.trim().split("\\s+");
-            if (readRoles != null && readRoles.length > 0) {
-                permissions = new ContentPermission[readRoles.length];
-                for (int i = 0; i < readRoles.length; i++) {
-                    if (readRoles[i] != null && !readRoles[i].equals(""))
-                        permissions[i] = new ContentPermission(
-                                ContentPermission.READ, readRoles[i]);
-                }
+        String[] readRoles = getReadRoles();
+        if (readRoles != null && readRoles.length > 0) {
+            permissions = new ContentPermission[readRoles.length];
+            for (int i = 0; i < readRoles.length; i++) {
+                if (readRoles[i] != null && !readRoles[i].equals(""))
+                    permissions[i] = new ContentPermission(
+                            ContentPermission.READ, readRoles[i]);
             }
         }
         return permissions;
+    }
+
+    /**
+     * @return
+     */
+    String[] getReadRoles() {
+        String readRolesString = properties
+                .getProperty(OUTPUT_READ_ROLES_KEY);
+        if (null == readRolesString || readRolesString.length() < 1) {
+            return null;
+        }
+        return readRolesString.trim().split("\\s+");
     }
 
     /**
@@ -70,7 +89,7 @@ public class XccConfiguration extends Configuration {
         if (null != placeKeys) {
             return placeKeys;
         }
-    
+
         synchronized (placeKeysMutex) {
             String forestNames = properties
                     .getProperty(OUTPUT_FORESTS_KEY);
@@ -130,6 +149,13 @@ public class XccConfiguration extends Configuration {
      */
     public int getQuality() {
         return quality;
+    }
+
+    /**
+     * @return
+     */
+    public String getContentModuleUri() {
+        return properties.getProperty(CONTENT_MODULE_KEY);
     }
 
 }

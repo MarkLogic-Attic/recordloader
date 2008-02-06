@@ -74,6 +74,33 @@ then the default value <code>#FILENAME</code> will be used.
 <table border="1">
 <tr><th>Property</th><th>default value</th><th>notes</th></tr>
 
+<tr><td>CONFIGURATION_CLASSNAME</td>
+<td>com.marklogic.recordloader.xcc.XccConfiguration</td>
+<td>This class will be used to provide configuration information.
+This class must be an extension of the
+com.marklogic.recordloader.Configuration class.</td>
+</tr>
+
+<tr><td>CONTENT_FACTORY_CLASSNAME</td>
+<td>com.marklogic.recordloader.xcc.XccContentFactory</td>
+<td>This class will be used to create new content objects,
+which implement com.marklogic.recordloader.ContentInterface.
+One alternative implementation is provided, as
+<code>com.marklogic.recordloader.xcc.XccModuleContentFactory</code>,
+which creates objects in the class
+<code>com.marklogic.recordloader.xcc.XccModuleContent</code>.
+When XccModuleContentFactory is used, new documents must fit in memory,
+and will be posted to the XQuery main module designated by the
+<code>CONTENT_MODULE_URI</code> property,
+setting four external <code>xs:string</code> variables:
+<code>$URI</code>, <code>$XML-STRING</code>,
+<code>$ROLES</code>, and <code>$COLLECTIONS</code>.
+The last two variables are set as comma-separated values,
+based on <code>READ_ROLES</code>
+and <code>OUTPUT_COLLECTIONS</code>.
+</td>
+</tr>
+
 <tr><td>CONNECTION_STRING</td><td>xcc://admin:admin@localhost:9000/</td>
 <td>XCC URI, including username, password, host, and port,
 to use for all queries and inserts.

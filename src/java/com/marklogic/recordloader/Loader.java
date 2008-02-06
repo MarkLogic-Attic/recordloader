@@ -294,6 +294,7 @@ public class Loader implements Callable<Object> {
                     // keep going
                     logger.logException("non-fatal: skipping", e);
 
+                    // stop and set error state
                     event.stop(true);
                     monitor.add(currentUri, event);
 
@@ -379,18 +380,13 @@ public class Loader implements Callable<Object> {
             while ((size = input.read(buf)) > 0) {
                 sb.append(buf, 0, size);
             }
-            String xml = sb.toString();
 
             if (!skippingRecord) {
-                logger.fine("inserting " + currentUri);
-                content.setXml(xml);
-                content.insert();
+                content.setXml(sb.toString());
+                insert();
             }
-
-            // handle monitor accounting
-            // note that we count skipped records, too
-            event.increment(xml.length());
-            monitor.add(currentUri, event);
+            
+            updateMonitor(sb.length());
         } catch (URISyntaxException e) {
             if (config.isFatalErrors()) {
                 throw e;
@@ -406,6 +402,25 @@ public class Loader implements Callable<Object> {
         } finally {
             cleanup();
         }
+    }
+
+    /**
+     * @throws LoaderException
+     */
+    private void insert() throws LoaderException {
+        logger.fine("inserting " + currentUri);
+        content.insert();
+    }
+
+    /**
+     * @param len 
+     * 
+     */
+    private void updateMonitor(long len) {
+        // handle monitor accounting
+        // note that we count skipped records, too
+        event.increment(len);
+        monitor.add(currentUri, event);        
     }
 
     /**
@@ -454,7 +469,7 @@ public class Loader implements Callable<Object> {
             }
         }
 
-        if (name.equals(recordName) && namespace.equals(recordNamespace)) {
+        if (isRecordStart(name, namespace)) {
             // start of a new record
             logger.fine("found record element: '" + recordName + "' in '"
                     + recordNamespace + "'");
@@ -485,15 +500,10 @@ public class Loader implements Callable<Object> {
             content.setProducer(producer);
 
             if (!producer.isSkippingRecord()) {
-                logger.fine("inserting " + currentUri);
-                content.insert();
+                insert();
             }
 
-            // handle monitor accounting
-            // note that we count skipped records, too
-            event.increment(producer.getBytesRead());
-            monitor.add(currentUri, event);
-
+            updateMonitor(producer.getBytesRead());
             cleanup();
             return;
         }
@@ -505,6 +515,16 @@ public class Loader implements Callable<Object> {
                             + name);
             return;
         }
+    }
+
+    /**
+     * @param name
+     * @param namespace
+     * @return
+     */
+    private boolean isRecordStart(String name, String namespace) {
+        return (name.equals(recordName) && namespace
+                .equals(recordNamespace));
     }
 
     /**

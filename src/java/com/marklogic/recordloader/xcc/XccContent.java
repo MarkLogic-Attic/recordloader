@@ -3,85 +3,34 @@
  */
 package com.marklogic.recordloader.xcc;
 
-import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
-import com.marklogic.xcc.Request;
-import com.marklogic.xcc.ResultItem;
-import com.marklogic.xcc.ResultSequence;
 import com.marklogic.xcc.Session;
-import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.exceptions.XccException;
-import com.marklogic.xcc.types.XSBoolean;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class XccContent implements ContentInterface {
-
-    private Session session = null;
+public class XccContent extends XccAbstractContent {
 
     private Content content = null;
-
-    private String uri = null;
 
     private ContentCreateOptions options = null;
 
     /**
      * @param _session
-     * @param _uri 
+     * @param _uri
      * @param _options
      */
-    public XccContent(Session _session, String _uri, ContentCreateOptions _options) {
+    public XccContent(Session _session, String _uri,
+            ContentCreateOptions _options) {
         session = _session;
         uri = _uri;
         options = _options;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.marklogic.recordloader.ContentInterface#checkDocumentUri(java.lang.String)
-     */
-    public boolean checkDocumentUri(String _uri) throws LoaderException {
-        String query = "define variable $URI as xs:string external\n"
-                + "xdmp:exists(doc($URI))\n";
-        ResultSequence result = null;
-        boolean exists = false;
-        try {
-            Request request = session.newAdhocQuery(query);
-            request.setNewStringVariable("URI", _uri);
-
-            result = session.submitRequest(request);
-
-            if (!result.hasNext()) {
-                throw new RequestException("unexpected null result",
-                        request);
-            }
-
-            ResultItem item = result.next();
-
-            exists = ((XSBoolean) item.getItem()).asPrimitiveBoolean();
-        } catch (XccException e) {
-            throw new LoaderException(e);
-        } finally {
-            if (result != null && !result.isClosed())
-                result.close();
-        }
-        return exists;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.marklogic.recordloader.ContentInterface#setUri(java.lang.String)
-     */
-    public void setUri(String _uri) {
-        uri = _uri;
     }
 
     /*

@@ -20,6 +20,8 @@ package com.marklogic.recordloader;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.CharsetDecoder;
@@ -60,6 +62,17 @@ public class LoaderFactory {
     }
 
     /**
+     * @param _in
+     * @return
+     * @throws XmlPullParserException
+     * @throws LoaderException
+     */
+    public Loader newLoader(InputStream _in) throws LoaderException,
+            XmlPullParserException {
+        return newLoader(_in, null, null);
+    }
+
+    /**
      * @param stream
      * @param _name
      * @return
@@ -69,8 +82,8 @@ public class LoaderFactory {
     public Loader newLoader(InputStream stream, String _name, String _path)
             throws LoaderException, XmlPullParserException {
         Loader loader = getLoader();
-        BufferedReader br = new BufferedReader(new InputStreamReader(stream,
-                        decoder));
+        BufferedReader br = new BufferedReader(new InputStreamReader(
+                stream, decoder));
         loader.setInput(br);
         if (_name != null) {
             loader.setFileBasename(stripExtension(_name));
@@ -83,13 +96,13 @@ public class LoaderFactory {
      * @param file
      * @return
      * @throws LoaderException
+     * @throws XmlPullParserException
+     * @throws FileNotFoundException
      */
-    public Loader newLoader(File file) throws LoaderException {
-        Loader loader = getLoader();
-        loader.setInput(file);
-        loader.setFileBasename(stripExtension(file.getName()));
-        loader.setRecordPath(file.getPath());
-        return loader;
+    public Loader newLoader(File file) throws LoaderException,
+            FileNotFoundException, XmlPullParserException {
+        return newLoader(new FileInputStream(file), file.getName(), file
+                .getPath());
     }
 
     /**
@@ -107,17 +120,6 @@ public class LoaderFactory {
         }
 
         return name.substring(0, i);
-    }
-
-    /**
-     * @param _in
-     * @return
-     * @throws XmlPullParserException
-     * @throws LoaderException
-     */
-    public Loader newLoader(InputStream _in) throws LoaderException,
-            XmlPullParserException {
-        return newLoader(_in, null, null);
     }
 
 }
