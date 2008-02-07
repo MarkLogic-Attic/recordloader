@@ -20,6 +20,7 @@
 package com.marklogic.ps;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -67,7 +68,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-02-06.1";
+    public static final String VERSION = "2008-02-07.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -106,6 +107,10 @@ public class RecordLoader {
     private ArrayList<File> zipFiles;
 
     private CharsetDecoder inputDecoder;
+
+    private FileFilter filter;
+
+    private String inputPattern;
 
     public RecordLoader(String[] args) throws FileNotFoundException,
             IOException, URISyntaxException {
@@ -146,32 +151,6 @@ public class RecordLoader {
 
         inputDecoder = getDecoder(config.getInputEncoding(), config
                 .getMalformedInputAction());
-
-        expandConfiguredFiles();
-    }
-
-    /**
-     * @throws IOException
-     */
-    private void expandConfiguredFiles() throws IOException {
-        String inputPath = config.getInputPath();
-        if (inputPath != null) {
-            String inputPattern = config.getInputPattern();
-            logger.info("finding matches for " + inputPattern + " in "
-                    + inputPath);
-            // find all the files
-            File file;
-            FileFinder ff = new FileFinder(inputPath, inputPattern);
-            ff.find();
-            while (ff.size() > 0) {
-                file = ff.remove();
-                if (file.getName().endsWith(".zip")) {
-                    zipFiles.add(file);
-                } else {
-                    xmlFiles.add(file);
-                }
-            }
-        }
     }
 
     /**
@@ -207,6 +186,11 @@ public class RecordLoader {
                 // add to xml list
                 xmlFiles.add(file);
             }
+        }
+
+        String path = config.getInputPath();
+        if (null != path) {
+            xmlFiles.add(new File(path));
         }
     }
 
@@ -257,7 +241,19 @@ public class RecordLoader {
                     inputDecoder, config);
 
             if (zipFiles.size() > 0 || xmlFiles.size() > 0) {
-                handleFileInput(monitor, pool, factory);
+                inputPattern = config.getInputPattern();
+                if (null != inputPattern) {
+                    filter = new FileFilter() {
+                        public boolean accept(File _f) {
+                            return _f.isDirectory()
+                                    || (_f.isFile() && _f.getName()
+                                            .matches(inputPattern));
+                        }
+                    };
+                }
+                logger.info("populating queue");
+                handleFileInput(monitor, pool, factory, zipFiles,
+                        xmlFiles);
             } else {
                 if (config.getThreadCount() > 1) {
                     logger.warning("Will not use multiple threads!");
@@ -404,7 +400,8 @@ public class RecordLoader {
     }
 
     private void handleFileInput(Monitor _monitor, ExecutorService _es,
-            LoaderFactory _factory) throws IOException, ZipException,
+            LoaderFactory _factory, ArrayList<File> _zipFiles,
+            ArrayList<File> _xmlFiles) throws IOException, ZipException,
             FileNotFoundException, LoaderException,
             XmlPullParserException {
         String zipInputPattern = config.getZipInputPattern();
@@ -414,66 +411,83 @@ public class RecordLoader {
         ZipEntry ze;
         String entryName;
 
-        logger.info("populating queue");
-
-        // queue any zip-entries first
-        // NOTE this technique will intentionally leak zipfile objects!
-        iter = zipFiles.iterator();
-        int size;
-        if (iter.hasNext()) {
-            Enumeration<? extends ZipEntry> entries;
-            while (iter.hasNext()) {
-                file = iter.next();
-                zipFile = new ZipFile(file);
-                // to avoid closing zipinputstreams randomly,
-                // we have to "leak" them temporarily
-                // tell the monitor about them, for later cleanup
-                _monitor.add(zipFile);
-                entries = zipFile.entries();
-                size = zipFile.size();
-                logger.fine("queuing " + size + " entries from zip file "
-                        + file.getCanonicalPath());
-                int count = 0;
-                while (entries.hasMoreElements()) {
-                    ze = entries.nextElement();
-                    logger.fine("found zip entry " + ze);
-                    if (ze.isDirectory()) {
-                        // skip it
-                        continue;
+        if (null != _zipFiles) {
+            // queue any zip-entries first
+            // NOTE this technique will intentionally leak zipfile objects!
+            iter = _zipFiles.iterator();
+            int size;
+            if (iter.hasNext()) {
+                Enumeration<? extends ZipEntry> entries;
+                while (iter.hasNext()) {
+                    file = iter.next();
+                    zipFile = new ZipFile(file);
+                    // to avoid closing zipinputstreams randomly,
+                    // we have to "leak" them temporarily
+                    // tell the monitor about them, for later cleanup
+                    _monitor.add(zipFile);
+                    entries = zipFile.entries();
+                    size = zipFile.size();
+                    logger.fine("queuing " + size
+                            + " entries from zip file "
+                            + file.getCanonicalPath());
+                    int count = 0;
+                    while (entries.hasMoreElements()) {
+                        ze = entries.nextElement();
+                        logger.fine("found zip entry " + ze);
+                        if (ze.isDirectory()) {
+                            // skip it
+                            continue;
+                        }
+                        if (!ze.getName().matches(
+                                config.getInputPattern())) {
+                            // skip it
+                            continue;
+                        }
+                        entryName = ze.getName();
+                        if (zipInputPattern != null
+                                && !entryName.matches(zipInputPattern)) {
+                            // skip it
+                            logger.finer("skipping " + entryName);
+                            continue;
+                        }
+                        submitLoader(_es, _factory.newLoader(zipFile
+                                .getInputStream(ze), file.getName(),
+                                entryName));
+                        count++;
+                        if (0 == count % 1000) {
+                            logger.finer("queued " + count
+                                    + " entries from zip file "
+                                    + file.getCanonicalPath());
+                        }
                     }
-                    if (!ze.getName().matches(config.getInputPattern())) {
-                        // skip it
-                        continue;
-                    }
-                    entryName = ze.getName();
-                    if (zipInputPattern != null
-                            && !entryName.matches(zipInputPattern)) {
-                        // skip it
-                        logger.finer("skipping " + entryName);
-                        continue;
-                    }
-                    submitLoader(_es, _factory.newLoader(zipFile
-                            .getInputStream(ze), file.getName(),
-                            entryName));
-                    count++;
-                    if (0 == count % 1000) {
-                        logger.finer("queued " + count
-                                + " entries from zip file "
-                                + file.getCanonicalPath());
-                    }
+                    logger.fine("queued " + count
+                            + " entries from zip file "
+                            + file.getCanonicalPath());
                 }
-                logger.fine("queued " + count + " entries from zip file "
-                        + file.getCanonicalPath());
             }
         }
 
         // queue any xml files
-        iter = xmlFiles.iterator();
+        iter = _xmlFiles.iterator();
         while (iter.hasNext()) {
             file = iter.next();
             if (file.isDirectory()) {
-                logger.warning("skipping directory "
-                        + file.getCanonicalPath());
+                File[] dirList = file.listFiles(filter);
+                if (dirList.length > 0) {
+                    logger.fine("queuing contents of "
+                            + file.getCanonicalPath() + ": "
+                            + dirList.length);
+                    ArrayList<File> newlist = new ArrayList<File>();
+                    for (int i = 0; i < dirList.length; i++) {
+                        newlist.add(dirList[i]);
+                    }
+                    logger.finer("queuing " + newlist.size() + " items");
+                    handleFileInput(_monitor, _es, _factory, null,
+                            newlist);
+                } else {
+                    logger.fine("skipping " + file.getCanonicalPath()
+                            + ": no matches");
+                }
                 continue;
             }
             logger.fine("queuing file " + file.getCanonicalPath());

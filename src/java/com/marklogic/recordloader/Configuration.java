@@ -276,6 +276,12 @@ public class Configuration {
     public static final String CONFIGURATION_CLASSNAME_DEFAULT = XccConfiguration.class
             .getCanonicalName();
 
+    private static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
+
+    private static final String USE_FILENAME_COLLECTION_DEFAULT = "false";
+
+    private static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
+
     protected Properties properties = new Properties();
 
     private String[] baseCollections;
@@ -432,7 +438,9 @@ public class Configuration {
 
         threadCount = Integer.parseInt(properties.getProperty(
                 THREADS_KEY, "1"));
-        capacity = DEFAULT_CAPACITY * threadCount;
+        capacity = Integer.parseInt(properties.getProperty(
+                QUEUE_CAPACITY_KEY, "" + DEFAULT_CAPACITY * threadCount));
+        logger.info(QUEUE_CAPACITY_KEY + " = " + capacity);
 
         inputPath = properties.getProperty(INPUT_PATH_KEY);
         logger.fine(INPUT_PATH_KEY + " = " + inputPath);
@@ -827,5 +835,19 @@ public class Configuration {
         Constructor<? extends Configuration> configurationConstructor = configurationClass
                 .getConstructor(new Class[] {});
         return configurationConstructor;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isUseFilenameCollection() {
+        // If we aren't using filename ids, and the user hasn't said,
+        // we will set a collection for each input file's basename.
+        // This is useful for record-set files, aka superfiles, but not for
+        // record-files.
+        return (!isUseFileNameIds())
+                || Utilities.stringToBoolean(properties.getProperty(
+                        USE_FILENAME_COLLECTION_KEY,
+                        USE_FILENAME_COLLECTION_DEFAULT));
     }
 }

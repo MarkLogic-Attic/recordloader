@@ -67,7 +67,9 @@ public class XccContent extends XccAbstractContent {
      * @see com.marklogic.recordloader.ContentInterface#close()
      */
     public void close() {
-        content.close();
+        if (null != content) {
+            content.close();
+        }
     }
 
     /*

@@ -243,9 +243,10 @@ public class Monitor extends Thread {
      * 
      */
     public void incrementSkipped(String message) {
+        totalSkipped++;
         logger.log((totalSkipped % 500 == 0) ? Level.INFO
                 : Level.FINE, "skipping " + totalSkipped
-                + " " + message);        
+                + ": " + message);        
     }
 
 }

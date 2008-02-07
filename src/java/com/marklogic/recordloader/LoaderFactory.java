@@ -20,7 +20,6 @@ package com.marklogic.recordloader;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -85,24 +84,38 @@ public class LoaderFactory {
         BufferedReader br = new BufferedReader(new InputStreamReader(
                 stream, decoder));
         loader.setInput(br);
-        if (_name != null) {
-            loader.setFileBasename(stripExtension(_name));
-        }
-        loader.setRecordPath(_path);
+        setup(loader, _name, _path);
         return loader;
     }
 
     /**
-     * @param file
+     * @param _file
      * @return
      * @throws LoaderException
      * @throws XmlPullParserException
      * @throws FileNotFoundException
      */
-    public Loader newLoader(File file) throws LoaderException,
-            FileNotFoundException, XmlPullParserException {
-        return newLoader(new FileInputStream(file), file.getName(), file
-                .getPath());
+    public Loader newLoader(File _file) throws LoaderException {
+        // some duplicate code: we want to defer opening the file,
+        // to limit the number of open file descriptors
+        Loader loader = getLoader();
+        loader.setInput(_file);
+        setup(loader, _file.getName(), _file.getPath());
+        return loader;
+    }
+
+    /**
+     * @param loader
+     * @param name
+     * @param path
+     * @throws LoaderException
+     */
+    private void setup(Loader loader, String name, String path)
+            throws LoaderException {
+        if (name != null) {
+            loader.setFileBasename(stripExtension(name));
+        }
+        loader.setRecordPath(path);
     }
 
     /**

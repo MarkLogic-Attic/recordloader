@@ -193,8 +193,14 @@ public class Loader implements Callable<Object> {
             return null;
         } finally {
             // if we have a file reader open, close it
-            if (fileReader != null) {
+            if (null != fileReader) {
                 fileReader.close();
+            }
+            if (null != input) {
+                input.close();
+            }
+            if (null != inputFile) {
+                inputFile = null;
             }
             if (null != contentFactory) {
                 contentFactory.close();
@@ -239,7 +245,11 @@ public class Loader implements Callable<Object> {
             return;
         }
         currentFileBasename = _name;
-        contentFactory.setFileBasename(_name);
+
+        // don't tell the contentFactory unless config says it's ok
+        if (config.isUseFilenameCollection()) {
+            contentFactory.setFileBasename(_name);
+        }
     }
 
     private void process() throws Exception {
@@ -337,6 +347,7 @@ public class Loader implements Callable<Object> {
      */
     private void processMonolith() throws URISyntaxException,
             LoaderException, IOException {
+        StringBuffer sb = new StringBuffer();
         try {
             // handle the input reader as a single document,
             // without any parsing.
@@ -374,7 +385,6 @@ public class Loader implements Callable<Object> {
 
             // grab the entire document
             // uses a reader, so charset translation should be ok
-            StringBuffer sb = new StringBuffer();
             int size;
             char[] buf = new char[32 * 1024];
             while ((size = input.read(buf)) > 0) {
@@ -385,21 +395,26 @@ public class Loader implements Callable<Object> {
                 content.setXml(sb.toString());
                 insert();
             }
-            
-            updateMonitor(sb.length());
         } catch (URISyntaxException e) {
+            event.stop(true);
+            logger.logException(e);
             if (config.isFatalErrors()) {
                 throw e;
             }
         } catch (LoaderException e) {
+            event.stop(true);
+            logger.logException(e);
             if (config.isFatalErrors()) {
                 throw e;
             }
         } catch (IOException e) {
+            event.stop(true);
+            logger.logException(e);
             if (config.isFatalErrors()) {
                 throw e;
             }
         } finally {
+            updateMonitor(sb.length());
             cleanup();
         }
     }
@@ -413,14 +428,14 @@ public class Loader implements Callable<Object> {
     }
 
     /**
-     * @param len 
+     * @param len
      * 
      */
     private void updateMonitor(long len) {
         // handle monitor accounting
         // note that we count skipped records, too
         event.increment(len);
-        monitor.add(currentUri, event);        
+        monitor.add(currentUri, event);
     }
 
     /**
