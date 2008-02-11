@@ -29,13 +29,13 @@ import com.marklogic.xcc.exceptions.RequestException;
 public class XccModuleContent extends XccAbstractContent implements
         ContentInterface {
 
-    private String xml = null;
+    String xml = null;
 
-    private Request request = null;
+    Request request = null;
 
-    private String[] roles;
+    String[] roles;
 
-    private String[] collections;
+    String[] collections;
 
     /**
      * @param _session

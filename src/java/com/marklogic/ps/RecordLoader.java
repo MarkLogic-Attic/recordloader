@@ -68,7 +68,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-02-07.1";
+    public static final String VERSION = "2008-02-11.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -128,8 +128,6 @@ public class RecordLoader {
         config.load(System.getProperties());
         config.setLogger(logger);
 
-        // TODO modularize Configuration constructor
-
         // now that we have a base configuration, we can bootstrap into the
         // correct modularized configuration
         try {
@@ -151,6 +149,14 @@ public class RecordLoader {
 
         inputDecoder = getDecoder(config.getInputEncoding(), config
                 .getMalformedInputAction());
+
+        // handle input-path property, if any
+        String path = config.getInputPath();
+        logger.info("adding " + path);
+        if (null != path) {
+            xmlFiles.add(new File(path));
+        }
+
     }
 
     /**
@@ -186,11 +192,6 @@ public class RecordLoader {
                 // add to xml list
                 xmlFiles.add(file);
             }
-        }
-
-        String path = config.getInputPath();
-        if (null != path) {
-            xmlFiles.add(new File(path));
         }
     }
 

@@ -3,6 +3,7 @@
  */
 package com.marklogic.recordloader.xcc;
 
+import com.marklogic.recordloader.ContentFactory;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.exceptions.XccException;
@@ -11,11 +12,14 @@ import com.marklogic.xcc.exceptions.XccException;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class XccModuleContentFactory extends XccAbstractContentFactory {
+public class XccModuleContentFactory extends XccAbstractContentFactory
+        implements ContentFactory {
 
-    private String moduleUri;
-    private String[] readRoles;
-    private String[] collectionsArray;
+    String moduleUri;
+
+    String[] readRoles;
+
+    String[] collectionsArray;
 
     /*
      * (non-Javadoc)
@@ -49,7 +53,8 @@ public class XccModuleContentFactory extends XccAbstractContentFactory {
     @Override
     public ContentInterface newContent(String _uri)
             throws LoaderException {
-        return new XccModuleContent(cs.newSession(), _uri, moduleUri, readRoles, collectionsArray);
+        return new XccModuleContent(cs.newSession(), _uri, moduleUri,
+                readRoles, collectionsArray);
     }
 
     /*

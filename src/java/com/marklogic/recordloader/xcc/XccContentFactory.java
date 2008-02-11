@@ -3,6 +3,7 @@
  */
 package com.marklogic.recordloader.xcc;
 
+import com.marklogic.recordloader.ContentFactory;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.ContentCreateOptions;
@@ -12,9 +13,10 @@ import com.marklogic.xcc.exceptions.XccException;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class XccContentFactory extends XccAbstractContentFactory {
+public class XccContentFactory extends XccAbstractContentFactory
+        implements ContentFactory {
 
-    private ContentCreateOptions options = null;
+    ContentCreateOptions options = null;
 
     protected void initOptions() throws XccException {
         // only initialize docOpts once
@@ -43,7 +45,7 @@ public class XccContentFactory extends XccAbstractContentFactory {
         // update content options with the latest collections
         options.setCollections(collections.toArray(new String[0]));
     }
-    
+
     /*
      * (non-Javadoc)
      * 
@@ -53,7 +55,9 @@ public class XccContentFactory extends XccAbstractContentFactory {
         return new XccContent(cs.newSession(), _uri, options);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     * 
      * @see com.marklogic.recordloader.ContentFactory#close()
      */
     public void close() {

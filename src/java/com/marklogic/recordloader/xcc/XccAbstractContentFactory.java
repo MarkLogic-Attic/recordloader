@@ -29,7 +29,7 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
 
     ContentSource cs;
 
-    protected List<String> collections;
+    List<String> collections;
 
     /*
      * (non-Javadoc)

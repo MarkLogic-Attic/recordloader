@@ -255,7 +255,7 @@ public class Loader implements Callable<Object> {
     private void process() throws Exception {
         int eventType;
 
-        // TODO sometimes we can short-circuit the parsing
+        // sometimes we can short-circuit the parsing
         // for example, if the filename is the id.
         // TODO do we need to check anything else for this?
         if (config.isUseFileNameIds()) {

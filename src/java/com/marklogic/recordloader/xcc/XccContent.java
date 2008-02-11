@@ -3,6 +3,7 @@
  */
 package com.marklogic.recordloader.xcc;
 
+import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Content;
@@ -15,11 +16,11 @@ import com.marklogic.xcc.exceptions.XccException;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class XccContent extends XccAbstractContent {
+public class XccContent extends XccAbstractContent implements ContentInterface {
 
-    private Content content = null;
+    Content content = null;
 
-    private ContentCreateOptions options = null;
+    ContentCreateOptions options = null;
 
     /**
      * @param _session

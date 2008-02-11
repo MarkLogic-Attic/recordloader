@@ -34,15 +34,15 @@ public class XccConfiguration extends Configuration {
 
     public static final String CONTENT_MODULE_KEY = "CONTENT_MODULE_URI";
 
-    private BigInteger[] placeKeys;
+    BigInteger[] placeKeys;
 
-    private Object placeKeysMutex = new Object();
+    Object placeKeysMutex = new Object();
 
-    private ContentbaseMetaData metadata;
+    ContentbaseMetaData metadata;
 
-    private Object metadataMutex = new Object();
+    Object metadataMutex = new Object();
 
-    private int quality = 0;
+    int quality = 0;
 
     /**
      * @return
