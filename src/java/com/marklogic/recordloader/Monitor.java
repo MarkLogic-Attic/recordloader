@@ -249,4 +249,12 @@ public class Monitor extends Thread {
                 + ": " + message);        
     }
 
+    public ThreadPoolExecutor getPool() {
+        return pool;
+    }
+
+    public void setPool(ThreadPoolExecutor pool) {
+        this.pool = pool;
+    }
+
 }
