@@ -16,7 +16,8 @@ import com.marklogic.xcc.exceptions.XccException;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class XccContent extends XccAbstractContent implements ContentInterface {
+public class XccContent extends XccAbstractContent implements
+        ContentInterface {
 
     Content content = null;
 

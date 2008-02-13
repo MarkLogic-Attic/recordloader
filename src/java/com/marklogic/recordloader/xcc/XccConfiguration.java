@@ -32,6 +32,9 @@ public class XccConfiguration extends Configuration {
      */
     public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
+    /**
+     * 
+     */
     public static final String CONTENT_MODULE_KEY = "CONTENT_MODULE_URI";
 
     BigInteger[] placeKeys;

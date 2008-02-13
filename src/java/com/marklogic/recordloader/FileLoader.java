@@ -5,8 +5,6 @@ package com.marklogic.recordloader;
 
 import java.net.URI;
 
-import com.marklogic.ps.timing.TimedEvent;
-
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
@@ -27,13 +25,11 @@ public class FileLoader extends AbstractLoader {
             // handle the input reader as a single document,
             // without any parsing.
 
-            event = new TimedEvent();
-
             String id = currentRecordPath;
 
             // Regex replaces and coalesces any backslashes with slash
             if (config.isInputNormalizePaths()) {
-                id = currentRecordPath.replaceAll("[\\\\]+", "/");
+                id = id.replaceAll("[\\\\]+", "/");
             }
 
             // this form of URI() does escaping nicely

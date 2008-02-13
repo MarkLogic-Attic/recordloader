@@ -178,7 +178,6 @@ public class RecordLoader {
         String arg = null;
         while (iter.hasNext()) {
             arg = iter.next();
-            logger.info("processing argument: " + arg);
             file = new File(arg);
             if (!file.exists()) {
                 logger.warning("skipping " + arg
@@ -192,6 +191,7 @@ public class RecordLoader {
             }
             if (arg.endsWith(".properties")) {
                 // this will override existing properties
+                logger.info("processing: " + arg);
                 config.load(new FileInputStream(file));
             } else if (arg.endsWith(".zip")) {
                 // add to zip list
@@ -413,15 +413,18 @@ public class RecordLoader {
             LoaderException {
         Iterator<File> iter;
         File file;
+        String canonicalPath;
         // queue any files, recursing into directories
         iter = _files.iterator();
         while (iter.hasNext()) {
             file = iter.next();
+            canonicalPath = file.getCanonicalPath();
             if (file.isDirectory()) {
+                logger.fine("directory " + canonicalPath);
                 File[] dirList = file.listFiles(filter);
                 if (dirList.length > 0) {
-                    logger.fine("queuing contents of "
-                            + file.getCanonicalPath() + ": "
+                    logger.info("queuing contents of "
+                            + canonicalPath + ": "
                             + dirList.length);
                     ArrayList<File> newlist = new ArrayList<File>();
                     for (int i = 0; i < dirList.length; i++) {
@@ -430,12 +433,12 @@ public class RecordLoader {
                     logger.finer("queuing " + newlist.size() + " items");
                     handleFiles(newlist);
                 } else {
-                    logger.fine("skipping " + file.getCanonicalPath()
+                    logger.fine("skipping " + canonicalPath
                             + ": no matches");
                 }
                 continue;
             }
-            logger.fine("queuing file " + file.getCanonicalPath());
+            logger.fine("queuing file " + canonicalPath);
             pool.submit(factory.newLoader(file));
         }
     }

@@ -276,7 +276,7 @@ public class Loader extends AbstractLoader {
     }
 
     @Override
-    void cleanup() {
+    protected void cleanup() {
         super.cleanup();
         producer = null;
     }

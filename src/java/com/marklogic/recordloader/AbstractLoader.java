@@ -18,31 +18,31 @@ import com.marklogic.ps.timing.TimedEvent;
  */
 public abstract class AbstractLoader implements LoaderInterface {
 
-    SimpleLogger logger;
+    protected SimpleLogger logger;
 
-    TimedEvent event;
+    protected TimedEvent event;
 
-    Configuration config;
+    protected Configuration config;
 
-    Monitor monitor;
+    protected Monitor monitor;
 
-    File inputFile;
+    protected File inputFile;
 
-    Reader input;
+    protected Reader input;
 
-    String currentRecordPath;
+    protected String currentRecordPath;
 
-    String currentFileBasename;
+    protected String currentFileBasename;
 
-    String currentUri;
+    protected String currentUri;
 
-    ContentInterface content;
+    protected ContentInterface content;
 
-    ContentFactory contentFactory;
+    protected ContentFactory contentFactory;
 
-    String startId;
+    protected String startId;
 
-    String inputFilePath;
+    protected String inputFilePath;
 
     /*
      * (non-Javadoc)
@@ -57,6 +57,7 @@ public abstract class AbstractLoader implements LoaderInterface {
                 logger.fine("processing " + inputFilePath);
                 setInput(new FileReader(inputFile));
             }
+            event = new TimedEvent();
             process();
             return null;
         } catch (RuntimeException e) {
@@ -150,7 +151,7 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @param len
      * 
      */
-    void updateMonitor(long len) {
+    protected void updateMonitor(long len) {
         // handle monitor accounting
         // note that we count skipped records, too
         event.increment(len);
@@ -160,7 +161,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     /**
      * @throws LoaderException
      */
-    void insert() throws LoaderException {
+    protected void insert() throws LoaderException {
         logger.fine("inserting " + currentUri);
         content.insert();
     }
@@ -168,7 +169,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     /**
      * 
      */
-    void cleanup() {
+    protected void cleanup() {
         // clean up
         if (null != content) {
             content.close();
@@ -177,7 +178,7 @@ public abstract class AbstractLoader implements LoaderInterface {
         currentUri = null;
     }
 
-    boolean checkStartId(String id) {
+    private boolean checkStartId(String id) {
         if (startId == null) {
             return false;
         }
@@ -203,11 +204,12 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @throws IOException
      * @throws LoaderException
      */
-    boolean checkIdAndUri(String _id) throws LoaderException, IOException {
+    protected boolean checkIdAndUri(String _id) throws LoaderException,
+            IOException {
         return checkStartId(_id) || checkExistingUri(currentUri);
     }
 
-    String composeUri(String id) throws IOException {
+    protected String composeUri(String id) throws IOException {
         if (id == null) {
             throw new IOException("id may not be null");
         }
@@ -243,7 +245,7 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @throws IOException
      * @throws LoaderException
      */
-    boolean checkExistingUri(String uri) throws LoaderException,
+    private boolean checkExistingUri(String uri) throws LoaderException,
             IOException {
         // return true if we're supposed to check,
         // and if the document already exists

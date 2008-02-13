@@ -50,75 +50,75 @@ public class Configuration {
     /**
      * 
      */
-    private static final String OUTPUT_URI_PREFIX_DEFAULT = "";
+    public static final String OUTPUT_URI_PREFIX_DEFAULT = "";
 
     /**
      * 
      */
-    private static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
+    public static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
 
     /**
      * 
      */
-    private static final String FATAL_ERRORS_DEFAULT = "true";
+    public static final String FATAL_ERRORS_DEFAULT = "true";
 
     /**
      * 
      */
-    private static final String INPUT_PATTERN_DEFAULT = "^.+\\.[Xx][Mm][Ll]$";
+    public static final String INPUT_PATTERN_DEFAULT = "^.+\\.[Xx][Mm][Ll]$";
 
     /**
      * 
      */
-    private static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
+    public static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
     protected static SimpleLogger logger = null;
 
     /**
      * 
      */
-    static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
+    public static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
     /**
      * 
      */
-    static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
+    public final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
 
     /**
      * 
      */
-    private static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
+    public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
             .toString();
 
     /**
      * 
      */
-    static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
+    public static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
 
     /**
      * 
      */
-    static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
+    public static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
 
     /**
      * 
      */
-    static final String INPUT_PATH_KEY = "INPUT_PATH";
+    public static final String INPUT_PATH_KEY = "INPUT_PATH";
 
     /**
      * 
      */
-    static final String INPUT_STRIP_PREFIX = "INPUT_STRIP_PREFIX";
+    public static final String INPUT_STRIP_PREFIX = "INPUT_STRIP_PREFIX";
 
     /**
      * 
      */
-    static final String INPUT_NORMALIZE_PATHS = "INPUT_NORMALIZE_PATHS";
+    public static final String INPUT_NORMALIZE_PATHS = "INPUT_NORMALIZE_PATHS";
 
     /**
      * 
      */
-    static final String INPUT_NORMALIZE_PATHS_DEFAULT = "false";
+    public static final String INPUT_NORMALIZE_PATHS_DEFAULT = "false";
 
     /**
      * 
@@ -128,22 +128,22 @@ public class Configuration {
     /**
      * 
      */
-    static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
+    public static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
 
     /**
      * 
      */
-    static public final String ID_NAME_KEY = "ID_NAME";
+    public static final String ID_NAME_KEY = "ID_NAME";
 
     /**
      * 
      */
-    static final String IGNORE_UNKNOWN_KEY = "IGNORE_UNKNOWN";
+    public static final String IGNORE_UNKNOWN_KEY = "IGNORE_UNKNOWN";
 
     /**
      * 
      */
-    static public final int DISPLAY_MILLIS = 15000;
+    public static final int DISPLAY_MILLIS = 15000;
 
     /**
      * 
@@ -198,31 +198,31 @@ public class Configuration {
     /**
      * 
      */
-    static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
+    public static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
 
     /**
      * 
      */
-    static final String START_ID_KEY = "START_ID";
+    public static final String START_ID_KEY = "START_ID";
 
     /**
      * 
      */
     public static final String THREADS_KEY = "THREADS";
 
-    static final String THROTTLE_KEY = "THROTTLE_EVENTS_PER_SECOND";
+    public static final String THROTTLE_KEY = "THROTTLE_EVENTS_PER_SECOND";
 
-    static final String THROTTLE_DEFAULT = "0";
-
-    /**
-     * 
-     */
-    static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
+    public static final String THROTTLE_DEFAULT = "0";
 
     /**
      * 
      */
-    static final String RECORD_NAME_KEY = "RECORD_NAME";
+    public static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
+
+    /**
+     * 
+     */
+    public static final String RECORD_NAME_KEY = "RECORD_NAME";
 
     /**
      * 
@@ -232,22 +232,22 @@ public class Configuration {
     /**
      * 
      */
-    static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
+    public static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
 
     /**
      * 
      */
-    static final String OUTPUT_URI_SUFFIX_KEY = "URI_SUFFIX";
+    public static final String OUTPUT_URI_SUFFIX_KEY = "URI_SUFFIX";
 
     /**
      * 
      */
-    static final String OUTPUT_URI_PREFIX_KEY = "URI_PREFIX";
+    public static final String OUTPUT_URI_PREFIX_KEY = "URI_PREFIX";
 
     /**
      * 
      */
-    static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
+    public static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
 
     /**
      * 
@@ -260,11 +260,11 @@ public class Configuration {
 
     public static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
 
-    private static final String COPY_NAMESPACES_DEFAULT = "true";
+    public static final String COPY_NAMESPACES_DEFAULT = "true";
 
-    private static final String RECORD_NAMESPACE_DEFAULT = "";
+    public static final String RECORD_NAMESPACE_DEFAULT = "";
 
-    private static final int DEFAULT_CAPACITY = 1000;
+    public static final int DEFAULT_CAPACITY = 1000;
 
     public static final String CONTENT_FACTORY_CLASSNAME_KEY = "CONTENT_FACTORY_CLASSNAME";
 
@@ -281,11 +281,11 @@ public class Configuration {
     public static final String LOADER_CLASSNAME_DEFAULT = Loader.class
             .getName();
 
-    private static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
+    public static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
 
-    private static final String USE_FILENAME_COLLECTION_DEFAULT = "false";
+    public static final String USE_FILENAME_COLLECTION_DEFAULT = "false";
 
-    private static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
+    public static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
 
     protected Properties properties = new Properties();
 
@@ -311,7 +311,7 @@ public class Configuration {
 
     private boolean inputNormalizePaths;
 
-    private String inputPattern;
+    protected String inputPattern;
 
     private String malformedInputAction;
 
@@ -319,7 +319,7 @@ public class Configuration {
 
     private String recordNamespace;
 
-    private DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
+    protected DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
 
     private boolean skipExisting = false;
 
