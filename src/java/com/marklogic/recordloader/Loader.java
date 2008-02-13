@@ -18,19 +18,12 @@
  */
 package com.marklogic.recordloader;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.Reader;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.MalformedInputException;
-import java.util.concurrent.Callable;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
-import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
 
@@ -40,15 +33,11 @@ import com.marklogic.ps.timing.TimedEvent;
  */
 
 // Callable<Object> is ok: we really don't return anything
-public class Loader implements Callable<Object> {
-    private SimpleLogger logger;
-
+public class Loader extends AbstractLoader {
     private XmlPullParser xpp = null;
 
     // local cache for hot-loop configuration info
     private String idName;
-
-    private String startId = null;
 
     private String recordName;
 
@@ -56,82 +45,34 @@ public class Loader implements Callable<Object> {
 
     // actual fields
 
-    private TimedEvent event;
-
-    private String currentFileBasename = null;
-
-    private Configuration config;
-
-    private Monitor monitor;
-
     private Producer producer;
 
     private ProducerFactory producerFactory;
 
     private boolean foundRoot = false;
 
-    private File inputFile;
-
-    private String currentRecordPath;
-
-    private String currentUri;
-
-    private Reader input;
-
-    private ContentInterface content;
-
-    private ContentFactory contentFactory;
-
-    /**
-     * @param _monitor
-     * @param _uri
-     * @param _config
-     * @throws LoaderException
-     */
-    public Loader(Monitor _monitor, URI _uri, Configuration _config)
-            throws LoaderException {
-        monitor = _monitor;
-        config = _config;
-
-        // error if null
-        idName = config.getIdNodeName();
-        if (idName == null) {
-            throw new FatalException("Missing required property: "
-                    + Configuration.ID_NAME_KEY);
-        }
-
-        logger = config.getLogger();
-
-        // try to load the correct content factory
-        try {
-            contentFactory = config.getContentFactoryConstructor()
-                    .newInstance(new Object[] {});
-        } catch (Exception e) {
-            logger.logException(e);
-            throw new FatalException(e);
-        }
-        contentFactory.setConnectionUri(_uri);
-        contentFactory.setConfiguration(config);
-
-    }
-
     /*
      * (non-Javadoc)
      * 
-     * @see java.util.concurrent.Callable#call()
-     * 
-     * NB - always returns null
+     * @see com.marklogic.recordloader.AbstractLoader#process()
      */
-    public Object call() throws Exception {
+    public void process() throws LoaderException {
 
         logger.fine(Configuration.ID_NAME_KEY + "=" + idName);
 
-        initParser();
-        // TODO feature isn't supported by xpp3 - look at xpp5?
-        // xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
-        // TODO feature isn't supported by xpp3 - look at xpp5?
-        // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
-        xpp.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+        try {
+            xpp = config.getXppFactory().newPullParser();
+            xpp.setInput(input);
+            // TODO feature isn't supported by xpp3 - look at xpp5?
+            // xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
+            // TODO feature isn't supported by xpp3 - look at xpp5?
+            // xpp.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, true);
+            xpp
+                    .setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES,
+                            true);
+        } catch (XmlPullParserException e) {
+            throw new FatalException(e);
+        }
 
         producerFactory = new ProducerFactory(config, xpp);
 
@@ -140,28 +81,11 @@ public class Loader implements Callable<Object> {
         recordName = config.getRecordName();
         recordNamespace = config.getRecordNamespace();
 
-        if (config.isUseFileNameIds()) {
-            // every file is its own root record
-            logger.finer("treating input as a record");
-            foundRoot = true;
-        }
-
-        FileReader fileReader = null;
         try {
-            if (inputFile != null) {
-                // time to instantiate the reader
-                fileReader = new FileReader(inputFile);
-                setInput(fileReader);
-            }
-            process();
-            // don't rely on the finally block too much
-            contentFactory.close();
-            contentFactory = null;
-            return null;
+            processRecords();
         } catch (Exception e) {
             if (null != inputFile) {
-                logger.info("current file: \""
-                        + inputFile.getCanonicalPath() + "\"");
+                logger.info("current file: \"" + inputFilePath + "\"");
             }
             if (null != currentFileBasename) {
                 logger.info("current file basename: \""
@@ -184,84 +108,13 @@ public class Loader implements Callable<Object> {
                         + ").");
             }
 
-            // if it got this high, it's fatal
-            monitor.halt(e);
-            throw e;
-        } catch (Throwable t) {
-            // for OutOfMemoryError, NullPointerException, etc
-            monitor.halt(t);
-            return null;
-        } finally {
-            // if we have a file reader open, close it
-            if (null != fileReader) {
-                fileReader.close();
-            }
-            if (null != input) {
-                input.close();
-            }
-            if (null != inputFile) {
-                inputFile = null;
-            }
-            if (null != contentFactory) {
-                contentFactory.close();
-            }
+            throw (e instanceof LoaderException) ? (LoaderException) e
+                    : new LoaderException(e);
         }
     }
 
-    /**
-     * @param _reader
-     * @throws XmlPullParserException
-     */
-    public void setInput(Reader _reader) throws XmlPullParserException {
-        if (null == _reader) {
-            throw new NullPointerException("null reader");
-        }
-        initParser();
-        xpp.setInput(_reader);
-        input = _reader;
-    }
-
-    private void initParser() throws XmlPullParserException {
-        if (null != xpp) {
-            return;
-        }
-        xpp = config.getXppFactory().newPullParser();
-    }
-
-    /**
-     * @param _file
-     */
-    public void setInput(File _file) {
-        // defer until we actually need to open it
-        inputFile = _file;
-    }
-
-    /**
-     * @param _path
-     */
-    public void setFileBasename(String _name) throws LoaderException {
-        logger.fine("using fileBasename = " + _name);
-        if (null == _name) {
-            return;
-        }
-        currentFileBasename = _name;
-
-        // don't tell the contentFactory unless config says it's ok
-        if (config.isUseFilenameCollection()) {
-            contentFactory.setFileBasename(_name);
-        }
-    }
-
-    private void process() throws Exception {
+    private void processRecords() {
         int eventType;
-
-        // sometimes we can short-circuit the parsing
-        // for example, if the filename is the id.
-        // TODO do we need to check anything else for this?
-        if (config.isUseFileNameIds()) {
-            processMonolith();
-            return;
-        }
 
         boolean c = true;
         while (c) {
@@ -320,7 +173,7 @@ public class Loader implements Callable<Object> {
 
                 // fatal
                 logger.warning("re-throwing fatal error");
-                throw e;
+                throw new FatalException(e);
             }
         }
 
@@ -332,127 +185,15 @@ public class Loader implements Callable<Object> {
                             + " at " + xpp.getPositionDescription()
                             + "\n" + currentUri);
             if (config.isFatalErrors()) {
-                throw e;
+                throw new FatalException(e);
             }
             logger.logException("non-fatal", e);
             cleanup();
         }
     }
 
-    /**
-     * @throws URISyntaxException
-     * @throws IOException
-     * @throws LoaderException
-     * 
-     */
-    private void processMonolith() throws URISyntaxException,
-            LoaderException, IOException {
-        StringBuffer sb = new StringBuffer();
-        try {
-            // handle the input reader as a single document,
-            // without any parsing.
-
-            boolean useFileNameIds = config.isUseFileNameIds();
-            logger.fine("isUseFileNameIds=" + useFileNameIds);
-            if (!useFileNameIds) {
-                throw new FatalException("wrong code path");
-            }
-
-            event = new TimedEvent();
-
-            String id = currentRecordPath;
-
-            // Regex replaces and coalesces any backslashes with slash
-            if (config.isInputNormalizePaths()) {
-                id = currentRecordPath.replaceAll("[\\\\]+", "/");
-            }
-
-            String inputStripPrefix = config.getInputStripPrefix();
-            if (inputStripPrefix != null && inputStripPrefix.length() > 0) {
-                id = id.replaceFirst(inputStripPrefix, "");
-            }
-
-            // this form of URI() does escaping nicely
-            id = new URI(null, id, null).toString();
-
-            logger.fine("setting currentId = " + id);
-
-            // we need the content object, hence the URI, before we can check
-            // its existence
-            currentUri = composeUri(id);
-            content = contentFactory.newContent(currentUri);
-            boolean skippingRecord = checkId(id);
-
-            // grab the entire document
-            // uses a reader, so charset translation should be ok
-            int size;
-            char[] buf = new char[32 * 1024];
-            while ((size = input.read(buf)) > 0) {
-                sb.append(buf, 0, size);
-            }
-
-            if (!skippingRecord) {
-                content.setXml(sb.toString());
-                insert();
-            }
-        } catch (URISyntaxException e) {
-            event.stop(true);
-            logger.logException(e);
-            if (config.isFatalErrors()) {
-                throw e;
-            }
-        } catch (LoaderException e) {
-            event.stop(true);
-            logger.logException(e);
-            if (config.isFatalErrors()) {
-                throw e;
-            }
-        } catch (IOException e) {
-            event.stop(true);
-            logger.logException(e);
-            if (config.isFatalErrors()) {
-                throw e;
-            }
-        } finally {
-            updateMonitor(sb.length());
-            cleanup();
-        }
-    }
-
-    /**
-     * @throws LoaderException
-     */
-    private void insert() throws LoaderException {
-        logger.fine("inserting " + currentUri);
-        content.insert();
-    }
-
-    /**
-     * @param len
-     * 
-     */
-    private void updateMonitor(long len) {
-        // handle monitor accounting
-        // note that we count skipped records, too
-        event.increment(len);
-        monitor.add(currentUri, event);
-    }
-
-    /**
-     * 
-     */
-    private void cleanup() {
-        // clean up
-        if (null != content) {
-            content.close();
-        }
-        producer = null;
-        content = null;
-        currentUri = null;
-    }
-
     private void processStartElement() throws LoaderException,
-            URISyntaxException, XmlPullParserException, IOException {
+            XmlPullParserException, IOException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
         logger.finest(name + " in '" + namespace + "'");
@@ -492,16 +233,8 @@ public class Loader implements Callable<Object> {
 
             // hand off the work to a new producer
             producer = producerFactory.newProducer();
-            String id = null;
-            if (config.isUseFileNameIds()) {
-                // this form of URI() does escaping nicely
-                id = new URI(null, currentRecordPath, null).toString();
-                logger.fine("setting currentId = " + id);
-                producer.setCurrentId(id);
-            } else {
-                id = producer.getCurrentId();
-                logger.fine("found id " + id);
-            }
+            String id = producer.getCurrentId();
+            logger.fine("found id " + id);
 
             if (id == null) {
                 throw new LoaderException(
@@ -511,7 +244,7 @@ public class Loader implements Callable<Object> {
             // must create content object before checking its uri
             currentUri = composeUri(id);
             content = contentFactory.newContent(currentUri);
-            producer.setSkippingRecord(checkId(id));
+            producer.setSkippingRecord(checkIdAndUri(id));
             content.setProducer(producer);
 
             if (!producer.isSkippingRecord()) {
@@ -542,95 +275,23 @@ public class Loader implements Callable<Object> {
                 .equals(recordNamespace));
     }
 
-    /**
-     * @param uri
-     * @return
-     * @throws IOException
-     * @throws LoaderException
-     */
-    private boolean checkExistingUri(String uri) throws LoaderException,
-            IOException {
-        // return true if we're supposed to check,
-        // and if the document already exists
-        if (config.isSkipExisting() || config.isErrorExisting()) {
-            boolean exists = content.checkDocumentUri(uri);
-            logger.fine("checking for uri " + uri + " = " + exists);
-            if (exists) {
-                if (config.isErrorExisting()) {
-                    throw new IOException(
-                            "ERROR_EXISTING=true, cannot overwrite existing document: "
-                                    + uri);
-                }
-                // ok, must be skipExisting...
-                // count it and log the message
-                monitor.incrementSkipped("existing uri " + uri);
-                return true;
-            }
-        }
-        return false;
+    @Override
+    void cleanup() {
+        super.cleanup();
+        producer = null;
     }
 
-    private String composeUri(String id) throws IOException {
-        if (id == null) {
-            throw new IOException("id may not be null");
+    @Override
+    public void setConfiguration(Configuration _config)
+            throws LoaderException {
+        super.setConfiguration(_config);
+
+        // check required configuration
+        idName = config.getIdNodeName();
+        if (idName == null) {
+            throw new FatalException("Missing required property: "
+                    + Configuration.ID_NAME_KEY);
         }
-
-        String cleanId = id.trim();
-        if (cleanId.length() < 1) {
-            throw new IOException("id may not be empty");
-        }
-
-        // automatically use the current file, if available
-        // note that config.getUriPrefix() will ensure that the uri ends in '/'
-        StringBuffer baseName = new StringBuffer(config.getUriPrefix());
-        baseName.append((currentFileBasename == null
-                || currentFileBasename.equals("") || config
-                .isUseFileNameIds()) ? "" : currentFileBasename);
-        if (baseName != null && baseName.length() > 0
-                && '/' != baseName.charAt(baseName.length() - 1)) {
-            baseName.append("/");
-        }
-        baseName.append(cleanId);
-        baseName.append(config.getUriSuffix());
-        return baseName.toString();
-    }
-
-    private boolean checkStartId(String id) {
-        if (startId == null) {
-            return false;
-        }
-
-        // we're still scanning for the startid:
-        // is this my cow?
-        if (!startId.equals(id)) {
-            // don't bother to open the stream: skip this record
-            monitor.incrementSkipped("id " + id + " != " + startId);
-            return true;
-        }
-
-        logger.info("found START_ID " + id);
-        startId = null;
-        config.setStartId(null);
-        monitor.resetThreadPool();
-        return false;
-    }
-
-    /**
-     * @param _id
-     * @return
-     * @throws IOException
-     * @throws LoaderException
-     */
-    private boolean checkId(String _id) throws LoaderException,
-            IOException {
-        return checkStartId(_id) || checkExistingUri(composeUri(_id));
-    }
-
-    /**
-     * @param _path
-     */
-    public void setRecordPath(String _path) {
-        currentRecordPath = _path;
     }
 
 }

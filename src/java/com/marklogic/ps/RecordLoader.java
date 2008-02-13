@@ -37,8 +37,6 @@ import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -49,11 +47,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
-import org.xmlpull.v1.XmlPullParserException;
-
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
-import com.marklogic.recordloader.Loader;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.LoaderFactory;
 import com.marklogic.recordloader.Monitor;
@@ -68,7 +63,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-02-11.1";
+    public static final String VERSION = "2008-02-12.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -100,48 +95,27 @@ public class RecordLoader {
 
     }
 
-    private Configuration config;
+    private Configuration config = new Configuration();
 
-    private ArrayList<File> xmlFiles;
+    private ArrayList<File> xmlFiles = new ArrayList<File>();
 
-    private ArrayList<File> zipFiles;
+    private ArrayList<File> zipFiles = new ArrayList<File>();
 
     private CharsetDecoder inputDecoder;
 
     private FileFilter filter;
 
-    private String inputPattern;
+    private Monitor monitor;
 
-    public RecordLoader(String[] args) throws FileNotFoundException,
-            IOException, URISyntaxException {
-        config = new Configuration();
+    private LoaderFactory factory;
 
-        xmlFiles = new ArrayList<File>();
-        zipFiles = new ArrayList<File>();
-        Iterator<String> iter = Arrays.asList(args).iterator();
-        configureFiles(iter);
+    private ThreadPoolExecutor pool;
 
-        // use system properties as a basis
-        // this allows any number of properties at the command-line,
-        // using -DPROPNAME=foo
-        // as a result, we no longer need any args: default to stdin
-        config.load(System.getProperties());
-        config.setLogger(logger);
+    public RecordLoader(String[] args) throws IOException,
+            URISyntaxException {
+        configureFiles(Arrays.asList(args).iterator());
 
-        // now that we have a base configuration, we can bootstrap into the
-        // correct modularized configuration
-        try {
-            Constructor<? extends Configuration> configurationConstructor = config
-                    .getConfigurationConstructor();
-            Properties props = config.getProperties();
-            config = configurationConstructor.newInstance(new Object[0]);
-            config.load(props);
-        } catch (Exception e) {
-            throw new FatalException(e);
-        }
-
-        config.configure();
-
+        initConfiguration();
         logger.info(printVersion());
 
         // is the environment healthy?
@@ -152,11 +126,45 @@ public class RecordLoader {
 
         // handle input-path property, if any
         String path = config.getInputPath();
-        logger.info("adding " + path);
         if (null != path) {
+            logger.info("adding " + path);
             xmlFiles.add(new File(path));
         }
 
+    }
+
+    /**
+     * @throws URISyntaxException
+     * 
+     */
+    private void initConfiguration() throws URISyntaxException {
+        // use system properties as a basis
+        // this allows any number of properties at the command-line,
+        // using -DPROPNAME=foo
+        // as a result, we no longer need any args: default to stdin
+        config.load(System.getProperties());
+        config.setLogger(logger);
+
+        // now that we have a base configuration, we can bootstrap into the
+        // correct modularized configuration
+        // this should only be called once, in a single-threaded main() context
+        try {
+            String configClassName = config.getConfigurationClassName();
+            logger.info("Configuration is " + configClassName);
+            Class<? extends Configuration> configurationClass = Class
+                    .forName(configClassName, true,
+                            ClassLoader.getSystemClassLoader())
+                    .asSubclass(Configuration.class);
+            Constructor<? extends Configuration> configurationConstructor = configurationClass
+                    .getConstructor(new Class[] {});
+            Properties props = config.getProperties();
+            config = configurationConstructor.newInstance(new Object[0]);
+            config.load(props);
+        } catch (Exception e) {
+            throw new FatalException(e);
+        }
+
+        config.configure();
     }
 
     /**
@@ -195,9 +203,7 @@ public class RecordLoader {
         }
     }
 
-    public static void main(String[] args) throws FileNotFoundException,
-            IOException, XmlPullParserException, URISyntaxException,
-            LoaderException {
+    public static void main(String[] args) throws Exception {
         System.err.println(printVersion());
         new RecordLoader(args).run();
     }
@@ -211,7 +217,8 @@ public class RecordLoader {
     }
 
     private void run() throws FileNotFoundException, IOException,
-            XmlPullParserException, LoaderException {
+            LoaderException, SecurityException, NoSuchMethodException,
+            ClassNotFoundException {
         logger.finer("zipFiles.size = " + zipFiles.size());
         logger.finer("xmlFiles.size = " + xmlFiles.size());
 
@@ -226,42 +233,30 @@ public class RecordLoader {
         }
         logger.info("thread count = " + threadCount);
 
-        BlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(
-                config.getQueueCapacity());
-        CallerBlocksPolicy policy = this.getPolicy();
-        ThreadPoolExecutor pool = new ThreadPoolExecutor(config
-                .getThreadCount(), config.getThreadCount(), config
-                .getKeepAliveSeconds(), TimeUnit.SECONDS, workQueue,
-                policy);
-        Monitor monitor = new Monitor(config, pool);
+        pool = new ThreadPoolExecutor(config.getThreadCount(), config
+                .getThreadCount(), config.getKeepAliveSeconds(),
+                TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(config
+                        .getQueueCapacity()), new CallerBlocksPolicy());
+        monitor = new Monitor(config, pool);
 
         try {
             monitor.start();
 
-            LoaderFactory factory = new LoaderFactory(monitor,
-                    inputDecoder, config);
+            factory = new LoaderFactory(monitor, inputDecoder, config);
 
             if (zipFiles.size() > 0 || xmlFiles.size() > 0) {
-                inputPattern = config.getInputPattern();
-                if (null != inputPattern) {
-                    filter = new FileFilter() {
-                        public boolean accept(File _f) {
-                            return _f.isDirectory()
-                                    || (_f.isFile() && _f.getName()
-                                            .matches(inputPattern));
-                        }
-                    };
-                }
                 logger.info("populating queue");
-                handleFileInput(monitor, pool, factory, zipFiles,
-                        xmlFiles);
+                // queue any zip-entries first
+                handleZipFiles();
+                handleFiles();
             } else {
                 if (config.getThreadCount() > 1) {
                     logger.warning("Will not use multiple threads!");
+                    // pointless, since there will only be one input anyway
                     pool.setCorePoolSize(1);
                     pool.setMaximumPoolSize(1);
                 }
-                handleStandardInput(pool, factory);
+                handleStandardInput();
             }
 
             pool.shutdown();
@@ -372,13 +367,6 @@ public class RecordLoader {
         }
     }
 
-    /**
-     * @return
-     */
-    private CallerBlocksPolicy getPolicy() {
-        return new CallerBlocksPolicy();
-    }
-
     private CharsetDecoder getDecoder(String inputEncoding,
             String malformedInputAction) {
         CharsetDecoder inputDecoder;
@@ -400,76 +388,33 @@ public class RecordLoader {
         return inputDecoder;
     }
 
-    private void handleFileInput(Monitor _monitor, ExecutorService _es,
-            LoaderFactory _factory, ArrayList<File> _zipFiles,
-            ArrayList<File> _xmlFiles) throws IOException, ZipException,
-            FileNotFoundException, LoaderException,
-            XmlPullParserException {
-        String zipInputPattern = config.getZipInputPattern();
+    /**
+     * @throws IOException
+     * @throws LoaderException
+     */
+    private void handleFiles() throws IOException, LoaderException {
+        filter = new FileFilter() {
+            public boolean accept(File _f) {
+                return _f.isDirectory()
+                        || (_f.isFile() && _f.getName().matches(
+                                config.getInputPattern()));
+            }
+        };
+
+        handleFiles(xmlFiles);
+    }
+
+    /**
+     * @param _files
+     * @throws IOException
+     * @throws LoaderException
+     */
+    private void handleFiles(ArrayList<File> _files) throws IOException,
+            LoaderException {
         Iterator<File> iter;
         File file;
-        ZipFile zipFile;
-        ZipEntry ze;
-        String entryName;
-
-        if (null != _zipFiles) {
-            // queue any zip-entries first
-            // NOTE this technique will intentionally leak zipfile objects!
-            iter = _zipFiles.iterator();
-            int size;
-            if (iter.hasNext()) {
-                Enumeration<? extends ZipEntry> entries;
-                while (iter.hasNext()) {
-                    file = iter.next();
-                    zipFile = new ZipFile(file);
-                    // to avoid closing zipinputstreams randomly,
-                    // we have to "leak" them temporarily
-                    // tell the monitor about them, for later cleanup
-                    _monitor.add(zipFile);
-                    entries = zipFile.entries();
-                    size = zipFile.size();
-                    logger.fine("queuing " + size
-                            + " entries from zip file "
-                            + file.getCanonicalPath());
-                    int count = 0;
-                    while (entries.hasMoreElements()) {
-                        ze = entries.nextElement();
-                        logger.fine("found zip entry " + ze);
-                        if (ze.isDirectory()) {
-                            // skip it
-                            continue;
-                        }
-                        if (!ze.getName().matches(
-                                config.getInputPattern())) {
-                            // skip it
-                            continue;
-                        }
-                        entryName = ze.getName();
-                        if (zipInputPattern != null
-                                && !entryName.matches(zipInputPattern)) {
-                            // skip it
-                            logger.finer("skipping " + entryName);
-                            continue;
-                        }
-                        submitLoader(_es, _factory.newLoader(zipFile
-                                .getInputStream(ze), file.getName(),
-                                entryName));
-                        count++;
-                        if (0 == count % 1000) {
-                            logger.finer("queued " + count
-                                    + " entries from zip file "
-                                    + file.getCanonicalPath());
-                        }
-                    }
-                    logger.fine("queued " + count
-                            + " entries from zip file "
-                            + file.getCanonicalPath());
-                }
-            }
-        }
-
-        // queue any xml files
-        iter = _xmlFiles.iterator();
+        // queue any files, recursing into directories
+        iter = _files.iterator();
         while (iter.hasNext()) {
             file = iter.next();
             if (file.isDirectory()) {
@@ -483,8 +428,7 @@ public class RecordLoader {
                         newlist.add(dirList[i]);
                     }
                     logger.finer("queuing " + newlist.size() + " items");
-                    handleFileInput(_monitor, _es, _factory, null,
-                            newlist);
+                    handleFiles(newlist);
                 } else {
                     logger.fine("skipping " + file.getCanonicalPath()
                             + ": no matches");
@@ -492,13 +436,81 @@ public class RecordLoader {
                 continue;
             }
             logger.fine("queuing file " + file.getCanonicalPath());
-            submitLoader(_es, _factory.newLoader(file));
+            pool.submit(factory.newLoader(file));
         }
     }
 
-    private void handleStandardInput(ExecutorService _es,
-            LoaderFactory _factory) throws XmlPullParserException,
+    /**
+     * @throws ZipException
+     * @throws IOException
+     * @throws LoaderException
+     */
+    private void handleZipFiles() throws ZipException, IOException,
             LoaderException {
+        if (null == zipFiles) {
+            return;
+        }
+
+        String entryName;
+        Iterator<File> iter;
+        File file;
+        ZipFile zipFile;
+        ZipEntry ze;
+        String zipInputPattern = config.getZipInputPattern();
+        String inputPattern = config.getInputPattern();
+
+        // NOTE this technique will intentionally leak zipfile objects!
+        iter = zipFiles.iterator();
+        int size;
+        if (iter.hasNext()) {
+            Enumeration<? extends ZipEntry> entries;
+            while (iter.hasNext()) {
+                file = iter.next();
+                zipFile = new ZipFile(file);
+                // to avoid closing zipinputstreams randomly,
+                // we have to "leak" them temporarily
+                // tell the monitor about them, for later cleanup
+                monitor.add(zipFile);
+                entries = zipFile.entries();
+                size = zipFile.size();
+                logger.fine("queuing " + size + " entries from zip file "
+                        + file.getCanonicalPath());
+                int count = 0;
+                while (entries.hasMoreElements()) {
+                    ze = entries.nextElement();
+                    logger.fine("found zip entry " + ze);
+                    if (ze.isDirectory()) {
+                        // skip it
+                        continue;
+                    }
+                    if (!ze.getName().matches(inputPattern)) {
+                        // skip it
+                        continue;
+                    }
+                    entryName = ze.getName();
+                    if (zipInputPattern != null
+                            && !entryName.matches(zipInputPattern)) {
+                        // skip it
+                        logger.finer("skipping " + entryName);
+                        continue;
+                    }
+                    pool.submit(factory.newLoader(zipFile
+                            .getInputStream(ze), file.getName(),
+                            entryName));
+                    count++;
+                    if (0 == count % 1000) {
+                        logger.finer("queued " + count
+                                + " entries from zip file "
+                                + file.getCanonicalPath());
+                    }
+                }
+                logger.fine("queued " + count + " entries from zip file "
+                        + file.getCanonicalPath());
+            }
+        }
+    }
+
+    private void handleStandardInput() throws LoaderException {
         // use standard input by default
         // NOTE: cannot use file-based ids
         if (config.isFileBasedId()) {
@@ -510,12 +522,7 @@ public class RecordLoader {
                     + config.getIdNodeName());
         }
         logger.info("Reading from standard input...");
-        submitLoader(_es, _factory.newLoader(System.in));
-    }
-
-    private Future<Object> submitLoader(ExecutorService _es,
-            Loader _loader) {
-        return _es.submit(_loader);
+        pool.submit(factory.newLoader(System.in));
     }
 
 }

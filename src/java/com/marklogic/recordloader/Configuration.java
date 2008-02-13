@@ -276,6 +276,11 @@ public class Configuration {
     public static final String CONFIGURATION_CLASSNAME_DEFAULT = XccConfiguration.class
             .getCanonicalName();
 
+    public static final String LOADER_CLASSNAME_KEY = "LOADER_CLASSNAME";
+
+    public static final String LOADER_CLASSNAME_DEFAULT = Loader.class
+            .getName();
+
     private static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
 
     private static final String USE_FILENAME_COLLECTION_DEFAULT = "false";
@@ -817,24 +822,11 @@ public class Configuration {
 
     /**
      * @return
-     * @throws IllegalArgumentException
-     * @throws ClassNotFoundException
-     * @throws NoSuchMethodException
-     * @throws SecurityException
      */
-    public Constructor<? extends Configuration> getConfigurationConstructor()
-            throws IllegalArgumentException, ClassNotFoundException,
-            SecurityException, NoSuchMethodException {
-        // this should only be called once, in a single-threaded main() context
-        String className = getConfigurationClassName();
-        logger.info("Configuration is " + className);
-        Class<? extends Configuration> configurationClass = Class
-                .forName(className, true,
-                        ClassLoader.getSystemClassLoader()).asSubclass(
-                        Configuration.class);
-        Constructor<? extends Configuration> configurationConstructor = configurationClass
-                .getConstructor(new Class[] {});
-        return configurationConstructor;
+    public String getLoaderClassName() {
+        return properties.getProperty(LOADER_CLASSNAME_KEY,
+                isUseFileNameIds() ? FileLoader.class.getName()
+                        : LOADER_CLASSNAME_DEFAULT);
     }
 
     /**
