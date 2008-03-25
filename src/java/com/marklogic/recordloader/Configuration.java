@@ -185,6 +185,8 @@ public class Configuration {
 
     public static final String ID_NAME_FILENAME = "#FILENAME";
 
+    public static final String RECORD_NAME_DOCUMENT_ROOT = "#DOCUMENT";
+
     /**
      * 
      */
@@ -333,7 +335,7 @@ public class Configuration {
 
     private boolean useAutomaticIds = false;
 
-    private boolean useFileNameIds = false;
+    private boolean useFilenameIds = false;
 
     private Object autoIdMutex = new Object();
 
@@ -352,6 +354,8 @@ public class Configuration {
     private Constructor<? extends ContentFactory> contentFactoryConstructor;
 
     private Object contentFactoryMutex = new Object();
+
+    private boolean useDocumentRoot = false;
 
     /**
      * @param _props
@@ -386,9 +390,19 @@ public class Configuration {
 
     private void configureOptions() {
         recordName = properties.getProperty(RECORD_NAME_KEY);
-        recordNamespace = properties.getProperty(RECORD_NAMESPACE_KEY);
-        if (recordName != null && recordNamespace == null)
+        if (RECORD_NAME_DOCUMENT_ROOT.equals(recordName)) {
+            // whatever the document root is, we will use it
+            logger.fine("using document root as record name");
+            useDocumentRoot = true;
+            recordName = null;
+        }
+        recordNamespace = properties.getProperty(RECORD_NAMESPACE_KEY,
+                RECORD_NAMESPACE_DEFAULT);
+        if (null != recordName) {
             recordNamespace = RECORD_NAMESPACE_DEFAULT;
+        }
+        logger.config("record name = " + recordName + ", namespace = "
+                + recordNamespace);
 
         ignoreUnknown = Utilities.stringToBoolean(properties.getProperty(
                 IGNORE_UNKNOWN_KEY, "false"));
@@ -560,7 +574,7 @@ public class Configuration {
      * @return
      */
     public boolean isFullRepair() {
-        return repairLevel == DocumentRepairLevel.FULL;
+        return DocumentRepairLevel.FULL == repairLevel;
     }
 
     public boolean isUseAutomaticIds() {
@@ -663,8 +677,8 @@ public class Configuration {
         }
     }
 
-    public boolean isUseFileNameIds() {
-        return useFileNameIds;
+    public boolean isUseFilenameIds() {
+        return useFilenameIds;
     }
 
     /**
@@ -697,15 +711,29 @@ public class Configuration {
 
         logger.fine(ID_NAME_KEY + "=" + idNodeName);
 
-        if (idNodeName.equals(ID_NAME_AUTO)) {
-            logger.info("generating automatic ids");
-            useAutomaticIds = true;
-            useFileNameIds = false;
-        } else if (idNodeName.equals(ID_NAME_FILENAME)) {
-            logger.info("generating ids from file names");
-            useAutomaticIds = false;
-            useFileNameIds = true;
+        if (ID_NAME_AUTO.equals(idNodeName)) {
+            setUseAutomaticIds();
+        } else if (ID_NAME_FILENAME.equals(idNodeName)) {
+            setUseFilenameIds();
         }
+    }
+
+    /**
+     * 
+     */
+    private void setUseFilenameIds() {
+        logger.info("generating ids from file names");
+        useAutomaticIds = false;
+        useFilenameIds = true;
+    }
+
+    /**
+     * 
+     */
+    public void setUseAutomaticIds() {
+        logger.info("generating automatic ids");
+        useAutomaticIds = true;
+        useFilenameIds = false;
     }
 
     /**
@@ -720,13 +748,6 @@ public class Configuration {
      */
     public long getKeepAliveSeconds() {
         return 16;
-    }
-
-    /**
-     * @return
-     */
-    public boolean isFileBasedId() {
-        return idNodeName.equals(ID_NAME_FILENAME);
     }
 
     /**
@@ -825,7 +846,7 @@ public class Configuration {
      */
     public String getLoaderClassName() {
         return properties.getProperty(LOADER_CLASSNAME_KEY,
-                isUseFileNameIds() ? FileLoader.class.getName()
+                isUseFilenameIds() ? FileLoader.class.getName()
                         : LOADER_CLASSNAME_DEFAULT);
     }
 
@@ -837,9 +858,16 @@ public class Configuration {
         // we will set a collection for each input file's basename.
         // This is useful for record-set files, aka superfiles, but not for
         // record-files.
-        return (!isUseFileNameIds())
+        return (!isUseFilenameIds())
                 || Utilities.stringToBoolean(properties.getProperty(
                         USE_FILENAME_COLLECTION_KEY,
                         USE_FILENAME_COLLECTION_DEFAULT));
+    }
+
+    /**
+     * @return
+     */
+    public boolean isUseDocumentRoot() {
+        return useDocumentRoot;
     }
 }

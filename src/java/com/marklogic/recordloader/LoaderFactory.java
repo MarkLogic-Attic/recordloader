@@ -74,7 +74,6 @@ public class LoaderFactory {
                         ClassLoader.getSystemClassLoader()).asSubclass(
                         LoaderInterface.class);
         loaderConstructor = loaderClass.getConstructor(new Class[] {});
-
     }
 
     private LoaderInterface getLoader() throws LoaderException {

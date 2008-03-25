@@ -93,7 +93,7 @@ public class Producer extends InputStream {
         String newId;
         boolean useAutomaticIds = config.isUseAutomaticIds();
         logger.fine("useAutomaticIds=" + useAutomaticIds);
-        boolean useFileNameIds = config.isUseFileNameIds();
+        boolean useFileNameIds = config.isUseFilenameIds();
         logger.fine("useFileNameIds=" + useFileNameIds);
         if (useAutomaticIds || useFileNameIds || idName.startsWith("@")) {
             if (useAutomaticIds) {

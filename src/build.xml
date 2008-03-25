@@ -11,10 +11,12 @@
         <fileset dir="${java.library.user}">
             <include name="xcc.jar"/>
             <include name="xpp3.jar"/>
+            <include name="ant.jar"/>
         </fileset>
         <fileset dir="${java.library.system}">
             <include name="xcc.jar"/>
             <include name="xpp3.jar"/>
+            <include name="ant.jar"/>
         </fileset>
         <pathelement path="${build.dir}"/>
     </path>

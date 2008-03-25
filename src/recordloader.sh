@@ -4,6 +4,7 @@
 BASE=`dirname $0`
 
 CP=$BASE/../lib/recordloader.jar
+CP=$CP:$HOME/lib/java/ant.jar
 CP=$CP:$HOME/lib/java/xcc.jar
 CP=$CP:$HOME/lib/java/xpp3.jar
 

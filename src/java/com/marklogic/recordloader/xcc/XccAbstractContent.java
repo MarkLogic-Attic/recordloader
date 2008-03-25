@@ -95,4 +95,11 @@ public abstract class XccAbstractContent implements ContentInterface {
         uri = _uri;
     }
 
+    /**
+     * @return
+     */
+    public Session getSession() {
+        return session;
+    }
+
 }

@@ -114,7 +114,7 @@ to use for all queries and inserts.
 <tr><td>DOCUMENT_FORMAT</td><td>xml</td>
 <td>Document format for all new documents.
   Valid settings are
-  <code>xml</code>, <code>text()</code>, and <code>binary()</code>
+  <code>xml</code>, <code>text</code>, and <code>binary</code>
 </td>
 </tr>
 
@@ -244,10 +244,21 @@ the first document insert will throw a fatal error.</td>
 </tr>
 
 <tr><td>RECORD_NAME</td><td>null</td>
-<td>Element name in which each document is found. These may not nest.
+<td>
+<p>Element name in which each document is found. These may not nest.
 If no RECORD_NAME is set, the first child element
 of the first root element
-will be used for the entire RecordLoader run.</td>
+will be used for the entire RecordLoader run.
+</p>
+<p>If <code>ID_NAME</code> is set to an element or attribute name,
+or set to <code>#AUTO</code>
+  (including when RecordLoader reads from standard input),
+then the special value <code>RECORD_NAME=#DOCUMENT</code>
+will cause RecordLoader to treat every document root element as a record.
+This mode is slower than <code>ID_NAME=#FILENAME</code>,
+but useful when the filenames are not appropriate as document URIs.
+</p>
+</td>
 </tr>
 
 <tr><td>RECORD_NAMESPACE</td><td>null</td>

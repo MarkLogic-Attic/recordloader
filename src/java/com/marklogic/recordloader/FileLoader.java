@@ -3,15 +3,15 @@
  */
 package com.marklogic.recordloader;
 
-import java.net.URI;
-
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
 public class FileLoader extends AbstractLoader {
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     * 
      * @see com.marklogic.recordloader.AbstractLoader#process()
      */
     @SuppressWarnings("unused")
@@ -22,26 +22,14 @@ public class FileLoader extends AbstractLoader {
 
         StringBuffer sb = new StringBuffer();
         try {
-            // handle the input reader as a single document,
-            // without any parsing.
-
-            String id = currentRecordPath;
-
-            // Regex replaces and coalesces any backslashes with slash
-            if (config.isInputNormalizePaths()) {
-                id = id.replaceAll("[\\\\]+", "/");
-            }
-
-            // this form of URI() does escaping nicely
-            id = new URI(null, id, null).toString();
-
-            logger.fine("setting currentId = " + id);
+            // handle input as a single document, without parsing
+            logger.fine("setting currentId = " + currentRecordPath);
 
             // we need the content object, hence the URI, before we can check
             // its existence
-            currentUri = composeUri(id);
+            currentUri = composeUri(currentRecordPath);
             content = contentFactory.newContent(currentUri);
-            boolean skippingRecord = checkIdAndUri(id);
+            boolean skippingRecord = checkIdAndUri(currentRecordPath);
 
             // grab the entire document
             // uses a reader, so charset translation should be ok
@@ -50,6 +38,11 @@ public class FileLoader extends AbstractLoader {
             char[] buf = new char[32 * 1024];
             while ((size = input.read(buf)) > 0) {
                 sb.append(buf, 0, size);
+            }
+
+            if (0 == sb.length()) {
+                throw new LoaderException("empty document: "
+                        + currentRecordPath);
             }
 
             if (!skippingRecord) {

@@ -19,6 +19,7 @@
 package com.marklogic.recordloader;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -55,6 +56,8 @@ public class Monitor extends Thread {
     private Configuration config;
 
     private int totalSkipped = 0;
+
+    private ArrayList<InputStream> openInputStreams;
 
     @SuppressWarnings("unused")
     private Monitor() {
@@ -102,17 +105,43 @@ public class Monitor extends Thread {
             // do nothing
         }
 
-        if (openZipFiles != null) {
-            logger.fine("cleaning up zip files");
-            ZipFile zFile;
-            Iterator<ZipFile> iter = openZipFiles.iterator();
-            while (iter.hasNext()) {
-                zFile = iter.next();
-                try {
-                    zFile.close();
-                } catch (IOException e) {
-                    logger.logException("cleaning up " + zFile.getName(),
-                            e);
+        // is there really a point to this? let VM shutdown do it?
+        if (null != openZipFiles) {
+            synchronized (openZipFiles) {
+                if (null != openZipFiles) {
+                    logger.fine("cleaning up zip files");
+                    ZipFile zFile;
+                    Iterator<ZipFile> iter = openZipFiles.iterator();
+                    while (iter.hasNext()) {
+                        zFile = iter.next();
+                        try {
+                            zFile.close();
+                        } catch (IOException e) {
+                            logger.logException("cleaning up "
+                                    + zFile.getName(), e);
+                        }
+                    }
+                }
+            }
+            openZipFiles = null;
+        }
+
+        if (null != openInputStreams) {
+            synchronized (openInputStreams) {
+                if (null != openInputStreams) {
+                    logger.fine("cleaning up inputstreams");
+                    InputStream is;
+                    Iterator<InputStream> iter = openInputStreams
+                            .iterator();
+                    while (iter.hasNext()) {
+                        is = iter.next();
+                        try {
+                            is.close();
+                        } catch (IOException e) {
+                            logger.logException("cleaning up " + is, e);
+                        }
+                    }
+                    openInputStreams = null;
                 }
             }
         }
@@ -132,7 +161,7 @@ public class Monitor extends Thread {
         while (running && !isInterrupted() && !pool.isTerminated()) {
             // try to avoid thread starvation
             yield();
-            
+
             currentMillis = System.currentTimeMillis();
             if (lastUri != null
                     && currentMillis - lastDisplayMillis > displayMillis) {
@@ -145,7 +174,7 @@ public class Monitor extends Thread {
                         + pool.getCorePoolSize() + ", active="
                         + pool.getActiveCount());
             }
-            
+
             try {
                 Thread.sleep(sleepMillis);
             } catch (InterruptedException e) {
@@ -171,7 +200,8 @@ public class Monitor extends Thread {
      * 
      */
     public void halt(Throwable t) {
-        logger.logException("fatal - halting monitor", Utilities.getCause(t));
+        logger.logException("fatal - halting monitor", Utilities
+                .getCause(t));
         halt();
     }
 
@@ -223,6 +253,16 @@ public class Monitor extends Thread {
     }
 
     /**
+     * @param _is
+     */
+    public void add(InputStream _is) {
+        if (openInputStreams == null) {
+            openInputStreams = new ArrayList<InputStream>();
+        }
+        openInputStreams.add(_is);
+    }
+
+    /**
      * 
      */
     public void resetThreadPool() {
@@ -244,9 +284,8 @@ public class Monitor extends Thread {
      */
     public void incrementSkipped(String message) {
         totalSkipped++;
-        logger.log((totalSkipped % 500 == 0) ? Level.INFO
-                : Level.FINE, "skipping " + totalSkipped
-                + ": " + message);        
+        logger.log((totalSkipped % 500 == 0) ? Level.INFO : Level.FINE,
+                "skipping " + totalSkipped + ": " + message);
     }
 
     public ThreadPoolExecutor getPool() {

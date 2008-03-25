@@ -43,6 +43,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -63,7 +64,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-02-12.1";
+    public static final String VERSION = "2008-03-25.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -100,6 +101,8 @@ public class RecordLoader {
     private ArrayList<File> xmlFiles = new ArrayList<File>();
 
     private ArrayList<File> zipFiles = new ArrayList<File>();
+
+    private ArrayList<File> gzFiles = new ArrayList<File>();
 
     private CharsetDecoder inputDecoder;
 
@@ -194,10 +197,10 @@ public class RecordLoader {
                 logger.info("processing: " + arg);
                 config.load(new FileInputStream(file));
             } else if (arg.endsWith(".zip")) {
-                // add to zip list
                 zipFiles.add(file);
+            } else if (arg.endsWith(".gz")) {
+                gzFiles.add(file);
             } else {
-                // add to xml list
                 xmlFiles.add(file);
             }
         }
@@ -219,8 +222,9 @@ public class RecordLoader {
     private void run() throws FileNotFoundException, IOException,
             LoaderException, SecurityException, NoSuchMethodException,
             ClassNotFoundException {
-        logger.finer("zipFiles.size = " + zipFiles.size());
-        logger.finer("xmlFiles.size = " + xmlFiles.size());
+        logger.fine("zipFiles.size = " + zipFiles.size());
+        logger.fine("gzFiles.size = " + gzFiles.size());
+        logger.fine("xmlFiles.size = " + xmlFiles.size());
 
         // if START_ID was supplied, run single-threaded until found
         int threadCount = config.getThreadCount();
@@ -242,12 +246,13 @@ public class RecordLoader {
         try {
             monitor.start();
 
-            factory = new LoaderFactory(monitor, inputDecoder, config);
-
-            if (zipFiles.size() > 0 || xmlFiles.size() > 0) {
+            if (zipFiles.size() > 0 || gzFiles.size() > 0
+                    || xmlFiles.size() > 0) {
+                factory = new LoaderFactory(monitor, inputDecoder, config);
                 logger.info("populating queue");
                 // queue any zip-entries first
                 handleZipFiles();
+                handleGzFiles();
                 handleFiles();
             } else {
                 if (config.getThreadCount() > 1) {
@@ -256,6 +261,15 @@ public class RecordLoader {
                     pool.setCorePoolSize(1);
                     pool.setMaximumPoolSize(1);
                 }
+                // NOTE: cannot use file-based ids
+                if (config.isUseFilenameIds()) {
+                    logger.warning("Ignoring configured "
+                            + Configuration.ID_NAME_KEY + "="
+                            + config.getIdNodeName()
+                            + " for standard input");
+                    config.setUseAutomaticIds();
+                }
+                factory = new LoaderFactory(monitor, inputDecoder, config);
                 handleStandardInput();
             }
 
@@ -423,9 +437,8 @@ public class RecordLoader {
                 logger.fine("directory " + canonicalPath);
                 File[] dirList = file.listFiles(filter);
                 if (dirList.length > 0) {
-                    logger.info("queuing contents of "
-                            + canonicalPath + ": "
-                            + dirList.length);
+                    logger.info("queuing contents of " + canonicalPath
+                            + ": " + dirList.length);
                     ArrayList<File> newlist = new ArrayList<File>();
                     for (int i = 0; i < dirList.length; i++) {
                         newlist.add(dirList[i]);
@@ -438,7 +451,7 @@ public class RecordLoader {
                 }
                 continue;
             }
-            logger.fine("queuing file " + canonicalPath);
+            logger.fine("queuing " + canonicalPath);
             pool.submit(factory.newLoader(file));
         }
     }
@@ -456,6 +469,7 @@ public class RecordLoader {
 
         String entryName;
         Iterator<File> iter;
+        Enumeration<? extends ZipEntry> entries;
         File file;
         ZipFile zipFile;
         ZipEntry ze;
@@ -466,7 +480,6 @@ public class RecordLoader {
         iter = zipFiles.iterator();
         int size;
         if (iter.hasNext()) {
-            Enumeration<? extends ZipEntry> entries;
             while (iter.hasNext()) {
                 file = iter.next();
                 zipFile = new ZipFile(file);
@@ -476,8 +489,9 @@ public class RecordLoader {
                 monitor.add(zipFile);
                 entries = zipFile.entries();
                 size = zipFile.size();
+                String canonicalPath = file.getCanonicalPath();
                 logger.fine("queuing " + size + " entries from zip file "
-                        + file.getCanonicalPath());
+                        + canonicalPath);
                 int count = 0;
                 while (entries.hasMoreElements()) {
                     ze = entries.nextElement();
@@ -491,7 +505,7 @@ public class RecordLoader {
                         continue;
                     }
                     entryName = ze.getName();
-                    if (zipInputPattern != null
+                    if (null != zipInputPattern
                             && !entryName.matches(zipInputPattern)) {
                         // skip it
                         logger.finer("skipping " + entryName);
@@ -504,26 +518,51 @@ public class RecordLoader {
                     if (0 == count % 1000) {
                         logger.finer("queued " + count
                                 + " entries from zip file "
-                                + file.getCanonicalPath());
+                                + canonicalPath);
                     }
                 }
                 logger.fine("queued " + count + " entries from zip file "
-                        + file.getCanonicalPath());
+                        + canonicalPath);
             }
         }
     }
 
-    private void handleStandardInput() throws LoaderException {
-        // use standard input by default
-        // NOTE: cannot use file-based ids
-        if (config.isFileBasedId()) {
-            logger.warning("Ignoring configured "
-                    + Configuration.ID_NAME_KEY + "="
-                    + config.getIdNodeName() + " for standard input");
-            config.setIdNodeName(Configuration.ID_NAME_AUTO);
-            logger.warning("Using " + Configuration.ID_NAME_KEY + "="
-                    + config.getIdNodeName());
+    /**
+     * @throws IOException
+     * @throws LoaderException
+     */
+    private void handleGzFiles() throws IOException, LoaderException {
+        if (null == gzFiles) {
+            return;
         }
+
+        File file;
+        String name;
+        String path;
+        Iterator<File> iter = gzFiles.iterator();
+
+        if (iter.hasNext()) {
+            while (iter.hasNext()) {
+                file = iter.next();
+                name = file.getName();
+                if (name.endsWith(".tar.gz") || name.endsWith(".tgz")) {
+                    // assume a tar file
+                    logger.warning("skipping unsupported tar file "
+                            + file.getCanonicalPath());
+                    continue;
+                }
+
+                path = file.getPath();
+                logger.fine("queuing " + path);
+                pool.submit(factory.newLoader(new GZIPInputStream(
+                        new FileInputStream(file)), name, path));
+            }
+        }
+    }
+
+    private void handleStandardInput() throws LoaderException,
+            SecurityException {
+        // use standard input
         logger.info("Reading from standard input...");
         pool.submit(factory.newLoader(System.in));
     }

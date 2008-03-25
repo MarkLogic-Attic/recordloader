@@ -51,6 +51,8 @@ public class Loader extends AbstractLoader {
 
     private boolean foundRoot = false;
 
+    private boolean useDocumentRoot = false;
+
     /*
      * (non-Javadoc)
      * 
@@ -58,7 +60,8 @@ public class Loader extends AbstractLoader {
      */
     public void process() throws LoaderException {
 
-        logger.fine(Configuration.ID_NAME_KEY + "=" + idName);
+        logger.fine("auto=" + config.isUseAutomaticIds());
+        logger.fine("filename=" + config.isUseFilenameIds());
 
         try {
             xpp = config.getXppFactory().newPullParser();
@@ -80,6 +83,7 @@ public class Loader extends AbstractLoader {
         startId = config.getStartId();
         recordName = config.getRecordName();
         recordNamespace = config.getRecordNamespace();
+        useDocumentRoot = config.isUseDocumentRoot();
 
         try {
             processRecords();
@@ -165,7 +169,7 @@ public class Loader extends AbstractLoader {
                         content.close();
                     }
 
-                    if (config.isUseFileNameIds()) {
+                    if (config.isUseFilenameIds()) {
                         c = false;
                     }
                     continue;
@@ -203,12 +207,16 @@ public class Loader extends AbstractLoader {
             logger.fine("found document root: '" + name + "' in '"
                     + namespace + "'");
             foundRoot = true;
-            return;
+            // if we aren't swallowing the whole doc,
+            // then there's nothing more to do here.
+            if (!useDocumentRoot) {
+                return;
+            }
         }
 
-        if (recordName == null) {
+        if (null == recordName) {
             synchronized (config) {
-                if (config.getRecordName() == null) {
+                if (null == config.getRecordName()) {
                     // this must be the record-level element
                     recordName = name;
                     recordNamespace = namespace;
@@ -271,8 +279,9 @@ public class Loader extends AbstractLoader {
      * @return
      */
     private boolean isRecordStart(String name, String namespace) {
-        return (name.equals(recordName) && namespace
-                .equals(recordNamespace));
+        return useDocumentRoot
+                || (name.equals(recordName) && namespace
+                        .equals(recordNamespace));
     }
 
     @Override

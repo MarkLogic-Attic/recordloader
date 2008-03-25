@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.net.URI;
+import java.net.URISyntaxException;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.timing.TimedEvent;
@@ -50,7 +51,6 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @see com.marklogic.recordloader.AbstractLoader#call()
      */
     public Object call() throws Exception {
-        // every file is its own root record
         try {
             if (inputFile != null) {
                 // time to instantiate the reader
@@ -65,6 +65,9 @@ public abstract class AbstractLoader implements LoaderInterface {
             monitor.halt(e);
             return null;
         } catch (Exception e) {
+            logger.warning("Exception while processing "
+                    + (null != currentUri ? currentUri
+                            : currentRecordPath));
             throw e;
         } catch (Throwable t) {
             // for OutOfMemoryError, etc
@@ -143,8 +146,24 @@ public abstract class AbstractLoader implements LoaderInterface {
      * 
      * @see com.marklogic.recordloader.LoaderInterface#setRecordPath(java.lang.String)
      */
-    public void setRecordPath(String _path) {
-        currentRecordPath = _path;
+    public void setRecordPath(String _path) throws LoaderException {
+        // replace and coalesce any backslashes with slash
+        if (config.isInputNormalizePaths()) {
+            currentRecordPath = _path.replaceAll("[\\\\]+", "/");
+        } else {
+            currentRecordPath = _path;
+        }
+
+        // this form of URI() does escaping nicely
+        if (config.isUseFilenameIds()) {
+            try {
+                currentRecordPath = new URI(null, currentRecordPath, null)
+                        .toString();
+            } catch (URISyntaxException e) {
+                throw new LoaderException(e);
+            }
+        }
+
     }
 
     /**
@@ -229,7 +248,7 @@ public abstract class AbstractLoader implements LoaderInterface {
         StringBuffer baseName = new StringBuffer(config.getUriPrefix());
         baseName.append((currentFileBasename == null
                 || currentFileBasename.equals("") || config
-                .isUseFileNameIds()) ? "" : currentFileBasename);
+                .isUseFilenameIds()) ? "" : currentFileBasename);
         if (baseName != null && baseName.length() > 0
                 && '/' != baseName.charAt(baseName.length() - 1)) {
             baseName.append("/");

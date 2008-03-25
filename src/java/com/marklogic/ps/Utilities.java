@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2004-2006 Mark Logic Corporation
+ * Copyright (c)2004-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,10 @@
  */
 package com.marklogic.ps;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.List;
 
 /**
@@ -101,6 +105,30 @@ public class Utilities {
             cause = temp;
         }
         return cause;
+    }
+    
+    /**
+     * @param sb
+     * @throws IOException
+     */
+    public static void read(Reader input, StringBuffer sb) throws IOException {
+        // uses a reader, so charset translation should be ok
+        int size;
+        char[] buf = new char[32 * 1024];
+        while ((size = input.read(buf)) > -1) {
+            sb.append(buf, 0, size);
+        }
+    }
+
+    /**
+     * @param producer
+     * @return
+     * @throws IOException 
+     */
+    public static String read(InputStream producer) throws IOException {
+        StringBuffer sb = new StringBuffer();
+        read(new InputStreamReader(producer), sb);
+        return sb.toString();
     }
 
 }
