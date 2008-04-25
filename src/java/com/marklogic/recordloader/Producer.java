@@ -95,46 +95,47 @@ public class Producer extends InputStream {
         logger.fine("useAutomaticIds=" + useAutomaticIds);
         boolean useFileNameIds = config.isUseFilenameIds();
         logger.fine("useFileNameIds=" + useFileNameIds);
-        if (useAutomaticIds || useFileNameIds || idName.startsWith("@")) {
-            if (useAutomaticIds) {
-                // automatic ids, starting from 1
-                // config uses a synchronized sequence of long
-                newId = config.getAutoId();
-                logger.fine("automatic document id " + newId);
-            } else if (useFileNameIds) {
-                // the constructor had better have set our id!
-                // note that skipping won't work for this case
-                if (null == currentId) {
-                    throw new FatalException(
-                            "Cannot use filename ids unless the constructor sets currentId");
-                }
-                logger.fine("using filename id " + currentId);
-                newId = currentId;
-            } else {
-                // if the idName starts with @, it's an attribute
-                // handle attributes as idName
-                if (xpp.getAttributeCount() < 1) {
-                    throw new XmlPullParserException(
-                            "found no attributes for recordName = "
-                                    + recordName + ", idName=" + idName
-                                    + " at "
-                                    + xpp.getPositionDescription());
-                }
-                // try with and without a namespace: first, try without
-                newId = xpp.getAttributeValue("", idName.substring(1));
-                if (newId == null) {
-                    newId = xpp.getAttributeValue(recordNamespace, idName
-                            .substring(1));
-                }
-                if (newId == null) {
-                    throw new XmlPullParserException("null id " + idName
-                            + " at " + xpp.getPositionDescription());
-                }
-                logger.fine("found id " + idName + " = " + newId);
-            }
-
-            setCurrentId(newId);
+        if (!(useAutomaticIds || useFileNameIds || idName.startsWith("@"))) {
+            return;
         }
+        if (useAutomaticIds) {
+            // automatic ids, starting from 1
+            // config uses a synchronized sequence of long
+            // TODO change to be basefile/entry/sequence ???
+            newId = config.getAutoId();
+            logger.fine("automatic document id " + newId);
+        } else if (useFileNameIds) {
+            // the constructor had better have set our id!
+            // note that skipping won't work for this case
+            if (null == currentId) {
+                throw new FatalException(
+                        "Cannot use filename ids unless the constructor sets currentId");
+            }
+            logger.fine("using filename id " + currentId);
+            newId = currentId;
+        } else {
+            // if the idName starts with @, it's an attribute
+            // handle attributes as idName
+            if (xpp.getAttributeCount() < 1) {
+                throw new XmlPullParserException(
+                        "found no attributes for recordName = "
+                                + recordName + ", idName=" + idName
+                                + " at " + xpp.getPositionDescription());
+            }
+            // try with and without a namespace: first, try without
+            newId = xpp.getAttributeValue("", idName.substring(1));
+            if (newId == null) {
+                newId = xpp.getAttributeValue(recordNamespace, idName
+                        .substring(1));
+            }
+            if (newId == null) {
+                throw new XmlPullParserException("null id " + idName
+                        + " at " + xpp.getPositionDescription());
+            }
+            logger.fine("found id " + idName + " = " + newId);
+        }
+
+        setCurrentId(newId);
     }
 
     private void processStartElement() throws IOException,

@@ -55,16 +55,6 @@ public class XccModuleContent extends XccAbstractContent implements
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentInterface#close()
-     */
-    public void close() {
-        // not much to do
-        xml = null;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
      * @see com.marklogic.recordloader.ContentInterface#insert()
      */
     public void insert() throws LoaderException {

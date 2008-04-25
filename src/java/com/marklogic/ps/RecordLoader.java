@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -64,7 +65,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-03-25.1";
+    public static final String VERSION = "2008-04-23.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -222,9 +223,9 @@ public class RecordLoader {
     private void run() throws FileNotFoundException, IOException,
             LoaderException, SecurityException, NoSuchMethodException,
             ClassNotFoundException {
-        logger.fine("zipFiles.size = " + zipFiles.size());
+        logger.info("zipFiles.size = " + zipFiles.size());
         logger.fine("gzFiles.size = " + gzFiles.size());
-        logger.fine("xmlFiles.size = " + xmlFiles.size());
+        logger.info("xmlFiles.size = " + xmlFiles.size());
 
         // if START_ID was supplied, run single-threaded until found
         int threadCount = config.getThreadCount();
@@ -468,61 +469,95 @@ public class RecordLoader {
         }
 
         String entryName;
-        Iterator<File> iter;
+        Iterator<File> fileIter;
+        Iterator<String> stringIter;
         Enumeration<? extends ZipEntry> entries;
         File file;
         ZipFile zipFile;
         ZipEntry ze;
         String zipInputPattern = config.getZipInputPattern();
         String inputPattern = config.getInputPattern();
+        List<String> entryNameList;
 
         // NOTE this technique will intentionally leak zipfile objects!
-        iter = zipFiles.iterator();
+        fileIter = zipFiles.iterator();
         int size;
-        if (iter.hasNext()) {
-            while (iter.hasNext()) {
-                file = iter.next();
+        if (!fileIter.hasNext()) {
+            return;
+        }
+
+        int fileCount = 0;
+        while (fileIter.hasNext()) {
+            file = fileIter.next();
+            try {
                 zipFile = new ZipFile(file);
-                // to avoid closing zipinputstreams randomly,
+            } catch (ZipException e) {
+                // user-friendly error message
+                logger.warning("Error opening " + file.getCanonicalPath()
+                        + ": " + e + " " + e.getMessage());
+                throw e;
+            }
+            entries = zipFile.entries();
+            size = zipFile.size();
+            String canonicalPath = file.getCanonicalPath();
+            logger.fine("queuing " + size + " entries from zip file "
+                    + canonicalPath);
+            int count = 0;
+            entryNameList = new ArrayList<String>();
+            String zipFileName = zipFile.getName();
+            while (entries.hasMoreElements()) {
+                ze = entries.nextElement();
+                logger.fine("found zip entry " + ze);
+                if (ze.isDirectory()) {
+                    // skip it
+                    continue;
+                }
+                // getName returns full entry path
+                entryName = ze.getName();
+                // check inputPattern
+                if (!entryName.matches(inputPattern)) {
+                    // skip it
+                    logger.finer("skipping " + entryName);
+                    continue;
+                }
+                // check zipInputPattern
+                if (null != zipInputPattern
+                        && !entryName.matches(zipInputPattern)) {
+                    // skip it
+                    logger.finer("skipping " + entryName);
+                    continue;
+                }
+                // to avoid closing zip inputs randomly,
                 // we have to "leak" them temporarily
                 // tell the monitor about them, for later cleanup
-                monitor.add(zipFile);
-                entries = zipFile.entries();
-                size = zipFile.size();
-                String canonicalPath = file.getCanonicalPath();
-                logger.fine("queuing " + size + " entries from zip file "
-                        + canonicalPath);
-                int count = 0;
-                while (entries.hasMoreElements()) {
-                    ze = entries.nextElement();
-                    logger.fine("found zip entry " + ze);
-                    if (ze.isDirectory()) {
-                        // skip it
-                        continue;
-                    }
-                    if (!ze.getName().matches(inputPattern)) {
-                        // skip it
-                        continue;
-                    }
-                    entryName = ze.getName();
-                    if (null != zipInputPattern
-                            && !entryName.matches(zipInputPattern)) {
-                        // skip it
-                        logger.finer("skipping " + entryName);
-                        continue;
-                    }
-                    pool.submit(factory.newLoader(zipFile
-                            .getInputStream(ze), file.getName(),
-                            entryName));
-                    count++;
-                    if (0 == count % 1000) {
-                        logger.finer("queued " + count
-                                + " entries from zip file "
-                                + canonicalPath);
-                    }
+                logger.finest("adding " + entryName + " from "
+                        + zipFileName);
+                entryNameList.add(entryName);
+            }
+            logger.fine("queued " + count + " entries from zip file "
+                    + canonicalPath);
+            // tell the monitor to clean up after the open zip entries
+            monitor.add(zipFile, zipFileName, entryNameList);
+            // now queue the entries
+            // I don't like doing this twice,
+            // but Monitor needs to know about all the entries
+            // before we submit the first Loader.
+            stringIter = entryNameList.iterator();
+            while (stringIter.hasNext()) {
+                entryName = stringIter.next();
+                ze = zipFile.getEntry(entryName);
+                pool.submit(factory.newLoader(zipFile.getInputStream(ze),
+                        zipFileName, entryName));
+                count++;
+                if (0 == count % 1000) {
+                    logger.finer("queued " + count
+                            + " entries from zip file " + canonicalPath);
                 }
-                logger.fine("queued " + count + " entries from zip file "
-                        + canonicalPath);
+            }
+
+            fileCount++;
+            if (0 == fileCount % 100) {
+                logger.info("queued " + fileCount + " zip files");
             }
         }
     }

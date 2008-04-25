@@ -11,6 +11,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import com.marklogic.ps.SimpleLogger;
+import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
 
 /**
@@ -45,6 +46,10 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     protected String inputFilePath;
 
+    private String entryPath;
+
+    protected String fileBasename;
+
     /*
      * (non-Javadoc)
      * 
@@ -74,6 +79,10 @@ public abstract class AbstractLoader implements LoaderInterface {
             monitor.halt(t);
             return null;
         } finally {
+            // clean up via monitor
+            if (null != fileBasename && null != entryPath) {
+                monitor.cleanup(fileBasename, entryPath);
+            }
             if (null != input) {
                 input.close();
                 input = null;
@@ -129,11 +138,12 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @see com.marklogic.recordloader.LoaderInterface#setFileBasename(java.lang.String)
      */
     public void setFileBasename(String _name) throws LoaderException {
-        logger.fine("using fileBasename = " + _name);
+        fileBasename = _name;
         if (null == _name) {
             return;
         }
-        currentFileBasename = _name;
+        currentFileBasename = Utilities.stripExtension(_name);
+        logger.fine("using fileBasename = " + _name);
 
         // don't tell the contentFactory unless config says it's ok
         if (config.isUseFilenameCollection()) {
@@ -147,6 +157,7 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @see com.marklogic.recordloader.LoaderInterface#setRecordPath(java.lang.String)
      */
     public void setRecordPath(String _path) throws LoaderException {
+        entryPath = _path;
         // replace and coalesce any backslashes with slash
         if (config.isInputNormalizePaths()) {
             currentRecordPath = _path.replaceAll("[\\\\]+", "/");

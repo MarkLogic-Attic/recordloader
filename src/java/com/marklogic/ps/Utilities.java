@@ -71,8 +71,8 @@ public class Utilities {
     public static String escapeXml(String _in) {
         if (_in == null)
             return "";
-        return _in.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(
-                ">", "&gt;");
+        return _in.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;");
     }
 
     public static final boolean stringToBoolean(String str) {
@@ -80,7 +80,8 @@ public class Utilities {
     }
 
     // let the caller decide: should an unset string be true or false?
-    public static final boolean stringToBoolean(String str, boolean defaultValue) {
+    public static final boolean stringToBoolean(String str,
+            boolean defaultValue) {
         if (str == null)
             return defaultValue;
 
@@ -106,12 +107,13 @@ public class Utilities {
         }
         return cause;
     }
-    
+
     /**
      * @param sb
      * @throws IOException
      */
-    public static void read(Reader input, StringBuffer sb) throws IOException {
+    public static void read(Reader input, StringBuffer sb)
+            throws IOException {
         // uses a reader, so charset translation should be ok
         int size;
         char[] buf = new char[32 * 1024];
@@ -123,12 +125,29 @@ public class Utilities {
     /**
      * @param producer
      * @return
-     * @throws IOException 
+     * @throws IOException
      */
     public static String read(InputStream producer) throws IOException {
         StringBuffer sb = new StringBuffer();
         read(new InputStreamReader(producer), sb);
         return sb.toString();
+    }
+
+    /**
+     * @param name
+     * @return
+     */
+    public static String stripExtension(String name) {
+        if (name == null || name.length() < 3) {
+            return name;
+        }
+
+        int i = name.lastIndexOf('.');
+        if (i < 1) {
+            return name;
+        }
+
+        return name.substring(0, i);
     }
 
 }

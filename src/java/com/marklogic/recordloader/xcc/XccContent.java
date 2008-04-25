@@ -72,6 +72,7 @@ public class XccContent extends XccAbstractContent implements
         if (null != content) {
             content.close();
         }
+        super.close();
     }
 
     /*

@@ -146,27 +146,10 @@ public class LoaderFactory {
      */
     private void setup(LoaderInterface loader, String name, String path)
             throws LoaderException {
-        if (name != null) {
-            loader.setFileBasename(stripExtension(name));
+        if (null != name) {
+            loader.setFileBasename(name);
         }
         loader.setRecordPath(path);
-    }
-
-    /**
-     * @param name
-     * @return
-     */
-    private static String stripExtension(String name) {
-        if (name == null || name.length() < 3) {
-            return name;
-        }
-
-        int i = name.lastIndexOf('.');
-        if (i < 1) {
-            return name;
-        }
-
-        return name.substring(0, i);
     }
 
 }

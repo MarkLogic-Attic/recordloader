@@ -29,7 +29,11 @@ public abstract class XccAbstractContent implements ContentInterface {
      * 
      * @see com.marklogic.recordloader.ContentInterface#close()
      */
-    public abstract void close();
+    public void close() {
+        if (null != session) {
+            session.close();
+        }
+    }
 
     /*
      * (non-Javadoc)

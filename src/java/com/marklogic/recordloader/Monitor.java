@@ -19,10 +19,12 @@
 package com.marklogic.recordloader;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -49,15 +51,17 @@ public class Monitor extends Thread {
 
     private boolean running = true;
 
-    private List<ZipFile> openZipFiles;
+    private Map<String, ZipFile> openZipFiles = Collections
+            .synchronizedMap(new HashMap<String, ZipFile>());
+
+    private Map<String, List<String>> openZipFileEntries = Collections
+            .synchronizedMap(new HashMap<String, List<String>>());
 
     private ThreadPoolExecutor pool;
 
     private Configuration config;
 
     private int totalSkipped = 0;
-
-    private ArrayList<InputStream> openInputStreams;
 
     @SuppressWarnings("unused")
     private Monitor() {
@@ -103,47 +107,6 @@ public class Monitor extends Thread {
             pool.awaitTermination(30, TimeUnit.SECONDS);
         } catch (InterruptedException e1) {
             // do nothing
-        }
-
-        // is there really a point to this? let VM shutdown do it?
-        if (null != openZipFiles) {
-            synchronized (openZipFiles) {
-                if (null != openZipFiles) {
-                    logger.fine("cleaning up zip files");
-                    ZipFile zFile;
-                    Iterator<ZipFile> iter = openZipFiles.iterator();
-                    while (iter.hasNext()) {
-                        zFile = iter.next();
-                        try {
-                            zFile.close();
-                        } catch (IOException e) {
-                            logger.logException("cleaning up "
-                                    + zFile.getName(), e);
-                        }
-                    }
-                }
-            }
-            openZipFiles = null;
-        }
-
-        if (null != openInputStreams) {
-            synchronized (openInputStreams) {
-                if (null != openInputStreams) {
-                    logger.fine("cleaning up inputstreams");
-                    InputStream is;
-                    Iterator<InputStream> iter = openInputStreams
-                            .iterator();
-                    while (iter.hasNext()) {
-                        is = iter.next();
-                        try {
-                            is.close();
-                        } catch (IOException e) {
-                            logger.logException("cleaning up " + is, e);
-                        }
-                    }
-                    openInputStreams = null;
-                }
-            }
         }
     }
 
@@ -206,6 +169,7 @@ public class Monitor extends Thread {
     }
 
     /**
+     * @param _uri
      * @param _event
      */
     public synchronized void add(String _uri, TimedEvent _event) {
@@ -236,30 +200,52 @@ public class Monitor extends Thread {
     }
 
     /**
+     * @param fileName
+     * @param name
+     */
+    void cleanup(String fileName, String name) {
+        // clean up any zip entries
+        List<String> list = openZipFileEntries.get(fileName);
+        if (null == list) {
+            logger.warning("no file to clean up for " + fileName + " ("
+                    + name + ")");
+            logger.info("DEBUG: listing files");
+            Iterator<String> iter = openZipFileEntries.keySet()
+                    .iterator();
+            while (iter.hasNext()) {
+                logger.info("DEBUG: " + iter.next());
+            }
+            return;
+        }
+        synchronized (list) {
+            if (!list.contains(name)) {
+                logger.warning("no entry to clean up for " + fileName
+                        + " (" + name + ")");
+                return;
+            }
+            logger.fine("removing entry " + name + " from " + fileName);
+            list.remove(name);
+            logger.fine("list for " + fileName + ": " + list.size()
+                    + " entries");
+            if (0 == list.size()) {
+                logger.info("cleaning up " + fileName);
+                ZipFile zipFile = openZipFiles.get(fileName);
+                try {
+                    zipFile.close();
+                } catch (IOException e) {
+                    logger.logException(name, e);
+                }
+                openZipFileEntries.remove(fileName);
+                openZipFiles.remove(fileName);
+            }
+        }
+    }
+
+    /**
      * @return
      */
     public long getEventCount() {
         return timer.getEventCount();
-    }
-
-    /**
-     * @param zipFile
-     */
-    public void add(ZipFile zipFile) {
-        if (openZipFiles == null) {
-            openZipFiles = new ArrayList<ZipFile>();
-        }
-        openZipFiles.add(zipFile);
-    }
-
-    /**
-     * @param _is
-     */
-    public void add(InputStream _is) {
-        if (openInputStreams == null) {
-            openInputStreams = new ArrayList<InputStream>();
-        }
-        openInputStreams.add(_is);
     }
 
     /**
@@ -294,6 +280,18 @@ public class Monitor extends Thread {
 
     public void setPool(ThreadPoolExecutor pool) {
         this.pool = pool;
+    }
+
+    /**
+     * @param zipFileName
+     * @param entryNameList
+     */
+    public void add(ZipFile zipFile, String zipFileName,
+            List<String> entryNameList) {
+        // queue for later cleanup
+        openZipFiles.put(zipFileName, zipFile);
+        openZipFileEntries.put(zipFileName, Collections
+                .synchronizedList(new ArrayList<String>(entryNameList)));
     }
 
 }

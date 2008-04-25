@@ -18,6 +18,7 @@
  */
 package com.marklogic.recordloader;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.MalformedInputException;
 
@@ -172,6 +173,13 @@ public class Loader extends AbstractLoader {
                     if (config.isUseFilenameIds()) {
                         c = false;
                     }
+
+                    if (e instanceof EOFException) {
+                        // there was an error at the end of the file,
+                        // so exit the loop
+                        c = false;
+                    }
+
                     continue;
                 }
 
