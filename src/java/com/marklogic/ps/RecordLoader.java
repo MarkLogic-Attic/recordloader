@@ -65,7 +65,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-04-23.1";
+    public static final String VERSION = "2008-05-09.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -536,8 +536,14 @@ public class RecordLoader {
             }
             logger.fine("queued " + count + " entries from zip file "
                     + canonicalPath);
-            // tell the monitor to clean up after the open zip entries
-            monitor.add(zipFile, zipFileName, entryNameList);
+            if (0 < entryNameList.size()) {
+                // tell the monitor to clean up after the open zip entries
+                monitor.add(zipFile, zipFileName, entryNameList);
+            } else {
+                // nothing from this one
+                logger.info("no entries queued from " + zipFileName);
+                zipFile.close();
+            }
             // now queue the entries
             // I don't like doing this twice,
             // but Monitor needs to know about all the entries

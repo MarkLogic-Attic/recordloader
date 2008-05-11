@@ -201,6 +201,7 @@ public abstract class AbstractLoader implements LoaderInterface {
      */
     protected void cleanup() {
         // clean up
+        logger.fine("content = " + content);
         if (null != content) {
             content.close();
         }
@@ -209,7 +210,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     }
 
     private boolean checkStartId(String id) {
-        if (startId == null) {
+        if (null == startId) {
             return false;
         }
 
@@ -240,13 +241,14 @@ public abstract class AbstractLoader implements LoaderInterface {
     }
 
     protected String composeUri(String id) throws IOException {
+        logger.finest(id);
         if (id == null) {
             throw new IOException("id may not be null");
         }
 
         String cleanId = id.trim();
         String inputStripPrefix = config.getInputStripPrefix();
-        if (inputStripPrefix != null && inputStripPrefix.length() > 0) {
+        if (null != inputStripPrefix && inputStripPrefix.length() > 0) {
             cleanId = cleanId.replaceFirst(inputStripPrefix, "");
         }
 
@@ -266,7 +268,10 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
         baseName.append(cleanId);
         baseName.append(config.getUriSuffix());
-        return baseName.toString();
+        
+        String finalName = baseName.toString();
+        logger.finest(finalName);
+        return finalName;
     }
 
     /**

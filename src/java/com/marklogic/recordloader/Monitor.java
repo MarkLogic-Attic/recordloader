@@ -219,7 +219,7 @@ public class Monitor extends Thread {
         }
         synchronized (list) {
             if (!list.contains(name)) {
-                logger.warning("no entry to clean up for " + fileName
+                logger.fine("no entry to clean up for " + fileName
                         + " (" + name + ")");
                 return;
             }
