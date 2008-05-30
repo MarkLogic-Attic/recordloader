@@ -92,12 +92,61 @@ which creates objects in the class
 When XccModuleContentFactory is used, new documents must fit in memory,
 and will be posted to the XQuery main module designated by the
 <code>CONTENT_MODULE_URI</code> property,
-setting four external <code>xs:string</code> variables:
-<code>$URI</code>, <code>$XML-STRING</code>,
-<code>$ROLES</code>, and <code>$COLLECTIONS</code>.
-The last two variables are set as comma-separated values,
-based on <code>READ_ROLES</code>
-and <code>OUTPUT_COLLECTIONS</code>.
+setting several external <code>xs:string</code> variables:
+<ul>
+<li><code>$URI</code></li>
+<li><code>$XML-STRING</code></li>
+<li><code>$LANGUAGE</code>&nbsp;
+  (using <code>LANGUAGE</code>)
+</li>
+<li><code>$ROLES</code>&nbsp;
+  (comma-separated values, using <code>READ_ROLES</code>)
+</li>
+<li><code>$COLLECTIONS</code>&nbsp;
+  (comma-separated values, using <code>OUTPUT_COLLECTIONS</code>)
+</li>
+</ul>
+
+<p>
+  The following XQuery implements an example ContentModule,
+  which implements a simple transform to lower-case all element names.
+</p>
+
+<pre>
+define variable $URI as xs:string external
+define variable $XML-STRING as xs:string external
+define variable $NAMESPACE as xs:string external
+define variable $LANGUAGE as xs:string external
+define variable $ROLES as xs:string external
+define variable $COLLECTIONS as xs:string external
+
+define function do($list as node()*)
+ as node()*
+{
+  for $n in $list return typeswitch($n)
+  (: lower-case element localnames :)
+  case element() return element {
+    expanded-QName(namespace-uri($n), lower-case(local-name($n)))
+  } {
+    $n/@*, do($n/node())
+  }
+  case document-node() return document { do($n/node()) }
+  default return $n
+}
+
+xdmp:document-insert(
+  $URI,
+  do(xdmp:unquote(
+    $XML-STRING,
+    $NAMESPACE,
+    if ($LANGUAGE) then concat('default-language=', $LANGUAGE) else ()
+  )),
+  for $r in tokenize($ROLES, '[,\s]+')[. ne '']
+  return xdmp:permission('read', $r),
+  tokenize($COLLECTIONS, '[,\s]+')[. ne '']
+)
+</pre>
+
 </td>
 </tr>
 
@@ -213,6 +262,20 @@ The default value matches all filenames ending with <code>.xml</code></td>
   <code>C:\foo\bar\baz.xml</code> on the filesystem becomes
   <code>/foo/bar/baz.xml</code> in the database.
 </td>
+</tr>
+
+<tr>
+  <td>LANGUAGE</td><td>null</td>
+  <td>
+    If set, the value will be passed
+    to XCC <code>ContentCreateOptions.setLanguage()</code>,
+    or to the <code>CONTENT_MODULE</code>
+    external variable <code>$LANGUAGE</code>.
+    Accepted values are documented
+    in <a href="http://www.w3.org/TR/2006/REC-xml-20060816/#sec-lang-tag">XML 1.0</a>
+    and <a href="http://www.ietf.org/rfc/rfc3066.txt">RFC 3066</a>.
+    <p>If null, the default database language will be used.</p>
+  </td>
 </tr>
 
 <tr>

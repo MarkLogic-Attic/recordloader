@@ -123,7 +123,8 @@ public class Configuration {
     /**
      * 
      */
-    public static final String DEFAULT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
+    public static final String OUTPUT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
+    public static final String OUTPUT_NAMESPACE_DEFAULT = "";
 
     /**
      * 

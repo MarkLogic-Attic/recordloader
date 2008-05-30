@@ -33,6 +33,7 @@ public class XccContentFactory extends XccAbstractContentFactory
         options.setRepairLevel(configuration.getRepairLevel());
         options.setPlaceKeys(configuration.getPlaceKeys());
         options.setFormat(configuration.getFormat());
+        options.setLanguage(configuration.getLanguage());
     }
 
     /*

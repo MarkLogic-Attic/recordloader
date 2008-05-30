@@ -37,19 +37,28 @@ public class XccModuleContent extends XccAbstractContent implements
 
     String[] collections;
 
+    private String language;
+
+    private String namespace;
+
     /**
      * @param _session
      * @param _uri
      * @param _moduleUri
      * @param _collections
+     * @param _language
+     * @param _namespace
      */
     public XccModuleContent(Session _session, String _uri,
-            String _moduleUri, String[] _roles, String[] _collections) {
+            String _moduleUri, String[] _roles, String[] _collections,
+            String _language, String _namespace) {
         session = _session;
         uri = _uri;
         request = session.newModuleInvoke(_moduleUri);
         roles = _roles;
         collections = _collections;
+        language = _language;
+        namespace = _namespace;
     }
 
     /*
@@ -71,6 +80,9 @@ public class XccModuleContent extends XccAbstractContent implements
             // always four variables: URI, XML-STRING, ROLES, COLLECTIONS
             request.setNewStringVariable("URI", uri);
             request.setNewStringVariable("XML-STRING", xml);
+            request.setNewStringVariable("NAMESPACE", namespace);
+            request.setNewStringVariable("LANGUAGE",
+                    (null == language) ? "" : language);
             request.setNewStringVariable("ROLES", joinCsv(roles));
             request.setNewStringVariable("COLLECTIONS",
                     joinCsv(collections));

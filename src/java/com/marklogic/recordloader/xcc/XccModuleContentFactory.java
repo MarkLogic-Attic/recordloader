@@ -21,6 +21,10 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
 
     String[] collectionsArray;
 
+    private String language;
+
+    private String namespace;
+
     /*
      * (non-Javadoc)
      * 
@@ -42,6 +46,8 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
         moduleUri = configuration.getContentModuleUri();
         readRoles = configuration.getReadRoles();
         collectionsArray = configuration.getBaseCollections();
+        language = configuration.getLanguage();
+        namespace = configuration.getOutputNamespace();
     }
 
     /*
@@ -54,7 +60,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     public ContentInterface newContent(String _uri)
             throws LoaderException {
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
-                readRoles, collectionsArray);
+                readRoles, collectionsArray, language, namespace);
     }
 
     /*

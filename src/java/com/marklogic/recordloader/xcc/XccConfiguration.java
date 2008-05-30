@@ -37,6 +37,8 @@ public class XccConfiguration extends Configuration {
      */
     public static final String CONTENT_MODULE_KEY = "CONTENT_MODULE_URI";
 
+    public static final String LANGUAGE_KEY = "LANGUAGE";
+
     BigInteger[] placeKeys;
 
     Object placeKeysMutex = new Object();
@@ -51,7 +53,8 @@ public class XccConfiguration extends Configuration {
      * @return
      */
     public String getOutputNamespace() {
-        return properties.getProperty(DEFAULT_NAMESPACE_KEY);
+        return properties.getProperty(OUTPUT_NAMESPACE_KEY,
+                OUTPUT_NAMESPACE_DEFAULT);
     }
 
     /**
@@ -159,6 +162,13 @@ public class XccConfiguration extends Configuration {
      */
     public String getContentModuleUri() {
         return properties.getProperty(CONTENT_MODULE_KEY);
+    }
+
+    /**
+     * @return
+     */
+    public String getLanguage() {
+        return properties.getProperty(LANGUAGE_KEY);
     }
 
 }
