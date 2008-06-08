@@ -65,7 +65,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-05-30.1";
+    public static final String VERSION = "2008-06-07.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -197,7 +197,7 @@ public class RecordLoader {
                 // this will override existing properties
                 logger.info("processing: " + arg);
                 config.load(new FileInputStream(file));
-            } else if (arg.endsWith(".zip")) {
+            } else if (arg.endsWith(Configuration.ZIP_SUFFIX)) {
                 zipFiles.add(file);
             } else if (arg.endsWith(".gz")) {
                 gzFiles.add(file);

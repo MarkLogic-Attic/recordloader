@@ -206,7 +206,7 @@ public class Monitor extends Thread {
     void cleanup(String fileName, String name) {
         // clean up any zip entries
         List<String> list = openZipFileEntries.get(fileName);
-        if (null == list) {
+        if (null == list && fileName.endsWith(Configuration.ZIP_SUFFIX)) {
             logger.warning("no file to clean up for " + fileName + " ("
                     + name + ")");
             logger.info("DEBUG: listing files");

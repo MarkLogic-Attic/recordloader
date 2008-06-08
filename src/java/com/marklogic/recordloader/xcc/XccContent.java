@@ -9,6 +9,7 @@ import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
+import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.XccException;
 
@@ -47,6 +48,8 @@ public class XccContent extends XccAbstractContent implements
         try {
             session.insertContent(content);
         } catch (XccException e) {
+            System.err.println("DEBUG: format=" + options.getFormat()
+                    + " " + DocumentFormat.BINARY.toString());
             throw new LoaderException(e);
         }
     }

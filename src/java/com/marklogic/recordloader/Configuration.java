@@ -124,6 +124,7 @@ public class Configuration {
      * 
      */
     public static final String OUTPUT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
+
     public static final String OUTPUT_NAMESPACE_DEFAULT = "";
 
     /**
@@ -359,6 +360,11 @@ public class Configuration {
     private boolean useDocumentRoot = false;
 
     /**
+     * 
+     */
+    public static final String ZIP_SUFFIX = ".zip";
+
+    /**
      * @param _props
      */
     public void load(Properties _props) {
@@ -484,18 +490,19 @@ public class Configuration {
 
         String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY,
                 DOCUMENT_FORMAT_DEFAULT).toLowerCase();
-        if (formatString.equals(DocumentFormat.TEXT.toString())) {
+        if (DocumentFormat.TEXT.toString().startsWith(formatString)) {
             format = DocumentFormat.TEXT;
-        } else if (formatString.equals(DocumentFormat.BINARY.toString())) {
+        } else if (DocumentFormat.BINARY.toString().startsWith(
+                formatString)) {
             format = DocumentFormat.BINARY;
-        } else if (formatString.equals(DocumentFormat.XML.toString())) {
+        } else if (DocumentFormat.XML.toString().startsWith(formatString)) {
             format = DocumentFormat.XML;
         } else {
             logger.warning("Unexpected: " + DOCUMENT_FORMAT_KEY + "="
                     + formatString + " (using xml)");
             format = DocumentFormat.XML;
         }
-        if (!format.equals(DocumentFormat.XML)) {
+        if (!formatString.startsWith(DocumentFormat.XML.toString())) {
             logger.info("Using " + DOCUMENT_FORMAT_KEY + "="
                     + formatString);
         }
