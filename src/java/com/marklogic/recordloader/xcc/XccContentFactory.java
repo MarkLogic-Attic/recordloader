@@ -16,7 +16,7 @@ import com.marklogic.xcc.exceptions.XccException;
 public class XccContentFactory extends XccAbstractContentFactory
         implements ContentFactory {
 
-    ContentCreateOptions options = null;
+    protected ContentCreateOptions options = null;
 
     protected void initOptions() throws XccException {
         // only initialize docOpts once

@@ -91,8 +91,9 @@ which creates objects in the class
 <code>com.marklogic.recordloader.xcc.XccModuleContent</code>.
 When XccModuleContentFactory is used, new documents must fit in memory,
 and will be posted to the XQuery main module designated by the
-<code>CONTENT_MODULE_URI</code> property,
-setting several external <code>xs:string</code> variables:
+<code>CONTENT_MODULE_URI</code> property.
+When RecordLoader invokes this module,
+it will set several external <code>xs:string</code> variables:
 <ul>
 <li><code>$URI</code></li>
 <li><code>$XML-STRING</code></li>
@@ -149,7 +150,8 @@ xdmp:document-insert(
   tokenize($COLLECTIONS, '[,\s]+')[. ne '']
 )
 </pre>
-
+<p><b>NOTE</b>: Due to an implementation limit, <code>$XML-STRING</code>
+may not exceed 65-kB.</p>
 </td>
 </tr>
 
@@ -370,6 +372,15 @@ If the prefix does not end in '/', RecordLoader will add a '/' to it.
 
 <tr><td>URI_SUFFIX</td><td>null</td>
 <td>Suffix used after the ID_NAME value, to compose all document uris.</td>
+</tr>
+
+<tr><td>USE_FILENAME_COLLECTION</td><td>true</td>
+<td>If <code>ID_NAME</code> is not <code>#FILENAME</code>,
+  and this property is true,
+  RecordLoader will add an extra collection to each record,
+  built from the filename of the current input file.
+  This can be useful when splitting superfiles.
+</td>
 </tr>
 
 <tr><td>XML_REPAIR_LEVEL</td><td>NONE</td>

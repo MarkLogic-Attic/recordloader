@@ -287,7 +287,7 @@ public class Configuration {
 
     public static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
 
-    public static final String USE_FILENAME_COLLECTION_DEFAULT = "false";
+    public static final String USE_FILENAME_COLLECTION_DEFAULT = "true";
 
     public static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
 
@@ -862,14 +862,17 @@ public class Configuration {
      * @return
      */
     public boolean isUseFilenameCollection() {
-        // If we aren't using filename ids, and the user hasn't said,
-        // we will set a collection for each input file's basename.
+        // When using filename ids, never add filename collections.
+        // Otherwise, honor the property.
+        // If true, we will add a collection for each input file's basename.
         // This is useful for record-set files, aka superfiles, but not for
         // record-files.
-        return (!isUseFilenameIds())
-                || Utilities.stringToBoolean(properties.getProperty(
-                        USE_FILENAME_COLLECTION_KEY,
-                        USE_FILENAME_COLLECTION_DEFAULT));
+        if (isUseFilenameIds()) {
+            return false;
+        }
+        return Utilities.stringToBoolean(properties.getProperty(
+                USE_FILENAME_COLLECTION_KEY,
+                USE_FILENAME_COLLECTION_DEFAULT));
     }
 
     /**

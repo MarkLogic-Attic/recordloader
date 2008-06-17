@@ -25,11 +25,11 @@ import com.marklogic.xcc.exceptions.XccException;
  */
 public abstract class XccAbstractContentFactory implements ContentFactory {
 
-    XccConfiguration configuration;
+    protected XccConfiguration configuration;
 
-    ContentSource cs;
+    protected ContentSource cs;
 
-    List<String> collections;
+    protected List<String> collections;
 
     /*
      * (non-Javadoc)
@@ -79,9 +79,11 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
     }
 
     /**
+     * @throws LoaderException
      * 
      */
-    protected abstract void initOptions() throws XccException;
+    protected abstract void initOptions() throws XccException,
+            LoaderException;
 
     /**
      * @param _uri
@@ -110,8 +112,8 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
             throw new LoaderException(e);
         }
 
-        collections = new ArrayList<String>(Arrays
-                .asList(configuration.getBaseCollections()));
+        collections = new ArrayList<String>(Arrays.asList(configuration
+                .getBaseCollections()));
         collections.add(_name);
     }
 

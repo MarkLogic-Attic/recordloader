@@ -11,6 +11,7 @@ import java.io.Writer;
 
 import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.ContentInterface;
+import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Request;
@@ -29,17 +30,17 @@ import com.marklogic.xcc.exceptions.RequestException;
 public class XccModuleContent extends XccAbstractContent implements
         ContentInterface {
 
-    String xml = null;
+    protected String xml = null;
 
-    Request request = null;
+    protected Request request = null;
 
-    String[] roles;
+    protected String[] roles;
 
-    String[] collections;
+    protected String[] collections;
 
-    private String language;
+    protected String language;
 
-    private String namespace;
+    protected String namespace;
 
     /**
      * @param _session
@@ -54,6 +55,9 @@ public class XccModuleContent extends XccAbstractContent implements
             String _language, String _namespace) {
         session = _session;
         uri = _uri;
+        if (null == _moduleUri) {
+            throw new FatalException("module URI cannot be null");
+        }
         request = session.newModuleInvoke(_moduleUri);
         roles = _roles;
         collections = _collections;

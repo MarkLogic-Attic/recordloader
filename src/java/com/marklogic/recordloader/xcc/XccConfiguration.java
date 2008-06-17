@@ -77,7 +77,7 @@ public class XccConfiguration extends Configuration {
     /**
      * @return
      */
-    String[] getReadRoles() {
+    public String[] getReadRoles() {
         String readRolesString = properties
                 .getProperty(OUTPUT_READ_ROLES_KEY);
         if (null == readRolesString || readRolesString.length() < 1) {

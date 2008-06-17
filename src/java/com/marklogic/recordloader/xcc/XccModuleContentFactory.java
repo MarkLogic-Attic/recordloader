@@ -15,15 +15,15 @@ import com.marklogic.xcc.exceptions.XccException;
 public class XccModuleContentFactory extends XccAbstractContentFactory
         implements ContentFactory {
 
-    String moduleUri;
+    protected String moduleUri;
 
-    String[] readRoles;
+    protected String[] readRoles;
 
-    String[] collectionsArray;
+    protected String[] collectionsArray;
 
-    private String language;
+    protected String language;
 
-    private String namespace;
+    protected String namespace;
 
     /*
      * (non-Javadoc)
@@ -42,8 +42,12 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
      */
     @SuppressWarnings("unused")
     @Override
-    protected void initOptions() throws XccException {
+    protected void initOptions() throws XccException, LoaderException {
         moduleUri = configuration.getContentModuleUri();
+        if (null == moduleUri) {
+            throw new LoaderException("missing required property "
+                    + XccConfiguration.CONTENT_MODULE_KEY);
+        }
         readRoles = configuration.getReadRoles();
         collectionsArray = configuration.getBaseCollections();
         language = configuration.getLanguage();
