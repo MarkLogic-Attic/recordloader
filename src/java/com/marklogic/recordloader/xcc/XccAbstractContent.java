@@ -3,9 +3,10 @@
  */
 package com.marklogic.recordloader.xcc;
 
+import java.io.InputStream;
+
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
-import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.ResultItem;
 import com.marklogic.xcc.ResultSequence;
@@ -47,7 +48,7 @@ public abstract class XccAbstractContent implements ContentInterface {
      * 
      * @see com.marklogic.recordloader.ContentInterface#setProducer(com.marklogic.recordloader.Producer)
      */
-    public abstract void setProducer(Producer _producer)
+    public abstract void setInputStream(InputStream _producer)
             throws LoaderException;
 
     /*
@@ -55,7 +56,7 @@ public abstract class XccAbstractContent implements ContentInterface {
      * 
      * @see com.marklogic.recordloader.ContentInterface#setXml(java.lang.String)
      */
-    public abstract void setXml(String _xml) throws LoaderException;
+    public abstract void setBytes(byte[] _xml) throws LoaderException;
 
     /*
      * (non-Javadoc)

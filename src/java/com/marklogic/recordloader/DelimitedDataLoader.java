@@ -5,6 +5,7 @@ package com.marklogic.recordloader;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
@@ -36,7 +37,8 @@ public class DelimitedDataLoader extends AbstractLoader {
         String fieldDelimiter = config.getFieldDelimiter();
         boolean downcaseLabels = config.isDowncaseLabels();
 
-        BufferedReader br = new BufferedReader(input);
+        BufferedReader br = new BufferedReader(new InputStreamReader(
+                input, decoder));
         StringBuffer xml = null;
         String line;
         String id;
@@ -100,7 +102,7 @@ public class DelimitedDataLoader extends AbstractLoader {
 
                 if (!skippingRecord) {
                     // write the xml
-                    content.setXml(xml.toString());
+                    content.setBytes(xml.toString().getBytes());
                     insert();
                 }
                 event.stop();

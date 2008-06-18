@@ -18,11 +18,10 @@
  */
 package com.marklogic.recordloader;
 
-import java.io.BufferedReader;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.CharsetDecoder;
@@ -39,8 +38,6 @@ public class LoaderFactory {
 
     private Monitor monitor;
 
-    private CharsetDecoder decoder;
-
     private Configuration config;
 
     private long count = 0;
@@ -49,20 +46,22 @@ public class LoaderFactory {
 
     private Constructor<? extends LoaderInterface> loaderConstructor;
 
+    private CharsetDecoder decoder;
+
     /**
      * @param _monitor
-     * @param _decoder
+     * @param _inputDecoder 
      * @param _config
      * @throws NoSuchMethodException
      * @throws SecurityException
      * @throws ClassNotFoundException
      */
-    public LoaderFactory(Monitor _monitor, CharsetDecoder _decoder,
-            Configuration _config) throws SecurityException,
+    public LoaderFactory(Monitor _monitor,
+            CharsetDecoder _inputDecoder, Configuration _config) throws SecurityException,
             NoSuchMethodException, ClassNotFoundException {
         monitor = _monitor;
-        decoder = _decoder;
         config = _config;
+        decoder = _inputDecoder;
 
         logger = config.getLogger();
 
@@ -107,17 +106,16 @@ public class LoaderFactory {
     }
 
     /**
-     * @param stream
+     * @param _stream
      * @param _name
      * @return
      * @throws LoaderException
      */
-    public LoaderInterface newLoader(InputStream stream, String _name,
+    public LoaderInterface newLoader(InputStream _stream, String _name,
             String _path) throws LoaderException {
         LoaderInterface loader = getLoader();
-        BufferedReader br = new BufferedReader(new InputStreamReader(
-                stream, decoder));
-        loader.setInput(br);
+        BufferedInputStream br = new BufferedInputStream(_stream);
+        loader.setInput(br, decoder);
         setup(loader, _name, _path);
         return loader;
     }
@@ -133,7 +131,7 @@ public class LoaderFactory {
         // some duplicate code: we want to defer opening the file,
         // to limit the number of open file descriptors
         LoaderInterface loader = getLoader();
-        loader.setInput(_file);
+        loader.setInput(_file, decoder);
         setup(loader, _file.getName(), _file.getPath());
         return loader;
     }

@@ -18,10 +18,12 @@
  */
 package com.marklogic.ps;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.nio.charset.CharsetDecoder;
 import java.util.List;
 
 /**
@@ -123,14 +125,37 @@ public class Utilities {
     }
 
     /**
-     * @param producer
+     * @param _is
+     * @param _decoder
      * @return
      * @throws IOException
      */
-    public static String read(InputStream producer) throws IOException {
+    public static String read(InputStream _is, CharsetDecoder _decoder)
+            throws IOException {
         StringBuffer sb = new StringBuffer();
-        read(new InputStreamReader(producer), sb);
+        read(new InputStreamReader(_is, _decoder), sb);
         return sb.toString();
+    }
+
+    /**
+     * @param _is
+     * @param _decoder
+     * @return
+     * @throws IOException
+     */
+    public static byte[] read(InputStream _is) throws IOException {
+        if (null == _is) {
+            throw new IOException("null InputStream");
+        }
+        ByteArrayOutputStream os = new ByteArrayOutputStream(_is
+                .available());
+        byte[] buf = new byte[32 * 1024];
+        int len = 0;
+        while ((len = _is.read(buf)) != -1) {
+            os.write(buf, 0, len);
+        }
+        os.flush();
+        return os.toByteArray();
     }
 
     /**

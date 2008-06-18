@@ -3,6 +3,8 @@
  */
 package com.marklogic.recordloader;
 
+import java.io.InputStream;
+
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -36,10 +38,10 @@ public interface ContentInterface {
     /**
      * For monolithic document inserts, provide the XML content as a string
      * 
-     * @param _xml
+     * @param _bytes
      * @throws LoaderException 
      */
-    public void setXml(String _xml) throws LoaderException;
+    public void setBytes(byte[] _bytes) throws LoaderException;
 
     /**
      * Perform any necessary cleanup work
@@ -47,9 +49,9 @@ public interface ContentInterface {
     public void close();
 
     /**
-     * @param _producer
+     * @param _is
      * @throws LoaderException 
      */
-    public void setProducer(Producer _producer) throws LoaderException;
+    public void setInputStream(InputStream _is) throws LoaderException;
 
 }

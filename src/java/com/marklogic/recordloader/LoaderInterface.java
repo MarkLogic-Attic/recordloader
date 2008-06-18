@@ -4,8 +4,9 @@
 package com.marklogic.recordloader;
 
 import java.io.File;
-import java.io.Reader;
+import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.CharsetDecoder;
 import java.util.concurrent.Callable;
 
 /**
@@ -29,7 +30,7 @@ public interface LoaderInterface extends Callable<Object> {
      * Do not call this method directly: it will be called by call()
      */
     abstract void process() throws LoaderException;
-    
+
     /**
      * @param _config
      * @throws LoaderException
@@ -45,15 +46,17 @@ public interface LoaderInterface extends Callable<Object> {
             throws LoaderException;
 
     /**
-     * @param _reader
+     * @param _is
      * @throws LoaderException
      */
-    public abstract void setInput(Reader _reader) throws LoaderException;
+    public abstract void setInput(InputStream _is, CharsetDecoder _decoder)
+            throws LoaderException;
 
     /**
      * @param _file
      */
-    public abstract void setInput(File _file) throws LoaderException;
+    public abstract void setInput(File _file, CharsetDecoder _decoder)
+            throws LoaderException;
 
     /**
      * @param _path

@@ -4,11 +4,12 @@
 package com.marklogic.recordloader;
 
 import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.CharsetDecoder;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
@@ -30,7 +31,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     protected File inputFile;
 
-    protected Reader input;
+    protected InputStream input;
 
     protected String currentRecordPath;
 
@@ -46,9 +47,11 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     protected String inputFilePath;
 
-    private String entryPath;
+    protected String entryPath;
 
     protected String fileBasename;
+
+    protected CharsetDecoder decoder;
 
     /*
      * (non-Javadoc)
@@ -57,10 +60,10 @@ public abstract class AbstractLoader implements LoaderInterface {
      */
     public Object call() throws Exception {
         try {
-            if (inputFile != null) {
+            if (null != inputFile) {
                 // time to instantiate the reader
                 logger.fine("processing " + inputFilePath);
-                setInput(new FileReader(inputFile));
+                setInput(new FileInputStream(inputFile), decoder);
             }
             event = new TimedEvent();
             process();
@@ -109,7 +112,14 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.File)
      */
     @SuppressWarnings("unused")
-    public void setInput(File _file) throws LoaderException {
+    public void setInput(File _file, CharsetDecoder _decoder)
+            throws LoaderException {
+        if (null == _file) {
+            throw new NullPointerException("null input file");
+        }
+        if (null == _decoder) {
+            throw new NullPointerException("null charset decoder");
+        }
         // defer opening it until call()
         inputFile = _file;
         try {
@@ -117,19 +127,25 @@ public abstract class AbstractLoader implements LoaderInterface {
         } catch (IOException e) {
             throw new LoaderException(e);
         }
+        decoder = _decoder;
     }
 
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.Reader)
+     * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.InputStream)
      */
     @SuppressWarnings("unused")
-    public void setInput(Reader _reader) throws LoaderException {
-        if (null == _reader) {
-            throw new NullPointerException("null reader");
+    public void setInput(InputStream _is, CharsetDecoder _decoder)
+            throws LoaderException {
+        if (null == _is) {
+            throw new NullPointerException("null input stream");
         }
-        input = _reader;
+        if (null == _decoder) {
+            throw new NullPointerException("null charset decoder");
+        }
+        input = _is;
+        decoder = _decoder;
     }
 
     /*
@@ -268,7 +284,7 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
         baseName.append(cleanId);
         baseName.append(config.getUriSuffix());
-        
+
         String finalName = baseName.toString();
         logger.finest(finalName);
         return finalName;

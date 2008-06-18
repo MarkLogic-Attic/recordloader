@@ -3,9 +3,10 @@
  */
 package com.marklogic.recordloader.xcc;
 
+import java.io.InputStream;
+
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
-import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
@@ -59,11 +60,11 @@ public class XccContent extends XccAbstractContent implements
      * 
      * @see com.marklogic.recordloader.ContentInterface#setXml(java.lang.String)
      */
-    public void setXml(String xml) throws LoaderException {
+    public void setBytes(byte[] bytes) throws LoaderException {
         if (null == uri) {
             throw new LoaderException("URI cannot be null");
         }
-        content = ContentFactory.newContent(uri, xml, options);
+        content = ContentFactory.newContent(uri, bytes, options);
     }
 
     /*
@@ -83,7 +84,7 @@ public class XccContent extends XccAbstractContent implements
      * 
      * @see com.marklogic.recordloader.ContentInterface#setInput(com.marklogic.recordloader.Producer)
      */
-    public void setProducer(Producer _producer) throws LoaderException {
+    public void setInputStream(InputStream _producer) throws LoaderException {
         if (null == uri) {
             throw new LoaderException("URI cannot be null");
         }

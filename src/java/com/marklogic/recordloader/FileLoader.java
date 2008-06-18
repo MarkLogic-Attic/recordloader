@@ -3,6 +3,8 @@
  */
 package com.marklogic.recordloader;
 
+import com.marklogic.ps.Utilities;
+
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
@@ -20,11 +22,11 @@ public class FileLoader extends AbstractLoader {
             throw new NullPointerException("caller must set input");
         }
 
-        StringBuffer sb = new StringBuffer();
-        try {
-            // handle input as a single document, without parsing
-            logger.fine("setting currentId = " + currentRecordPath);
+        // handle input as a single document, without parsing
+        logger.fine("setting currentId = " + currentRecordPath);
 
+        int size = 0;
+        try {
             // we need the content object, hence the URI, before we can check
             // its existence
             currentUri = composeUri(currentRecordPath);
@@ -32,21 +34,16 @@ public class FileLoader extends AbstractLoader {
             boolean skippingRecord = checkIdAndUri(currentRecordPath);
 
             // grab the entire document
-            // uses a reader, so charset translation should be ok
-            // TODO can we pass the reader directly to the Content?
-            int size;
-            char[] buf = new char[32 * 1024];
-            while ((size = input.read(buf)) > 0) {
-                sb.append(buf, 0, size);
-            }
-
-            if (0 == sb.length()) {
+            // do not pass the stream directly, so that XCC can retry
+            byte[] bytes = Utilities.read(input);
+            size = bytes.length;
+            if (null == bytes || 0 == size) {
                 throw new LoaderException("empty document: "
                         + currentRecordPath);
             }
 
             if (!skippingRecord) {
-                content.setXml(sb.toString());
+                content.setBytes(bytes);
                 insert();
             }
         } catch (Exception e) {
@@ -56,7 +53,7 @@ public class FileLoader extends AbstractLoader {
             event.stop(true);
             logger.logException(e);
         } finally {
-            updateMonitor(sb.length());
+            updateMonitor(size);
             cleanup();
         }
     }

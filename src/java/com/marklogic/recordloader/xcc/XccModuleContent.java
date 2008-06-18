@@ -4,6 +4,7 @@
 package com.marklogic.recordloader.xcc;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
@@ -13,7 +14,6 @@ import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
-import com.marklogic.recordloader.Producer;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
@@ -113,11 +113,12 @@ public class XccModuleContent extends XccAbstractContent implements
      * 
      * @see com.marklogic.recordloader.ContentInterface#setProducer(com.marklogic.recordloader.Producer)
      */
-    public void setProducer(Producer _producer) throws LoaderException {
+    public void setInputStream(InputStream _producer) throws LoaderException {
         if (null == uri) {
             throw new LoaderException("URI cannot be null");
         }
 
+        // by now, the producer is in the configured output encoding
         Reader reader = new InputStreamReader(_producer);
         Writer writer = new StringWriter();
         char[] buf = new char[32 * 1024];
@@ -142,8 +143,10 @@ public class XccModuleContent extends XccAbstractContent implements
      * @see com.marklogic.recordloader.ContentInterface#setXml(java.lang.String)
      */
     @SuppressWarnings("unused")
-    public void setXml(String _xml) throws LoaderException {
-        xml = _xml;
+    public void setBytes(byte[] _xml) throws LoaderException {
+        // ModuleContent only works with strings
+        // TODO support text? binary?
+        xml = new String(_xml);
     }
 
 }

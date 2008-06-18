@@ -20,6 +20,7 @@ package com.marklogic.recordloader;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.MalformedInputException;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -66,7 +67,7 @@ public class Loader extends AbstractLoader {
 
         try {
             xpp = config.getXppFactory().newPullParser();
-            xpp.setInput(input);
+            xpp.setInput(new InputStreamReader(input, decoder));
             // TODO feature isn't supported by xpp3 - look at xpp5?
             // xpp.setFeature(XmlPullParser.FEATURE_DETECT_ENCODING, true);
             // TODO feature isn't supported by xpp3 - look at xpp5?
@@ -261,7 +262,7 @@ public class Loader extends AbstractLoader {
             currentUri = composeUri(id);
             content = contentFactory.newContent(currentUri);
             producer.setSkippingRecord(checkIdAndUri(id));
-            content.setProducer(producer);
+            content.setInputStream(producer);
 
             if (!producer.isSkippingRecord()) {
                 insert();
