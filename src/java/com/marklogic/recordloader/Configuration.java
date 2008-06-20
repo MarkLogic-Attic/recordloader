@@ -403,10 +403,9 @@ public class Configuration {
             useDocumentRoot = true;
             recordName = null;
         }
-        recordNamespace = properties.getProperty(RECORD_NAMESPACE_KEY,
-                RECORD_NAMESPACE_DEFAULT);
         if (null != recordName) {
-            recordNamespace = RECORD_NAMESPACE_DEFAULT;
+            recordNamespace = properties.getProperty(
+                    RECORD_NAMESPACE_KEY, RECORD_NAMESPACE_DEFAULT);
         }
         logger.config("record name = " + recordName + ", namespace = "
                 + recordNamespace);
