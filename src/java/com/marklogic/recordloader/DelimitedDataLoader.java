@@ -22,6 +22,18 @@ public class DelimitedDataLoader extends AbstractLoader {
 
     private String idName;
 
+    private String fieldDelimiter;
+
+    private int lineNumber;
+
+    private boolean isFatalErrors;
+
+    private String fields[];
+
+    private String[] labels;
+
+    private int labelIndex;
+
     /*
      * (non-Javadoc)
      * 
@@ -29,25 +41,29 @@ public class DelimitedDataLoader extends AbstractLoader {
      */
     @SuppressWarnings("unused")
     public void process() throws LoaderException {
-        if (null == input) {
-            throw new NullPointerException("caller must set input");
-        }
+        super.process();
 
+        if (!(super.config instanceof DelimitedDataConfiguration)) {
+            throw new FatalException(
+                    Configuration.CONFIGURATION_CLASSNAME_KEY
+                            + " must be set to "
+                            + DelimitedDataConfiguration.class.getName());
+        }
         config = (DelimitedDataConfiguration) super.config;
-        String fieldDelimiter = config.getFieldDelimiter();
+        fieldDelimiter = config.getFieldDelimiter();
+        idName = config.getIdNodeName();
+        recordName = config.getRecordName();
+        isFatalErrors = config.isFatalErrors();
+
         boolean downcaseLabels = config.isDowncaseLabels();
 
         BufferedReader br = new BufferedReader(new InputStreamReader(
                 input, decoder));
-        StringBuffer xml = null;
         String line;
         String id;
 
-        int labelIndex = 0;
-        idName = config.getIdNodeName();
-        recordName = config.getRecordName();
-        startId = config.getStartId();
-        boolean isFatalErrors = config.isFatalErrors();
+        lineNumber = 0;
+        labelIndex = 0;
         if (downcaseLabels) {
             recordName = recordName.toLowerCase();
         }
@@ -55,7 +71,8 @@ public class DelimitedDataLoader extends AbstractLoader {
         try {
             // first line contains the labels
             line = br.readLine();
-            String[] labels = line.split(fieldDelimiter);
+            lineNumber++;
+            labels = line.split(fieldDelimiter);
             // match the configured idName with the input labels
             for (int i = 0; i < labels.length; i++) {
                 if (downcaseLabels) {
@@ -67,54 +84,28 @@ public class DelimitedDataLoader extends AbstractLoader {
                 }
             }
 
-            String fields[];
-            int lineNumber = 0;
             while (null != (line = br.readLine())) {
-                event = new TimedEvent();
-                lineNumber++;
-                // TODO this is too simplistic for CSV with quoted values
-                fields = line.split(fieldDelimiter);
-
-                // sanity check
-                if (fields.length != labels.length) {
-                    String msg = "document mismatch at "
-                            + currentRecordPath + ":" + lineNumber + ": "
-                            + line;
+                String xml = null;
+                // line-by-line, so we can move on after errors
+                try {
+                    xml = handleRecord(line);
+                    event.stop();
+                } catch (Exception e) {
                     if (isFatalErrors) {
-                        throw new LoaderException(msg);
+                        throw new FatalException(e);
                     }
-                    logger.warning(msg);
+                    event.stop(true);
+                    logger.logException(e);
+                } finally {
+                    updateMonitor((null != xml) ? xml.length() : 0);
+                    cleanupRecord();
                 }
-
-                id = fields[labelIndex];
-                currentUri = composeUri(id);
-                content = contentFactory.newContent(currentUri);
-                boolean skippingRecord = checkIdAndUri(currentRecordPath);
-
-                // build the xml
-                xml = new StringBuffer("<" + recordName + ">");
-                for (int i = 0; i < labels.length; i++) {
-                    xml.append("<" + labels[i] + ">"
-                            + Utilities.escapeXml(fields[i]) + "</"
-                            + labels[i] + ">");
-                }
-                xml.append("</" + recordName + ">");
-
-                if (!skippingRecord) {
-                    // write the xml
-                    content.setBytes(xml.toString().getBytes());
-                    insert();
-                }
-                event.stop();
-                updateMonitor(xml.length());
-                cleanup();
             }
         } catch (Exception e) {
             if (isFatalErrors) {
                 throw new FatalException(e);
             }
             event.stop(true);
-            updateMonitor(xml.length());
             logger.logException(e);
         } finally {
             try {
@@ -123,8 +114,65 @@ public class DelimitedDataLoader extends AbstractLoader {
                 // no point in doing anything...
                 logger.logException(e);
             }
-            cleanup();
+            cleanupInput();
         }
+    }
+
+    /**
+     * @param line
+     * @return
+     * @throws LoaderException
+     * @throws IOException
+     */
+    private String handleRecord(String line) throws LoaderException,
+            IOException {
+        String xml;
+        String id;
+        event = new TimedEvent();
+        lineNumber++;
+        // TODO this is too simplistic for CSV with quoted values
+        fields = line.split(fieldDelimiter);
+
+        // sanity check
+        if (fields.length != labels.length) {
+            String msg = "document mismatch at " + currentRecordPath
+                    + ":" + lineNumber + ": " + line;
+            if (isFatalErrors) {
+                throw new LoaderException(msg);
+            }
+            logger.warning(msg);
+        }
+
+        id = fields[labelIndex];
+        currentUri = composeUri(id);
+        content = contentFactory.newContent(currentUri);
+        boolean skippingRecord = checkIdAndUri(currentRecordPath);
+
+        xml = getXml(labels, fields);
+
+        if (!skippingRecord) {
+            // write the xml
+            content.setBytes(xml.toString().getBytes());
+            insert();
+        }
+        return xml;
+    }
+
+    /**
+     * @param labels
+     * @param fields
+     * @return
+     */
+    private String getXml(String[] labels, String[] fields) {
+        // build the xml
+        StringBuffer xml = new StringBuffer("<" + recordName + ">");
+        for (int i = 0; i < labels.length; i++) {
+            xml.append("<" + labels[i] + ">"
+                    + Utilities.escapeXml(fields[i]) + "</" + labels[i]
+                    + ">");
+        }
+        xml.append("</" + recordName + ">");
+        return xml.toString();
     }
 
 }

@@ -18,10 +18,8 @@ public class FileLoader extends AbstractLoader {
      */
     @SuppressWarnings("unused")
     public void process() throws LoaderException {
-        if (null == input) {
-            throw new NullPointerException("caller must set input");
-        }
-
+        super.process();
+        
         // handle input as a single document, without parsing
         logger.fine("setting currentId = " + currentRecordPath);
 
@@ -54,7 +52,7 @@ public class FileLoader extends AbstractLoader {
             logger.logException(e);
         } finally {
             updateMonitor(size);
-            cleanup();
+            cleanupInput();
         }
     }
 

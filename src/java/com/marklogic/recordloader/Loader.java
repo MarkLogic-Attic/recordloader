@@ -61,6 +61,7 @@ public class Loader extends AbstractLoader {
      * @see com.marklogic.recordloader.AbstractLoader#process()
      */
     public void process() throws LoaderException {
+        super.process();
 
         logger.fine("auto=" + config.isUseAutomaticIds());
         logger.fine("filename=" + config.isUseFilenameIds());
@@ -82,13 +83,13 @@ public class Loader extends AbstractLoader {
         producerFactory = new ProducerFactory(config, xpp);
 
         // cache certain info locally
-        startId = config.getStartId();
         recordName = config.getRecordName();
         recordNamespace = config.getRecordNamespace();
         useDocumentRoot = config.isUseDocumentRoot();
 
         try {
             processRecords();
+            cleanupInput();
         } catch (Exception e) {
             if (null != inputFile) {
                 logger.info("current file: \"" + inputFilePath + "\"");
@@ -201,7 +202,6 @@ public class Loader extends AbstractLoader {
                 throw new FatalException(e);
             }
             logger.logException("non-fatal", e);
-            cleanup();
         }
     }
 
@@ -269,7 +269,7 @@ public class Loader extends AbstractLoader {
             }
 
             updateMonitor(producer.getBytesRead());
-            cleanup();
+            cleanupRecord();
             return;
         }
 
@@ -294,8 +294,8 @@ public class Loader extends AbstractLoader {
     }
 
     @Override
-    protected void cleanup() {
-        super.cleanup();
+    protected void cleanupRecord() {
+        super.cleanupRecord();
         producer = null;
     }
 

@@ -103,8 +103,19 @@ public abstract class AbstractLoader implements LoaderInterface {
      * (non-Javadoc)
      * 
      * @see com.marklogic.recordloader.LoaderInterface#process()
+     * 
+     * subclasses should override this method to extend it
      */
-    public abstract void process() throws LoaderException;
+    @SuppressWarnings("unused")
+    public void process() throws LoaderException {
+        // safety check
+        if (null == input) {
+            throw new NullPointerException("caller must set input");
+        }
+        
+        // cache some info locally
+        startId = config.getStartId();
+    }
 
     /*
      * (non-Javadoc)
@@ -215,7 +226,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     /**
      * 
      */
-    protected void cleanup() {
+    protected void cleanupRecord() {
         // clean up
         logger.fine("content = " + content);
         if (null != content) {
@@ -223,6 +234,21 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
         content = null;
         currentUri = null;
+    }
+    
+    /**
+     * 
+     */
+    protected void cleanupInput() {
+        cleanupRecord();
+        if (null != input) {
+            try {
+                input.close();
+            } catch (IOException e) {
+                // nothing we can do about it
+                logger.logException(e);
+            }
+        }
     }
 
     private boolean checkStartId(String id) {
