@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -209,12 +208,6 @@ public class Monitor extends Thread {
         if (null == list && fileName.endsWith(Configuration.ZIP_SUFFIX)) {
             logger.warning("no file to clean up for " + fileName + " ("
                     + name + ")");
-            logger.info("DEBUG: listing files");
-            Iterator<String> iter = openZipFileEntries.keySet()
-                    .iterator();
-            while (iter.hasNext()) {
-                logger.info("DEBUG: " + iter.next());
-            }
             return;
         }
         synchronized (list) {

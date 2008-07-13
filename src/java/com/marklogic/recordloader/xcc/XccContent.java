@@ -10,7 +10,6 @@ import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
-import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.XccException;
 
@@ -49,8 +48,9 @@ public class XccContent extends XccAbstractContent implements
         try {
             session.insertContent(content);
         } catch (XccException e) {
-            System.err.println("DEBUG: format=" + options.getFormat()
-                    + " " + DocumentFormat.BINARY.toString());
+            // DEBUG
+            System.err.println("DEBUG: encoding = "
+                    + content.getCreateOptions().getEncoding());
             throw new LoaderException(e);
         }
     }
@@ -84,7 +84,8 @@ public class XccContent extends XccAbstractContent implements
      * 
      * @see com.marklogic.recordloader.ContentInterface#setInput(com.marklogic.recordloader.Producer)
      */
-    public void setInputStream(InputStream _producer) throws LoaderException {
+    public void setInputStream(InputStream _producer)
+            throws LoaderException {
         if (null == uri) {
             throw new LoaderException("URI cannot be null");
         }

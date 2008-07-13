@@ -34,6 +34,7 @@ public class XccContentFactory extends XccAbstractContentFactory
         options.setPlaceKeys(configuration.getPlaceKeys());
         options.setFormat(configuration.getFormat());
         options.setLanguage(configuration.getLanguage());
+        options.setEncoding(configuration.getInputEncoding());
     }
 
     /*
