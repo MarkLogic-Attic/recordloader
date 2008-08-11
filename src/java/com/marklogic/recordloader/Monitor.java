@@ -94,7 +94,7 @@ public class Monitor extends Thread {
             cleanup();
         }
         logger.fine("exiting");
-        System.exit(0);
+        // NB - we used to call System.exit(0) here - necessary?
     }
 
     private void cleanup() {

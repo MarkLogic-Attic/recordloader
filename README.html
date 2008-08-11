@@ -396,7 +396,10 @@ compensate for invalid XML?
 </table>
 
 <h2>Troubleshooting</h2>
-<p><code>XmlPullParserException: could not resolve entity named 'foo'</code>.
+<h3>
+  <code>XmlPullParserException: could not resolve entity named 'foo'</code>.
+</h3>
+<p>
 The XPP implementation used by RecordLoader, xpp3,
 does not handle unknown references,
 and does not process DTD-style document declarations.
@@ -406,10 +409,36 @@ Future enhancements could include a plug-in system,
 allowing the user to substitute an XPP implementation
 that supports document declarations.
 </p>
-<p><code>java.util.concurrent.RejectedExecutionException</code>.
-If you're using RecordLoader with thousands of files or zipfile entries,
+
+<h3>
+<code>java.util.concurrent.RejectedExecutionException</code>.
+</h3>
+<p>
+If you are using RecordLoader with thousands of files or zipfile entries,
 you may need to increase the JVM heap space. Try <code>-Xmx256m</code>
 as one of your command-line JVM arguments.
 </p>
+
+<h3>
+With Solaris, my UTF-8 accents and diacritics are mangled.
+</h3>
+<p>
+You should see UTF-8 in the output from <code>locale -a</code>:
+</p>
+<p><code>
+$ locale -a | grep -i utf
+en_CA.UTF-8
+en_US.UTF-8
+es.UTF-8
+es_MX.UTF-8
+fr.UTF-8
+fr_CA.UTF-8
+</code>
+</p>
+<p>
+  If no UTF-8 locales are available,
+  make sure to install the Solaris <code>SUNWeu8os</code> package.
+</p>
+
 </body>
 </html>

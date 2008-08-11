@@ -31,7 +31,7 @@ public class FileLoader extends AbstractLoader {
             content = contentFactory.newContent(currentUri);
             boolean skippingRecord = checkIdAndUri(currentRecordPath);
 
-            // grab the entire document
+            // grab the entire document, as bytes to support binaries
             // do not pass the stream directly, so that XCC can retry
             byte[] bytes = Utilities.read(input);
             size = bytes.length;
