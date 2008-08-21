@@ -179,11 +179,12 @@ public class Producer extends InputStream {
         // NOTE: idName is namespace-insensitive
         if (null == currentId && name.equals(idName)) {
             // TODO support idNameAttribute or similar
+
             // pick out the contents and use it for the uri
             if (xpp.nextToken() != XmlPullParser.TEXT) {
-                throw new XmlPullParserException(
-                        "badly formed xml: missing id at "
-                                + xpp.getPositionDescription());
+                throw new XmlPullParserException("badly formed xml or "
+                        + idName + " is not a simple node: at"
+                        + xpp.getPositionDescription());
             }
 
             String newId = xpp.getText();

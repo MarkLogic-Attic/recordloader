@@ -1,7 +1,9 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <!--
 /*
- * Copyright (c)2005-2007 Mark Logic Corporation
+ * Copyright (c)2005-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,13 +57,14 @@ for sample property files.
 
 <h2>Required libraries:</h2>
 <ul>
-  <li/>RecordLoader <a href="../releases/recordloader.jar">recordloader.jar</a>
-  <li/>MarkLogic <a href="http://developer.marklogic.com/">XCC</a>
-  <li/><a href="http://www.extreme.indiana.edu/xgws/xsoap/xpp/">XPP3</a>
+  <li>RecordLoader <a href="../releases/recordloader.jar">recordloader.jar</a></li>
+  <li>MarkLogic <a href="http://developer.marklogic.com/">XCC</a></li>
+  <li><a href="http://www.extreme.indiana.edu/xgws/xsoap/xpp/">XPP3</a>
   XML Pull-Parser
   (here's a link to the
   <a href="http://www.extreme.indiana.edu/dist/java-repository/xpp3/jars/">jar
   files</a> - be sure to use xpp3-1.1.4c.jar or later)
+  </li>
 </ul>
 
 <h2>Required inputs:</h2>
@@ -186,10 +189,13 @@ to use for all queries and inserts.
 </tr>
 
 <tr><td>ID_NAME</td><td><code>#FILENAME</code></td>
-<td>Required parameter: the text value of any element with this local-name
-(or attribute value if ID_NAME starts with '@')
-will be used to compose the final document uri.
+<td>Within each input document or RECORD_NAME element,
+the first element called ID_NAME will be used to compose the new document uri.
+If ID_NAME starts with '@', an attribute with this local-name
+will be used to compose the new document uri.
 Note that namespace is ignored: only the local-name is used.
+The named node must have a simple text value:
+it may not be empty, and it must not contain any non-text children.
 <br/>
 The special value <code>ID_NAME=#AUTO</code> will cause RecordLoader
 to automatically generate ids, in sequence, for each input record.
@@ -201,7 +207,7 @@ the default value is <code>#AUTO</code> - not <code>#FILENAME</code>.
 The special value <code>ID_NAME=#FILENAME</code> will cause RecordLoader
 to automatically load each input file into
 a single document per input file, using the file's basename
-as the record id.
+to compose the new document uri. This is the default behavior.
 <br/>
 Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
 </tr>
@@ -217,9 +223,9 @@ Otherwise, this condition causes a fatal error.</td>
 used to determine what happens if there are
 invalid character sequences in the input XML.
 <ul>
-<li/>REPORT: throws a MalformedInputException
-<li/>REPLACE: replaces invalid sequence with a '?' or similar.
-<li/>IGNORE: skips over the invalid sequence.
+<li>REPORT: throws a MalformedInputException</li>
+<li>REPLACE: replaces invalid sequence with a '?' or similar.</li>
+<li>IGNORE: skips over the invalid sequence.</li>
 </ul>
 </td>
 </tr>
@@ -387,8 +393,8 @@ If the prefix does not end in '/', RecordLoader will add a '/' to it.
 <td>To what degree should XPP3 and MarkLogic Server
 compensate for invalid XML?
 <ul>
-<li/>NONE: throw a fatal exception.
-<li/>FULL: do everything reasonable to ingest the document.
+<li>NONE: throw an exception (see also: <code>FATAL_ERRORS</code>).</li>
+<li>FULL: do everything reasonable to ingest the document.</li>
 </ul>
 </td>
 </tr>
