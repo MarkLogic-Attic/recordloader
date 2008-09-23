@@ -54,7 +54,7 @@ public class ProducerTest extends TestCase {
         String id = "test1";
         producer.setCurrentId(id);
 
-        StringBuffer outputXml = new StringBuffer();
+        StringBuilder outputXml = new StringBuilder();
         byte[] buf = new byte[READ_SIZE];
         int len;
         while ((len = producer.read(buf)) > -1) {
@@ -97,7 +97,7 @@ public class ProducerTest extends TestCase {
 
         Producer producer = new Producer(config, xpp);
 
-        StringBuffer outputXml = new StringBuffer();
+        StringBuilder outputXml = new StringBuilder();
         byte[] buf = new byte[READ_SIZE];
         int len;
         while ((len = producer.read(buf)) > -1) {
@@ -145,7 +145,7 @@ public class ProducerTest extends TestCase {
         Producer producer = new Producer(config, xpp);
         producer.setCurrentId("test");
 
-        StringBuffer outputXml = new StringBuffer();
+        StringBuilder outputXml = new StringBuilder();
         byte[] buf = new byte[READ_SIZE];
         int len;
         while ((len = producer.read(buf)) > -1) {
@@ -201,7 +201,7 @@ public class ProducerTest extends TestCase {
         Producer producer = new Producer(config, xpp);
         producer.setCurrentId("test");
 
-        StringBuffer outputXml = new StringBuffer();
+        StringBuilder outputXml = new StringBuilder();
         byte[] buf = new byte[READ_SIZE];
         int len;
         while ((len = producer.read(buf)) > -1) {

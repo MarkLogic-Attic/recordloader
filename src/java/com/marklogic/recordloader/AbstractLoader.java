@@ -14,6 +14,7 @@ import java.nio.charset.CharsetDecoder;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
+import com.marklogic.xcc.DocumentFormat;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -29,10 +30,6 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     protected Monitor monitor;
 
-    protected File inputFile;
-
-    protected InputStream input;
-
     protected String currentRecordPath;
 
     protected String currentFileBasename;
@@ -45,13 +42,19 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     protected String startId;
 
-    protected String inputFilePath;
-
     protected String entryPath;
 
     protected String fileBasename;
 
     protected CharsetDecoder decoder;
+
+    protected InputStream input;
+
+    protected File inputFile;
+
+    protected String inputFilePath;
+
+    protected DocumentFormat format = null;
 
     /*
      * (non-Javadoc)
@@ -73,7 +76,9 @@ public abstract class AbstractLoader implements LoaderInterface {
             monitor.halt(e);
             return null;
         } catch (Exception e) {
-            logger.warning("Exception while processing "
+            logger.warning("Exception "
+                    + e.getMessage()
+                    + " while processing "
                     + (null != currentUri ? currentUri
                             : currentRecordPath));
             throw e;
@@ -112,9 +117,42 @@ public abstract class AbstractLoader implements LoaderInterface {
         if (null == input) {
             throw new NullPointerException("caller must set input");
         }
-        
+
         // cache some info locally
         startId = config.getStartId();
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.InputStream)
+     */
+    @SuppressWarnings("unused")
+    public void setInput(InputStream _is, CharsetDecoder _decoder)
+            throws LoaderException {
+        if (null == _is) {
+            throw new NullPointerException("null input stream");
+        }
+        if (null == _decoder) {
+            throw new NullPointerException("null charset decoder");
+        }
+        input = _is;
+        decoder = _decoder;
+    }
+
+    /**
+     * 
+     */
+    protected void cleanupInput() {
+        cleanupRecord();
+        if (null != input) {
+            try {
+                input.close();
+            } catch (IOException e) {
+                // nothing we can do about it
+                logger.logException(e);
+            }
+        }
     }
 
     /*
@@ -138,24 +176,6 @@ public abstract class AbstractLoader implements LoaderInterface {
         } catch (IOException e) {
             throw new LoaderException(e);
         }
-        decoder = _decoder;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.InputStream)
-     */
-    @SuppressWarnings("unused")
-    public void setInput(InputStream _is, CharsetDecoder _decoder)
-            throws LoaderException {
-        if (null == _is) {
-            throw new NullPointerException("null input stream");
-        }
-        if (null == _decoder) {
-            throw new NullPointerException("null charset decoder");
-        }
-        input = _is;
         decoder = _decoder;
     }
 
@@ -235,21 +255,6 @@ public abstract class AbstractLoader implements LoaderInterface {
         content = null;
         currentUri = null;
     }
-    
-    /**
-     * 
-     */
-    protected void cleanupInput() {
-        cleanupRecord();
-        if (null != input) {
-            try {
-                input.close();
-            } catch (IOException e) {
-                // nothing we can do about it
-                logger.logException(e);
-            }
-        }
-    }
 
     private boolean checkStartId(String id) {
         if (null == startId) {
@@ -284,11 +289,13 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     protected String composeUri(String id) throws IOException {
         logger.finest(id);
-        if (id == null) {
+        if (null == id) {
             throw new IOException("id may not be null");
         }
 
         String cleanId = id.trim();
+        
+        // TODO move this to the end?
         String inputStripPrefix = config.getInputStripPrefix();
         if (null != inputStripPrefix && inputStripPrefix.length() > 0) {
             cleanId = cleanId.replaceFirst(inputStripPrefix, "");
@@ -300,7 +307,8 @@ public abstract class AbstractLoader implements LoaderInterface {
 
         // automatically use the current file, if available
         // note that config.getUriPrefix() will ensure that the uri ends in '/'
-        StringBuffer baseName = new StringBuffer(config.getUriPrefix());
+        // TODO differentiate between files and zip archives?
+        StringBuilder baseName = new StringBuilder(config.getUriPrefix());
         baseName.append((currentFileBasename == null
                 || currentFileBasename.equals("") || config
                 .isUseFilenameIds()) ? "" : currentFileBasename);
@@ -354,6 +362,9 @@ public abstract class AbstractLoader implements LoaderInterface {
             throws LoaderException {
         config = _config;
         logger = config.getLogger();
+        if (null == format) {
+            format = config.getFormat();
+        }
     }
 
     /*
@@ -387,8 +398,15 @@ public abstract class AbstractLoader implements LoaderInterface {
     @SuppressWarnings("unused")
     public void setMonitor(Monitor _monitor) throws LoaderException {
         monitor = _monitor;
-        // TODO Auto-generated method stub
+    }
 
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.marklogic.recordloader.LoaderInterface#setFormat(com.marklogic.xcc.DocumentFormat)
+     */
+    public void setFormat(DocumentFormat _xml) {
+        format = _xml;
     }
 
 }

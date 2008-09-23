@@ -5,6 +5,8 @@ package com.marklogic.recordloader;
 
 import java.io.InputStream;
 
+import com.marklogic.xcc.DocumentFormat;
+
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -53,5 +55,10 @@ public interface ContentInterface {
      * @throws LoaderException 
      */
     public void setInputStream(InputStream _is) throws LoaderException;
+
+    /**
+     * @param _format
+     */
+    public void setFormat(DocumentFormat _format);
 
 }

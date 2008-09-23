@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2006 Mark Logic Corporation
+ * Copyright (c)2006-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,8 @@ public class Monitor extends Thread {
 
     private int totalSkipped = 0;
 
+    private Thread parent;
+
     @SuppressWarnings("unused")
     private Monitor() {
         // avoid no-argument constructors
@@ -70,10 +72,13 @@ public class Monitor extends Thread {
     /**
      * @param _c
      * @param _e
+     * @param _p
      */
-    public Monitor(Configuration _c, ThreadPoolExecutor _e) {
+    public Monitor(Configuration _c, ThreadPoolExecutor _e,
+            Thread _p) {
         config = _c;
         pool = _e;
+        parent = _p;
         logger = config.getLogger();
     }
 
@@ -94,7 +99,6 @@ public class Monitor extends Thread {
             cleanup();
         }
         logger.fine("exiting");
-        // NB - we used to call System.exit(0) here - necessary?
     }
 
     private void cleanup() {
@@ -107,6 +111,10 @@ public class Monitor extends Thread {
         } catch (InterruptedException e1) {
             // do nothing
         }
+
+        // NB - we used to call System.exit(0) here - necessary?
+        // sometimes the main RecordLoader thread will hit CallerBlocksPolicy
+        parent.interrupt();
     }
 
     /**
@@ -212,8 +220,8 @@ public class Monitor extends Thread {
         }
         synchronized (list) {
             if (!list.contains(name)) {
-                logger.fine("no entry to clean up for " + fileName
-                        + " (" + name + ")");
+                logger.fine("no entry to clean up for " + fileName + " ("
+                        + name + ")");
                 return;
             }
             logger.fine("removing entry " + name + " from " + fileName);

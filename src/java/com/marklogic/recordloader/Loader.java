@@ -91,6 +91,10 @@ public class Loader extends AbstractLoader {
             processRecords();
             cleanupInput();
         } catch (Exception e) {
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
+
             if (null != inputFile) {
                 logger.info("current file: \"" + inputFilePath + "\"");
             }
@@ -115,8 +119,11 @@ public class Loader extends AbstractLoader {
                         + ").");
             }
 
-            throw (e instanceof LoaderException) ? (LoaderException) e
-                    : new LoaderException(e);
+            if (e instanceof LoaderException) {
+                throw (LoaderException) e;
+            }
+            
+            throw new LoaderException(e);
         }
     }
 

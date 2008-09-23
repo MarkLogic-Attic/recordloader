@@ -9,6 +9,8 @@ import java.net.URI;
 import java.nio.charset.CharsetDecoder;
 import java.util.concurrent.Callable;
 
+import com.marklogic.xcc.DocumentFormat;
+
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
@@ -74,5 +76,10 @@ public interface LoaderInterface extends Callable<Object> {
      * @param uri
      */
     public abstract void setConnectionUri(URI uri) throws LoaderException;
+
+    /**
+     * @param xml
+     */
+    public abstract void setFormat(DocumentFormat xml);
 
 }

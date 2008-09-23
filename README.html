@@ -243,6 +243,27 @@ use <code>INPUT_ENCODING=Cp1252</code> to ensure correct conversion.
 </td>
 </tr>
 
+<tr>
+<td>INPUT_HANDLER_CLASSNAME</td>
+<td>com.marklogic.recordloader.DefaultInputHandler</td>
+<td>
+The specified class will be used to marshall loader inputs.
+The default class handles <code>INPUT_PATH</code>
+as well as command-line arguments.
+This property is meant for plug-in classes, which must implement
+com.marklogic.recordloader.InputHandlerInterface,
+and may extend the com.marklogic.recordloader.AbstractInputHandler
+class.
+<br/>
+Built-in alternatives:
+<ul>
+<li>com.marklogic.recordloader.svn.SvnInputHandler
+  treats <code>INPUT_PATH</code> as a subversion repository url.
+</li>
+</ul>
+</td>
+</tr>
+
 <tr><td>INPUT_PATH</td><td>null</td>
 <td>The filesystem path in which to look for XML files or zip archives.
 If unset, RecordLoader will read XML directly from standard input.</td>

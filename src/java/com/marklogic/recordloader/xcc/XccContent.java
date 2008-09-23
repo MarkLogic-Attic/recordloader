@@ -10,6 +10,7 @@ import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
+import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.XccException;
 
@@ -48,9 +49,6 @@ public class XccContent extends XccAbstractContent implements
         try {
             session.insertContent(content);
         } catch (XccException e) {
-            // DEBUG
-            System.err.println("DEBUG: encoding = "
-                    + content.getCreateOptions().getEncoding());
             throw new LoaderException(e);
         }
     }
@@ -91,6 +89,13 @@ public class XccContent extends XccAbstractContent implements
         }
         content = ContentFactory.newUnBufferedContent(uri, _producer,
                 options);
+    }
+
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ContentInterface#setFormat(com.marklogic.xcc.DocumentFormat)
+     */
+    public void setFormat(DocumentFormat _format) {
+        options.setFormat(_format);
     }
 
 }

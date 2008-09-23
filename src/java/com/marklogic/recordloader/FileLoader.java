@@ -41,7 +41,9 @@ public class FileLoader extends AbstractLoader {
             }
 
             if (!skippingRecord) {
+                logger.finest("bytes = " + bytes.length);
                 content.setBytes(bytes);
+                content.setFormat(format);
                 insert();
             }
         } catch (Exception e) {

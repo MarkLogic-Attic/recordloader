@@ -43,7 +43,7 @@ public class Producer extends InputStream {
 
     private String recordNamespace;
 
-    private StringBuffer buffer;
+    private StringBuilder buffer;
 
     private byte[] byteBuffer;
 
@@ -231,12 +231,12 @@ public class Producer extends InputStream {
             if (depth > 0) {
                 int stop = xpp.getNamespaceCount(depth - 1);
                 if (stop > 0) {
-                    StringBuffer decl = null;
+                    StringBuilder decl = null;
                     String nsDeclPrefix, nsDeclUri;
                     logger.finer("checking namespace declarations");
                     for (int i = 0; i < stop; i++) {
                         if (decl == null) {
-                            decl = new StringBuffer();
+                            decl = new StringBuilder();
                         }
                         nsDeclPrefix = xpp.getNamespacePrefix(i);
                         nsDeclUri = xpp.getNamespaceUri(i);
@@ -320,7 +320,7 @@ public class Producer extends InputStream {
         }
 
         if (buffer == null) {
-            buffer = new StringBuffer();
+            buffer = new StringBuilder();
         }
 
         // logger.finest("string = " + string); // DEBUG

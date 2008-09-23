@@ -34,6 +34,8 @@ public class DelimitedDataLoader extends AbstractLoader {
 
     private int labelIndex;
 
+    private String charsetName;
+
     /*
      * (non-Javadoc)
      * 
@@ -42,6 +44,12 @@ public class DelimitedDataLoader extends AbstractLoader {
     @SuppressWarnings("unused")
     public void process() throws LoaderException {
         super.process();
+
+        logger.fine("starting with decoder = " + decoder);
+        if (null != decoder) {
+            charsetName = decoder.charset().name();
+            logger.fine("using " + charsetName);
+        }
 
         if (!(super.config instanceof DelimitedDataConfiguration)) {
             throw new FatalException(
@@ -152,7 +160,9 @@ public class DelimitedDataLoader extends AbstractLoader {
 
         if (!skippingRecord) {
             // write the xml
-            content.setBytes(xml.toString().getBytes());
+            // NB - getBytes will return the default-encoding bytes
+            content.setBytes(null == decoder ? xml.getBytes() : xml
+                    .getBytes(charsetName));
             insert();
         }
         return xml;
@@ -165,7 +175,7 @@ public class DelimitedDataLoader extends AbstractLoader {
      */
     private String getXml(String[] labels, String[] fields) {
         // build the xml
-        StringBuffer xml = new StringBuffer("<" + recordName + ">");
+        StringBuilder xml = new StringBuilder("<" + recordName + ">");
         for (int i = 0; i < labels.length; i++) {
             xml.append("<" + labels[i] + ">"
                     + Utilities.escapeXml(fields[i]) + "</" + labels[i]

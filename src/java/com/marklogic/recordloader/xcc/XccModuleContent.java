@@ -14,9 +14,11 @@ import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
+import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
+import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -113,7 +115,8 @@ public class XccModuleContent extends XccAbstractContent implements
      * 
      * @see com.marklogic.recordloader.ContentInterface#setProducer(com.marklogic.recordloader.Producer)
      */
-    public void setInputStream(InputStream _producer) throws LoaderException {
+    public void setInputStream(InputStream _producer)
+            throws LoaderException {
         if (null == uri) {
             throw new LoaderException("URI cannot be null");
         }
@@ -147,6 +150,16 @@ public class XccModuleContent extends XccAbstractContent implements
         // ModuleContent only works with strings
         // TODO support text? binary?
         xml = new String(_xml);
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.marklogic.recordloader.ContentInterface#setFormat(com.marklogic.xcc.DocumentFormat)
+     */
+    public void setFormat(DocumentFormat _format) {
+        throw new UnimplementedFeatureException(
+                "setFormat() not available in this implementation");
     }
 
 }

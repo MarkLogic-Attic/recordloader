@@ -19,6 +19,7 @@
 package com.marklogic.recordloader;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -50,14 +51,14 @@ public class LoaderFactory {
 
     /**
      * @param _monitor
-     * @param _inputDecoder 
+     * @param _inputDecoder
      * @param _config
      * @throws NoSuchMethodException
      * @throws SecurityException
      * @throws ClassNotFoundException
      */
-    public LoaderFactory(Monitor _monitor,
-            CharsetDecoder _inputDecoder, Configuration _config) throws SecurityException,
+    public LoaderFactory(Monitor _monitor, CharsetDecoder _inputDecoder,
+            Configuration _config) throws SecurityException,
             NoSuchMethodException, ClassNotFoundException {
         monitor = _monitor;
         config = _config;
@@ -83,6 +84,7 @@ public class LoaderFactory {
             loader.setConfiguration(config);
             loader.setMonitor(monitor);
             loader.setConnectionUri(config.getConnectionStrings()[x]);
+            logger.finer("loader " + loader);
             return loader;
         } catch (IllegalArgumentException e) {
             throw new LoaderException(e);
@@ -137,17 +139,27 @@ public class LoaderFactory {
     }
 
     /**
-     * @param loader
-     * @param name
-     * @param path
+     * @param _loader
+     * @param _name
+     * @param _path
      * @throws LoaderException
      */
-    private void setup(LoaderInterface loader, String name, String path)
+    private void setup(LoaderInterface _loader, String _name, String _path)
             throws LoaderException {
-        if (null != name) {
-            loader.setFileBasename(name);
+        if (null != _name) {
+            _loader.setFileBasename(_name);
         }
-        loader.setRecordPath(path);
+        _loader.setRecordPath(_path);
+    }
+
+    /**
+     * @param _bytes
+     * @return
+     * @throws LoaderException
+     */
+    public LoaderInterface newLoader(byte[] _bytes)
+            throws LoaderException {
+        return newLoader(new ByteArrayInputStream(_bytes));
     }
 
 }

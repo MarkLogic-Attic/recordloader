@@ -191,8 +191,10 @@ public class SimpleLogger extends Logger implements
                 } else {
                     // try to load the string as a classname
                     try {
-                        Class<? extends Handler> lhc = Class.forName(logHandler[i], true,
-                                ClassLoader.getSystemClassLoader()).asSubclass(Handler.class);
+                        Class<? extends Handler> lhc = Class.forName(
+                                logHandler[i], true,
+                                ClassLoader.getSystemClassLoader())
+                                .asSubclass(Handler.class);
                         System.err.println("logging to class "
                                 + logHandler[i]);
                         Constructor<? extends Handler> con = lhc
@@ -233,14 +235,13 @@ public class SimpleLogger extends Logger implements
             fine("logging set to " + getLevel());
         }
         info("setting up logging for: " + getName());
-    } // setLogging
+    }
 
     public void logException(String message, Throwable exception) {
-        if (message == null)
-            message = "";
-        super.log(Level.SEVERE, message, exception);
-    } // logException
-
+        super.log(Level.SEVERE, (null != message) ? message : "",
+                exception);
+    }
+    
     /*
      * (non-Javadoc)
      * 

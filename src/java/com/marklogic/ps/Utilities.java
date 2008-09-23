@@ -42,7 +42,7 @@ public class Utilities {
      * @return
      */
     public static String join(String[] _items, String _delim) {
-        StringBuffer rval = new StringBuffer();
+        StringBuilder rval = new StringBuilder();
         for (int i = 0; i < _items.length; i++) {
             if (i == 0) {
                 rval.append(_items[0]);
@@ -59,7 +59,7 @@ public class Utilities {
      * @return
      */
     public static String join(Object[] _items, String _delim) {
-        StringBuffer rval = new StringBuffer();
+        StringBuilder rval = new StringBuilder();
         for (int i = 0; i < _items.length; i++) {
             if (i == 0) {
                 rval.append(_items[0]);
@@ -114,7 +114,7 @@ public class Utilities {
      * @param sb
      * @throws IOException
      */
-    public static void read(Reader input, StringBuffer sb)
+    public static void read(Reader input, StringBuilder sb)
             throws IOException {
         // uses a reader, so charset translation should be ok
         int size;
@@ -132,7 +132,7 @@ public class Utilities {
      */
     public static String read(InputStream _is, CharsetDecoder _decoder)
             throws IOException {
-        StringBuffer sb = new StringBuffer();
+        StringBuilder sb = new StringBuilder();
         read(new InputStreamReader(_is, _decoder), sb);
         return sb.toString();
     }

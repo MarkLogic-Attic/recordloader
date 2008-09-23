@@ -21,6 +21,11 @@ import com.marklogic.xcc.types.XSBoolean;
  */
 public abstract class XccAbstractContent implements ContentInterface {
 
+    /**
+     * 
+     */
+    private static final String XQUERY_VERSION_0_9_ML = "xquery version \"0.9-ml\"\n";
+
     Session session = null;
 
     String uri = null;
@@ -64,7 +69,8 @@ public abstract class XccAbstractContent implements ContentInterface {
      * @see com.marklogic.recordloader.ContentInterface#checkDocumentUri(java.lang.String)
      */
     public boolean checkDocumentUri(String _uri) throws LoaderException {
-        String query = "define variable $URI as xs:string external\n"
+        String query = XQUERY_VERSION_0_9_ML
+                + "define variable $URI as xs:string external\n"
                 + "xdmp:exists(doc($URI))\n";
         ResultSequence result = null;
         boolean exists = false;

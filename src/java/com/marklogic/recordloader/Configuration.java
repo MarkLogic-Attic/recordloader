@@ -24,6 +24,8 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -363,6 +365,11 @@ public class Configuration {
      * 
      */
     public static final String ZIP_SUFFIX = ".zip";
+
+    public static final String INPUT_HANDLER_CLASSNAME_KEY = "INPUT_HANDLER_CLASSNAME";
+
+    public static final String INPUT_HANDLER_CLASSNAME_DEFAULT = DefaultInputHandler.class
+            .getCanonicalName();
 
     /**
      * @param _props
@@ -880,4 +887,36 @@ public class Configuration {
     public boolean isUseDocumentRoot() {
         return useDocumentRoot;
     }
+
+    /**
+     * @return
+     */
+    public String getInputHandlerClassName() {
+        return properties.getProperty(INPUT_HANDLER_CLASSNAME_KEY,
+                INPUT_HANDLER_CLASSNAME_DEFAULT);
+    }
+
+    public CharsetDecoder getDecoder() {
+        String inputEncoding = getInputEncoding();
+        String malformedInputAction = getMalformedInputAction();
+
+        CharsetDecoder inputDecoder;
+        logger.info("using input encoding " + inputEncoding);
+        // using an explicit decoder allows us to control the error reporting
+        inputDecoder = Charset.forName(inputEncoding).newDecoder();
+        if (malformedInputAction
+                .equals(Configuration.INPUT_MALFORMED_ACTION_IGNORE)) {
+            inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
+        } else if (malformedInputAction
+                .equals(Configuration.INPUT_MALFORMED_ACTION_REPLACE)) {
+            inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
+        } else {
+            inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
+        }
+        logger.info("using malformed input action "
+                + inputDecoder.unmappableCharacterAction().toString());
+        inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+        return inputDecoder;
+    }
+
 }

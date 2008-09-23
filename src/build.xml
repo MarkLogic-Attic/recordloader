@@ -9,14 +9,14 @@
 
     <path id="master-classpath">
         <fileset dir="${java.library.user}">
+            <include name="svnkit.jar"/>
             <include name="xcc.jar"/>
             <include name="xpp3.jar"/>
-            <include name="ant.jar"/>
         </fileset>
         <fileset dir="${java.library.system}">
+            <include name="svnkit.jar"/>
             <include name="xcc.jar"/>
             <include name="xpp3.jar"/>
-            <include name="ant.jar"/>
         </fileset>
         <pathelement path="${build.dir}"/>
     </path>
@@ -24,10 +24,10 @@
 	<target name="build" 
 			description="Compile main source tree java files">
 	  <mkdir dir="${build.dir}"/>
-	  <javac destdir="${build.dir}">
-                <compilerarg value="-Xlint"/>
-		<src path="${src.dir}"/>
-		<classpath refid="master-classpath"/>
+	  <javac destdir="${build.dir}" target="1.5">
+      <compilerarg value="-Xlint"/>
+      <src path="${src.dir}"/>
+      <classpath refid="master-classpath"/>
 	  </javac>
     </target>
 
