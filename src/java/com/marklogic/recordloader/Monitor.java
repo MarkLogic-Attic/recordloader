@@ -74,8 +74,7 @@ public class Monitor extends Thread {
      * @param _e
      * @param _p
      */
-    public Monitor(Configuration _c, ThreadPoolExecutor _e,
-            Thread _p) {
+    public Monitor(Configuration _c, ThreadPoolExecutor _e, Thread _p) {
         config = _c;
         pool = _e;
         parent = _p;
@@ -188,20 +187,34 @@ public class Monitor extends Thread {
 
         // optional throttling
         if (config.isThrottled()) {
-            logger.finer("throttling rate " + timer.getEventsPerSecond());
             long sleepMillis;
-            while (config.getThrottledEventsPerSecond() < timer
-                    .getEventsPerSecond()) {
-                sleepMillis = (long) (1000 / config
-                        .getThrottledEventsPerSecond() - 1000 / timer
-                        .getEventsPerSecond());
+            double throttledEventsPerSecond = config
+                    .getThrottledEventsPerSecond();
+            int throttledBytesPerSecond = config
+                    .getThrottledBytesPerSecond();
+            logger.finer("throttling rate " + timer.getEventsPerSecond()
+                    + " of " + throttledEventsPerSecond + " tps");
+            logger.finer("throttling rate " + timer.getBytesPerSecond()
+                    + " of " + throttledBytesPerSecond + " B/sec");
+            // call the methods every time
+            while ((throttledEventsPerSecond > 0 && (throttledEventsPerSecond < timer
+                    .getEventsPerSecond()))
+                    || (throttledBytesPerSecond > 0 && (throttledBytesPerSecond < timer
+                            .getBytesPerSecond()))) {
+                sleepMillis = (long) ((throttledEventsPerSecond > 0) 
+                        ? (timer.getEventsPerSecond() - throttledEventsPerSecond) / 4
+                        : (timer.getBytesPerSecond() - throttledBytesPerSecond) / 4);
+                logger.finer("sleeping " + sleepMillis);
                 try {
                     Thread.sleep(sleepMillis);
                 } catch (InterruptedException e) {
                     logger.logException("interrupted", e);
                 }
             }
-            logger.fine("throttled rate " + timer.getEventsPerSecond());
+            logger.fine("throttled rate "
+                    + ((throttledEventsPerSecond > 0) ? (timer
+                            .getEventsPerSecond() + " tps") : (timer
+                            .getBytesPerSecond() + " B/sec")));
         }
 
     }

@@ -216,9 +216,13 @@ public class Configuration {
      */
     public static final String THREADS_KEY = "THREADS";
 
-    public static final String THROTTLE_KEY = "THROTTLE_EVENTS_PER_SECOND";
+    public static final String THROTTLE_EVENTS_KEY = "THROTTLE_EVENTS_PER_SECOND";
 
-    public static final String THROTTLE_DEFAULT = "0";
+    public static final String THROTTLE_EVENTS_DEFAULT = "0";
+
+    public static final String THROTTLE_BYTES_KEY = "THROTTLE_BYTES_PER_SECOND";
+
+    public static final String THROTTLE_BYTES_DEFAULT = "0";
 
     /**
      * 
@@ -361,6 +365,8 @@ public class Configuration {
 
     private boolean useDocumentRoot = false;
 
+    private int throttledBytesPerSecond;
+
     /**
      * 
      */
@@ -488,10 +494,17 @@ public class Configuration {
                 ZIP_INPUT_PATTERN_DEFAULT);
         logger.fine(ZIP_INPUT_PATTERN_KEY + " = " + zipInputPattern);
 
-        throttledEventsPerSecond = Double.parseDouble(properties
-                .getProperty(THROTTLE_KEY, THROTTLE_DEFAULT));
+        throttledEventsPerSecond = Double
+                .parseDouble(properties.getProperty(THROTTLE_EVENTS_KEY,
+                        THROTTLE_EVENTS_DEFAULT));
         if (isThrottled()) {
             logger.info("throttle = " + throttledEventsPerSecond);
+        }
+
+        throttledBytesPerSecond = Integer.parseInt(properties
+                .getProperty(THROTTLE_BYTES_KEY, THROTTLE_BYTES_DEFAULT));
+        if (isThrottled()) {
+            logger.info("throttle = " + throttledBytesPerSecond);
         }
 
         String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY,
@@ -768,7 +781,8 @@ public class Configuration {
      * @return
      */
     public boolean isThrottled() {
-        return throttledEventsPerSecond > 0;
+        return (throttledEventsPerSecond > 0
+                || throttledBytesPerSecond > 0);
     }
 
     public double getThrottledEventsPerSecond() {
@@ -917,6 +931,13 @@ public class Configuration {
                 + inputDecoder.unmappableCharacterAction().toString());
         inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
         return inputDecoder;
+    }
+
+    /**
+     * @return
+     */
+    public int getThrottledBytesPerSecond() {
+        return throttledBytesPerSecond;
     }
 
 }

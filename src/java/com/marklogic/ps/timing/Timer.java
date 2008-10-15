@@ -160,8 +160,7 @@ public class Timer {
     public long getMaxDuration() {
         long max = 0;
         for (int i = 0; i < eventCount; i++)
-            max = Math.max(max, events.get(i)
-                    .getDuration());
+            max = Math.max(max, events.get(i).getDuration());
         return max;
     }
 
@@ -171,8 +170,7 @@ public class Timer {
     public long getMinDuration() {
         long min = Integer.MAX_VALUE;
         for (int i = 0; i < eventCount; i++)
-            min = Math.min(min, events.get(i)
-                    .getDuration());
+            min = Math.min(min, events.get(i).getDuration());
         return min;
     }
 
@@ -270,6 +268,13 @@ public class Timer {
      */
     public String getProgressMessage() {
         return getProgressMessage(false);
+    }
+
+    /**
+     * @return
+     */
+    public int getBytesPerSecond() {
+        return (int) (bytes / getDurationSeconds());
     }
 
 }
