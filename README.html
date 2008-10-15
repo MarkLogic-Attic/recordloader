@@ -153,8 +153,6 @@ xdmp:document-insert(
   tokenize($COLLECTIONS, '[,\s]+')[. ne '']
 )
 </pre>
-<p><b>NOTE</b>: Due to an implementation limit, <code>$XML-STRING</code>
-may not exceed 65-kB.</p>
 </td>
 </tr>
 
@@ -384,6 +382,11 @@ This allows RecordLoader to resume after being interrupted.</td>
 <tr><td>THREADS</td><td>1</td>
 <td>Number of RecordLoader threads.
 Note that when using standard input, this value is ignored.</td>
+</tr>
+
+<tr><td>THROTTLE_BYTES_PER_SECOND</td><td>0</td>
+<td>If non-zero, all threads will be throttled
+  to the given number of bytes inserted per second.</td>
 </tr>
 
 <tr><td>THROTTLE_EVENTS_PER_SECOND</td><td>0</td>
