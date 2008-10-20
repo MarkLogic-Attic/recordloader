@@ -25,6 +25,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -57,7 +58,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-10-14.1";
+    public static final String VERSION = "2008-10-20.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -102,6 +103,8 @@ public class RecordLoader {
         configureFiles(Arrays.asList(args).iterator());
 
         initConfiguration();
+        logger.info("client hostname = "
+                + InetAddress.getLocalHost().getHostName());
         logger.info(printVersion());
 
         // is the environment healthy?

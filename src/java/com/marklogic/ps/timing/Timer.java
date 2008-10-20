@@ -29,18 +29,18 @@ import java.util.Comparator;
  */
 public class Timer {
 
-    private static final int BYTES_PER_KILOBYTE = 1024;
+    public static final int BYTES_PER_KILOBYTE = 1024;
 
-    private static final int MILLISECONDS_PER_SECOND = 1000;
+    public static final int MILLISECONDS_PER_SECOND = 1000;
 
-    private static final int NANOSECONDS_PER_MICROSECOND = MILLISECONDS_PER_SECOND;
+    public static final int NANOSECONDS_PER_MICROSECOND = MILLISECONDS_PER_SECOND;
 
-    private static final int MICROSECONDS_PER_MILLISECOND = MILLISECONDS_PER_SECOND;
+    public static final int MICROSECONDS_PER_MILLISECOND = MILLISECONDS_PER_SECOND;
 
-    private static final int NANOSECONDS_PER_MILLISECOND = NANOSECONDS_PER_MICROSECOND
+    public static final int NANOSECONDS_PER_MILLISECOND = NANOSECONDS_PER_MICROSECOND
             * MICROSECONDS_PER_MILLISECOND;
 
-    private static final int NANOSECONDS_PER_SECOND = NANOSECONDS_PER_MILLISECOND
+    public static final int NANOSECONDS_PER_SECOND = NANOSECONDS_PER_MILLISECOND
             * MILLISECONDS_PER_SECOND;
 
     private long errors = 0;

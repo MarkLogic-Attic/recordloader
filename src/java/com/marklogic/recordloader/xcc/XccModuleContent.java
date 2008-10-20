@@ -11,6 +11,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 
 import com.marklogic.ps.Utilities;
+import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
@@ -158,8 +159,14 @@ public class XccModuleContent extends XccAbstractContent implements
      * @see com.marklogic.recordloader.ContentInterface#setFormat(com.marklogic.xcc.DocumentFormat)
      */
     public void setFormat(DocumentFormat _format) {
+        if (Configuration.DOCUMENT_FORMAT_DEFAULT
+                .equalsIgnoreCase(_format.toString())) {
+            return;
+        }
         throw new UnimplementedFeatureException(
-                "setFormat() not available in this implementation");
+                "setFormat() not available with format = " + _format
+                        + "; XccModuleContent supports only "
+                        + Configuration.DOCUMENT_FORMAT_DEFAULT);
     }
 
 }

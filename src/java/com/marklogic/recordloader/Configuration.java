@@ -357,6 +357,8 @@ public class Configuration {
 
     private double throttledEventsPerSecond;
 
+    private int throttledBytesPerSecond;
+
     private DocumentFormat format = DocumentFormat.XML;
 
     private Constructor<? extends ContentFactory> contentFactoryConstructor;
@@ -365,7 +367,7 @@ public class Configuration {
 
     private boolean useDocumentRoot = false;
 
-    private int throttledBytesPerSecond;
+    private long tooManyStandsRetryMillis = 0;
 
     /**
      * 
@@ -376,6 +378,10 @@ public class Configuration {
 
     public static final String INPUT_HANDLER_CLASSNAME_DEFAULT = DefaultInputHandler.class
             .getCanonicalName();
+
+    private static final String TOOMANYSTANDS_RETRY_MS_KEY = "TOOMANYSTANDS_RETRY_MS";
+
+    private static final String TOOMANYSTANDS_RETRY_MS_DEFAULT = "0";
 
     /**
      * @param _props
@@ -467,6 +473,10 @@ public class Configuration {
         fatalErrors = Utilities.stringToBoolean(properties.getProperty(
                 FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
 
+        tooManyStandsRetryMillis = Long.parseLong(properties.getProperty(
+                TOOMANYSTANDS_RETRY_MS_KEY,
+                TOOMANYSTANDS_RETRY_MS_DEFAULT));
+
         inputEncoding = properties.getProperty(INPUT_ENCODING_KEY,
                 OUTPUT_ENCODING_DEFAULT);
         malformedInputAction = properties.getProperty(
@@ -497,14 +507,17 @@ public class Configuration {
         throttledEventsPerSecond = Double
                 .parseDouble(properties.getProperty(THROTTLE_EVENTS_KEY,
                         THROTTLE_EVENTS_DEFAULT));
-        if (isThrottled()) {
-            logger.info("throttle = " + throttledEventsPerSecond);
+        if (throttledEventsPerSecond > 0) {
+            logger
+                    .info("throttle = " + throttledEventsPerSecond
+                            + " tps");
         }
 
         throttledBytesPerSecond = Integer.parseInt(properties
                 .getProperty(THROTTLE_BYTES_KEY, THROTTLE_BYTES_DEFAULT));
-        if (isThrottled()) {
-            logger.info("throttle = " + throttledBytesPerSecond);
+        if (throttledBytesPerSecond > 0) {
+            logger.info("throttle = " + throttledBytesPerSecond
+                    + " B/sec");
         }
 
         String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY,
@@ -781,8 +794,7 @@ public class Configuration {
      * @return
      */
     public boolean isThrottled() {
-        return (throttledEventsPerSecond > 0
-                || throttledBytesPerSecond > 0);
+        return (throttledEventsPerSecond > 0 || throttledBytesPerSecond > 0);
     }
 
     public double getThrottledEventsPerSecond() {
@@ -938,6 +950,13 @@ public class Configuration {
      */
     public int getThrottledBytesPerSecond() {
         return throttledBytesPerSecond;
+    }
+
+    /**
+     * @return
+     */
+    public long getTooManyStandsRetryMillis() {
+        return tooManyStandsRetryMillis;
     }
 
 }

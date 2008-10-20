@@ -394,6 +394,15 @@ Note that when using standard input, this value is ignored.</td>
   to the given number of inserts per second.</td>
 </tr>
 
+<!--
+<tr><td>TOOMANYSTANDS_RETRY_MS</td><td>0</td>
+<td>If non-zero, and using FileLoader,
+  and the exception XDMP-TOOMANYSTANDS is raised,
+  the worker thread will sleep for the given number milliseconds
+  before retrying.</td>
+</tr>
+-->
+
 <tr><td>URI_PREFIX</td><td>null</td>
 <td>Prefix used before the ID_NAME value, to compose all document uris.
 If the prefix does not end in '/', RecordLoader will add a '/' to it.

@@ -39,6 +39,8 @@ public class XccConfiguration extends Configuration {
 
     public static final String LANGUAGE_KEY = "LANGUAGE";
 
+    public static final String CODE_TOOMANYSTANDS = "XDMP-TOOMANYSTANDS";
+
     BigInteger[] placeKeys;
 
     Object placeKeysMutex = new Object();

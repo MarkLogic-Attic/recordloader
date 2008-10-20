@@ -190,20 +190,36 @@ public class Monitor extends Thread {
             long sleepMillis;
             double throttledEventsPerSecond = config
                     .getThrottledEventsPerSecond();
-            int throttledBytesPerSecond = config
+            boolean isEvents = (throttledEventsPerSecond > 0);
+            int throttledBytesPerSecond = isEvents ? 0 : config
                     .getThrottledBytesPerSecond();
-            logger.finer("throttling rate " + timer.getEventsPerSecond()
-                    + " of " + throttledEventsPerSecond + " tps");
-            logger.finer("throttling rate " + timer.getBytesPerSecond()
-                    + " of " + throttledBytesPerSecond + " B/sec");
+            logger
+                    .fine("throttling "
+                            + (isEvents
+                            // events
+                            ? (timer.getEventsPerSecond() + " tps to "
+                                    + throttledEventsPerSecond + " tps")
+                                    // bytes
+                                    : (timer.getBytesPerSecond()
+                                            + " B/sec to "
+                                            + throttledBytesPerSecond + " B/sec")));
             // call the methods every time
             while ((throttledEventsPerSecond > 0 && (throttledEventsPerSecond < timer
                     .getEventsPerSecond()))
                     || (throttledBytesPerSecond > 0 && (throttledBytesPerSecond < timer
                             .getBytesPerSecond()))) {
-                sleepMillis = (long) ((throttledEventsPerSecond > 0) 
-                        ? (timer.getEventsPerSecond() - throttledEventsPerSecond) / 4
-                        : (timer.getBytesPerSecond() - throttledBytesPerSecond) / 4);
+                if (isEvents) {
+                    sleepMillis = (long) Math
+                            .ceil(Timer.MILLISECONDS_PER_SECOND
+                                    * ((timer.getEventCount() / throttledEventsPerSecond) - timer
+                                            .getDurationSeconds()));
+                } else {
+                    sleepMillis = (long) Math
+                            .ceil(Timer.MILLISECONDS_PER_SECOND
+                                    * ((timer.getBytes() / throttledBytesPerSecond) - timer
+                                            .getDurationSeconds()));
+                }
+                sleepMillis = Math.max(sleepMillis, 1);
                 logger.finer("sleeping " + sleepMillis);
                 try {
                     Thread.sleep(sleepMillis);
@@ -211,10 +227,9 @@ public class Monitor extends Thread {
                     logger.logException("interrupted", e);
                 }
             }
-            logger.fine("throttled rate "
-                    + ((throttledEventsPerSecond > 0) ? (timer
-                            .getEventsPerSecond() + " tps") : (timer
-                            .getBytesPerSecond() + " B/sec")));
+            logger.fine("throttled to "
+                    + (isEvents ? (timer.getEventsPerSecond() + " tps")
+                            : (timer.getBytesPerSecond() + " B/sec")));
         }
 
     }
