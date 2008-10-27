@@ -39,15 +39,13 @@ public class XccConfiguration extends Configuration {
 
     public static final String LANGUAGE_KEY = "LANGUAGE";
 
-    public static final String CODE_TOOMANYSTANDS = "XDMP-TOOMANYSTANDS";
+    Object placeKeysMutex = new Object();
+
+    Object metadataMutex = new Object();
 
     BigInteger[] placeKeys;
 
-    Object placeKeysMutex = new Object();
-
     ContentbaseMetaData metadata;
-
-    Object metadataMutex = new Object();
 
     int quality = 0;
 

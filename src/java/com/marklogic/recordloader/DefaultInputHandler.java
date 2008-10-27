@@ -70,7 +70,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
                 pool.setCorePoolSize(1);
                 pool.setMaximumPoolSize(1);
             }
-            // NOTE: cannot use file-based ids
+            // NOTE: cannot use file-based identifiers
             if (configuration.isUseFilenameIds()) {
                 logger.warning("Ignoring configured "
                         + Configuration.ID_NAME_KEY + "="

@@ -33,11 +33,8 @@ public abstract class AbstractInputHandler implements
         try {
             factory = new LoaderFactory(monitor, inputDecoder,
                     configuration);
-        } catch (SecurityException e) {
-            throw new FatalException(e);
-        } catch (NoSuchMethodException e) {
-            throw new FatalException(e);
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
+            // this is crude, but all exceptions really must be fatal here
             throw new FatalException(e);
         }
     }

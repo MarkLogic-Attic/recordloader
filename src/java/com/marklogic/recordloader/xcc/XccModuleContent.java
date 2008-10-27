@@ -75,13 +75,13 @@ public class XccModuleContent extends XccAbstractContent implements
      */
     public void insert() throws LoaderException {
         if (null == uri) {
-            throw new LoaderException("URI cannot be null");
+            throw new NullPointerException("URI cannot be null");
         }
         if (null == session) {
-            throw new LoaderException("Session cannot be null");
+            throw new NullPointerException("Session cannot be null");
         }
         if (null == request) {
-            throw new LoaderException("Request cannot be null");
+            throw new NullPointerException("Request cannot be null");
         }
         try {
             // always four variables: URI, XML-STRING, ROLES, COLLECTIONS

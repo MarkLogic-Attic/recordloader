@@ -67,7 +67,6 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
      * 
      * @see com.marklogic.recordloader.ContentFactory#setProperties(java.util.Properties)
      */
-    @SuppressWarnings("unused")
     public void setConfiguration(Configuration _configuration)
             throws LoaderException {
         configuration = (XccConfiguration) _configuration;

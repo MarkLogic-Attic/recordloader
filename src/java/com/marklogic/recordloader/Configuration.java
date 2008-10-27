@@ -18,8 +18,6 @@
  */
 package com.marklogic.recordloader;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -30,13 +28,11 @@ import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
 
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
 import com.marklogic.ps.RecordLoader;
-import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.xcc.XccConfiguration;
 import com.marklogic.recordloader.xcc.XccContentFactory;
@@ -47,17 +43,12 @@ import com.marklogic.xcc.DocumentRepairLevel;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class Configuration {
+public class Configuration extends AbstractConfiguration {
 
     /**
      * 
      */
-    public static final String OUTPUT_URI_PREFIX_DEFAULT = "";
-
-    /**
-     * 
-     */
-    public static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
+    public static final String THREADS_DEFAULT = "1";
 
     /**
      * 
@@ -73,8 +64,6 @@ public class Configuration {
      * 
      */
     public static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
-
-    protected static SimpleLogger logger = null;
 
     /**
      * 
@@ -115,7 +104,7 @@ public class Configuration {
     /**
      * 
      */
-    public static final String INPUT_NORMALIZE_PATHS = "INPUT_NORMALIZE_PATHS";
+    public static final String INPUT_NORMALIZE_PATHS_KEY = "INPUT_NORMALIZE_PATHS";
 
     /**
      * 
@@ -134,10 +123,13 @@ public class Configuration {
      */
     public static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
 
-    /**
-     * 
-     */
     public static final String ID_NAME_KEY = "ID_NAME";
+
+    public static final String ID_NAME_AUTO = "#AUTO";
+
+    public static final String ID_NAME_FILENAME = "#FILENAME";
+
+    public static final String ID_NAME_DEFAULT = ID_NAME_FILENAME;
 
     /**
      * 
@@ -181,13 +173,6 @@ public class Configuration {
      * 
      */
     public static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
-
-    /**
-     * 
-     */
-    public static final String ID_NAME_AUTO = "#AUTO";
-
-    public static final String ID_NAME_FILENAME = "#FILENAME";
 
     public static final String RECORD_NAME_DOCUMENT_ROOT = "#DOCUMENT";
 
@@ -257,11 +242,20 @@ public class Configuration {
     /**
      * 
      */
-    public static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
+    public static final String OUTPUT_URI_PREFIX_DEFAULT = "";
 
     /**
      * 
      */
+    public static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
+
+    /**
+     * 
+     */
+    public static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
+
+    public static final String OUTPUT_ENCODING_KEY = "OUTPUT_ENCODING";
+
     public static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
 
     public static final String ZIP_INPUT_PATTERN_KEY = "ZIP_INPUT_PATTERN";
@@ -296,8 +290,6 @@ public class Configuration {
     public static final String USE_FILENAME_COLLECTION_DEFAULT = "true";
 
     public static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
-
-    protected Properties properties = new Properties();
 
     private String[] baseCollections;
 
@@ -367,8 +359,6 @@ public class Configuration {
 
     private boolean useDocumentRoot = false;
 
-    private long tooManyStandsRetryMillis = 0;
-
     /**
      * 
      */
@@ -379,23 +369,23 @@ public class Configuration {
     public static final String INPUT_HANDLER_CLASSNAME_DEFAULT = DefaultInputHandler.class
             .getCanonicalName();
 
-    private static final String TOOMANYSTANDS_RETRY_MS_KEY = "TOOMANYSTANDS_RETRY_MS";
-
-    private static final String TOOMANYSTANDS_RETRY_MS_DEFAULT = "0";
-
-    /**
-     * @param _props
-     */
-    public void load(Properties _props) {
-        properties.putAll(_props);
-    }
+    public static final String INPUT_ENCODING_DEFAULT = OUTPUT_ENCODING_DEFAULT;
 
     /**
      * @throws URISyntaxException
      * 
      */
-    public void configure() throws URISyntaxException {
+    public void configure() {
+        // set up the logger early, for verbose configuration output
         logger.configureLogger(properties);
+
+        try {
+            setDefaults();
+        } catch (Exception e) {
+            // crude, but this is a configuration-time error
+            throw new FatalException(e);
+        }
+        validateProperties();
 
         setIdNodeName(properties.getProperty(ID_NAME_KEY));
 
@@ -404,13 +394,16 @@ public class Configuration {
         configureCollections();
 
         String[] connectionStrings = properties.getProperty(
-                CONNECTION_STRING_KEY, CONNECTION_STRING_DEFAULT).split(
-                "[,\\s]+");
+                CONNECTION_STRING_KEY).split("[,\\s]+");
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
         uris = new URI[connectionStrings.length];
-        for (int i = 0; i < uris.length; i++) {
-            uris[i] = new URI(connectionStrings[i]);
+        try {
+            for (int i = 0; i < uris.length; i++) {
+                uris[i] = new URI(connectionStrings[i]);
+            }
+        } catch (URISyntaxException e) {
+            throw new FatalException(e);
         }
     }
 
@@ -423,105 +416,72 @@ public class Configuration {
             recordName = null;
         }
         if (null != recordName) {
-            recordNamespace = properties.getProperty(
-                    RECORD_NAMESPACE_KEY, RECORD_NAMESPACE_DEFAULT);
+            recordNamespace = properties
+                    .getProperty(RECORD_NAMESPACE_KEY);
         }
-        logger.config("record name = " + recordName + ", namespace = "
-                + recordNamespace);
 
-        ignoreUnknown = Utilities.stringToBoolean(properties.getProperty(
-                IGNORE_UNKNOWN_KEY, "false"));
+        ignoreUnknown = Utilities.stringToBoolean(properties
+                .getProperty(IGNORE_UNKNOWN_KEY));
 
         // use prefix to set document-uri patterns
-        uriPrefix = properties.getProperty(OUTPUT_URI_PREFIX_KEY,
-                OUTPUT_URI_PREFIX_DEFAULT);
-        if (!uriPrefix.equals(OUTPUT_URI_PREFIX_DEFAULT)
+        uriPrefix = properties.getProperty(OUTPUT_URI_PREFIX_KEY);
+        if (!OUTPUT_URI_PREFIX_DEFAULT.equals(uriPrefix)
                 && !uriPrefix.endsWith("/")) {
             uriPrefix += "/";
         }
-        logger.fine(OUTPUT_URI_PREFIX_KEY + " = " + uriPrefix);
 
-        uriSuffix = properties.getProperty(OUTPUT_URI_SUFFIX_KEY,
-                OUTPUT_URI_SUFFIX_DEFAULT);
-        logger.fine(OUTPUT_URI_SUFFIX_KEY + " = " + uriSuffix);
+        uriSuffix = properties.getProperty(OUTPUT_URI_SUFFIX_KEY);
 
         // look for startId, to skip records
         startId = properties.getProperty(START_ID_KEY);
-        logger.fine("START_ID=" + startId);
 
         // should we check for existing docs?
         skipExisting = Utilities.stringToBoolean(properties.getProperty(
                 SKIP_EXISTING_KEY, "false"));
-        logger.fine("SKIP_EXISTING=" + skipExisting);
 
         // should we throw an error for existing docs?
         errorExisting = Utilities.stringToBoolean(properties.getProperty(
                 ERROR_EXISTING_KEY, "false"));
-        logger.fine("ERROR_EXISTING=" + errorExisting);
 
         String repairString = properties.getProperty(REPAIR_LEVEL_KEY,
                 "NONE");
         if (repairString.equals("FULL")) {
-            logger.fine(REPAIR_LEVEL_KEY + "=" + repairString);
             repairLevel = DocumentRepairLevel.FULL;
         }
 
-        copyNamespaceDeclarations = Utilities
-                .stringToBoolean(properties.getProperty(
-                        COPY_NAMESPACES_KEY, COPY_NAMESPACES_DEFAULT));
+        copyNamespaceDeclarations = Utilities.stringToBoolean(properties
+                .getProperty(COPY_NAMESPACES_KEY));
 
-        fatalErrors = Utilities.stringToBoolean(properties.getProperty(
-                FATAL_ERRORS_KEY, FATAL_ERRORS_DEFAULT));
+        fatalErrors = Utilities.stringToBoolean(properties
+                .getProperty(FATAL_ERRORS_KEY));
 
-        tooManyStandsRetryMillis = Long.parseLong(properties.getProperty(
-                TOOMANYSTANDS_RETRY_MS_KEY,
-                TOOMANYSTANDS_RETRY_MS_DEFAULT));
+        inputEncoding = properties.getProperty(INPUT_ENCODING_KEY);
+        malformedInputAction = properties
+                .getProperty(INPUT_MALFORMED_ACTION_KEY);
+        logger.info("using input encoding " + inputEncoding);
 
-        inputEncoding = properties.getProperty(INPUT_ENCODING_KEY,
-                OUTPUT_ENCODING_DEFAULT);
-        malformedInputAction = properties.getProperty(
-                INPUT_MALFORMED_ACTION_KEY,
-                INPUT_MALFORMED_ACTION_DEFAULT);
-        logger.info("using output encoding " + OUTPUT_ENCODING_DEFAULT);
-
-        threadCount = Integer.parseInt(properties.getProperty(
-                THREADS_KEY, "1"));
+        threadCount = Integer.parseInt(properties
+                .getProperty(THREADS_KEY));
         capacity = Integer.parseInt(properties.getProperty(
                 QUEUE_CAPACITY_KEY, "" + DEFAULT_CAPACITY * threadCount));
-        logger.info(QUEUE_CAPACITY_KEY + " = " + capacity);
 
         inputPath = properties.getProperty(INPUT_PATH_KEY);
-        logger.fine(INPUT_PATH_KEY + " = " + inputPath);
-        inputPattern = properties.getProperty(INPUT_PATTERN_KEY,
-                INPUT_PATTERN_DEFAULT);
+
+        inputPattern = properties.getProperty(INPUT_PATTERN_KEY);
         inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX);
         inputNormalizePaths = Utilities.stringToBoolean(properties
-                .getProperty(INPUT_NORMALIZE_PATHS,
-                        INPUT_NORMALIZE_PATHS_DEFAULT));
-        logger.fine(INPUT_PATTERN_KEY + " = " + inputPattern);
+                .getProperty(INPUT_NORMALIZE_PATHS_KEY));
 
-        zipInputPattern = properties.getProperty(ZIP_INPUT_PATTERN_KEY,
-                ZIP_INPUT_PATTERN_DEFAULT);
-        logger.fine(ZIP_INPUT_PATTERN_KEY + " = " + zipInputPattern);
+        zipInputPattern = properties.getProperty(ZIP_INPUT_PATTERN_KEY);
 
-        throttledEventsPerSecond = Double
-                .parseDouble(properties.getProperty(THROTTLE_EVENTS_KEY,
-                        THROTTLE_EVENTS_DEFAULT));
-        if (throttledEventsPerSecond > 0) {
-            logger
-                    .info("throttle = " + throttledEventsPerSecond
-                            + " tps");
-        }
+        throttledEventsPerSecond = Double.parseDouble(properties
+                .getProperty(THROTTLE_EVENTS_KEY));
 
         throttledBytesPerSecond = Integer.parseInt(properties
-                .getProperty(THROTTLE_BYTES_KEY, THROTTLE_BYTES_DEFAULT));
-        if (throttledBytesPerSecond > 0) {
-            logger.info("throttle = " + throttledBytesPerSecond
-                    + " B/sec");
-        }
+                .getProperty(THROTTLE_BYTES_KEY));
 
-        String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY,
-                DOCUMENT_FORMAT_DEFAULT).toLowerCase();
+        String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY)
+                .toLowerCase();
         if (DocumentFormat.TEXT.toString().startsWith(formatString)) {
             format = DocumentFormat.TEXT;
         } else if (DocumentFormat.BINARY.toString().startsWith(
@@ -533,10 +493,6 @@ public class Configuration {
             logger.warning("Unexpected: " + DOCUMENT_FORMAT_KEY + "="
                     + formatString + " (using xml)");
             format = DocumentFormat.XML;
-        }
-        if (!formatString.startsWith(DocumentFormat.XML.toString())) {
-            logger.info("Using " + DOCUMENT_FORMAT_KEY + "="
-                    + formatString);
         }
     }
 
@@ -554,13 +510,6 @@ public class Configuration {
         }
         // keep a base list of collections that can be extended later
         baseCollections = collections.toArray(new String[0]);
-    }
-
-    /**
-     * @param _logger
-     */
-    public void setLogger(SimpleLogger _logger) {
-        logger = _logger;
     }
 
     public String getRecordName() {
@@ -633,14 +582,6 @@ public class Configuration {
         return uriPrefix;
     }
 
-    /**
-     * @param _stream
-     * @throws IOException
-     */
-    public void load(InputStream _stream) throws IOException {
-        properties.load(_stream);
-    }
-
     public String getMalformedInputAction() {
         return malformedInputAction;
     }
@@ -667,13 +608,6 @@ public class Configuration {
 
     public String getIdNodeName() {
         return idNodeName;
-    }
-
-    /**
-     * @return
-     */
-    public SimpleLogger getLogger() {
-        return logger;
     }
 
     /**
@@ -816,16 +750,8 @@ public class Configuration {
     /**
      * @return
      */
-    public Properties getProperties() {
-        return properties;
-    }
-
-    /**
-     * @return
-     */
     public String getContentFactoryClassName() {
-        return properties.getProperty(CONTENT_FACTORY_CLASSNAME_KEY,
-                CONTENT_FACTORY_CLASSNAME_DEFAULT);
+        return properties.getProperty(CONTENT_FACTORY_CLASSNAME_KEY);
     }
 
     /**
@@ -877,6 +803,7 @@ public class Configuration {
      * @return
      */
     public String getConfigurationClassName() {
+        // this is used to construct the pre-defaults configuration
         return properties.getProperty(CONFIGURATION_CLASSNAME_KEY,
                 CONFIGURATION_CLASSNAME_DEFAULT);
     }
@@ -902,9 +829,8 @@ public class Configuration {
         if (isUseFilenameIds()) {
             return false;
         }
-        return Utilities.stringToBoolean(properties.getProperty(
-                USE_FILENAME_COLLECTION_KEY,
-                USE_FILENAME_COLLECTION_DEFAULT));
+        return Utilities.stringToBoolean(properties
+                .getProperty(USE_FILENAME_COLLECTION_KEY));
     }
 
     /**
@@ -918,8 +844,7 @@ public class Configuration {
      * @return
      */
     public String getInputHandlerClassName() {
-        return properties.getProperty(INPUT_HANDLER_CLASSNAME_KEY,
-                INPUT_HANDLER_CLASSNAME_DEFAULT);
+        return properties.getProperty(INPUT_HANDLER_CLASSNAME_KEY);
     }
 
     public CharsetDecoder getDecoder() {
@@ -950,13 +875,6 @@ public class Configuration {
      */
     public int getThrottledBytesPerSecond() {
         return throttledBytesPerSecond;
-    }
-
-    /**
-     * @return
-     */
-    public long getTooManyStandsRetryMillis() {
-        return tooManyStandsRetryMillis;
     }
 
 }

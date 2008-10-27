@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.CharsetDecoder;
+import java.util.logging.Logger;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
@@ -55,6 +56,17 @@ public abstract class AbstractLoader implements LoaderInterface {
     protected String inputFilePath;
 
     protected DocumentFormat format = null;
+
+    /**
+     * @param _logger
+     * 
+     *            The abstract implementation does nothing. Subclasses may
+     *            overload as needed. If problems are encountered, the subclass
+     *            should throw a FatalException or another run-time exception.
+     */
+    public static void checkEnvironment(Logger _logger) {
+        // do nothing
+    }
 
     /*
      * (non-Javadoc)
@@ -125,7 +137,8 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.InputStream)
+     * @see
+     * com.marklogic.recordloader.LoaderInterface#setInput(java.io.InputStream)
      */
     @SuppressWarnings("unused")
     public void setInput(InputStream _is, CharsetDecoder _decoder)
@@ -160,7 +173,6 @@ public abstract class AbstractLoader implements LoaderInterface {
      * 
      * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.File)
      */
-    @SuppressWarnings("unused")
     public void setInput(File _file, CharsetDecoder _decoder)
             throws LoaderException {
         if (null == _file) {
@@ -182,7 +194,9 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setFileBasename(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.LoaderInterface#setFileBasename(java.lang.
+     * String)
      */
     public void setFileBasename(String _name) throws LoaderException {
         fileBasename = _name;
@@ -201,7 +215,9 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setRecordPath(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.LoaderInterface#setRecordPath(java.lang.String
+     * )
      */
     public void setRecordPath(String _path) throws LoaderException {
         entryPath = _path;
@@ -294,7 +310,7 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
 
         String cleanId = id.trim();
-        
+
         // TODO move this to the end?
         String inputStripPrefix = config.getInputStripPrefix();
         if (null != inputStripPrefix && inputStripPrefix.length() > 0) {
@@ -355,7 +371,9 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setConfiguration(com.marklogic.recordloader.Configuration)
+     * @see
+     * com.marklogic.recordloader.LoaderInterface#setConfiguration(com.marklogic
+     * .recordloader.Configuration)
      */
     @SuppressWarnings("unused")
     public void setConfiguration(Configuration _config)
@@ -370,7 +388,8 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setConnectionUri(java.net.URI)
+     * @see
+     * com.marklogic.recordloader.LoaderInterface#setConnectionUri(java.net.URI)
      */
     public void setConnectionUri(URI _uri) throws LoaderException {
         if (null == config) {
@@ -393,7 +412,8 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setMonitor(com.marklogic.recordloader.Monitor)
+     * @seecom.marklogic.recordloader.LoaderInterface#setMonitor(com.marklogic.
+     * recordloader.Monitor)
      */
     @SuppressWarnings("unused")
     public void setMonitor(Monitor _monitor) throws LoaderException {
@@ -403,7 +423,9 @@ public abstract class AbstractLoader implements LoaderInterface {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.LoaderInterface#setFormat(com.marklogic.xcc.DocumentFormat)
+     * @see
+     * com.marklogic.recordloader.LoaderInterface#setFormat(com.marklogic.xcc
+     * .DocumentFormat)
      */
     public void setFormat(DocumentFormat _xml) {
         format = _xml;

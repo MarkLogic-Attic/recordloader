@@ -21,11 +21,17 @@ package com.marklogic.recordloader;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.nio.charset.MalformedInputException;
+import java.util.Enumeration;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.logging.Logger;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
+import com.marklogic.ps.RecordLoader;
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
 
@@ -36,6 +42,11 @@ import com.marklogic.ps.timing.TimedEvent;
 
 // Callable<Object> is ok: we really don't return anything
 public class Loader extends AbstractLoader {
+    /**
+     * 
+     */
+    private static final String XPP3_RESOURCE_NAME = "META-INF/services/org.xmlpull.v1.XmlPullParserFactory";
+
     private XmlPullParser xpp = null;
 
     // local cache for hot-loop configuration info
@@ -122,7 +133,7 @@ public class Loader extends AbstractLoader {
             if (e instanceof LoaderException) {
                 throw (LoaderException) e;
             }
-            
+
             throw new LoaderException(e);
         }
     }
@@ -316,6 +327,120 @@ public class Loader extends AbstractLoader {
         if (idName == null) {
             throw new FatalException("Missing required property: "
                     + Configuration.ID_NAME_KEY);
+        }
+    }
+
+    /**
+     * @param _logger
+     * 
+     */
+    public static void checkEnvironment(Logger _logger) {
+        // check the XPP3 version
+        ClassLoader loader = RecordLoader.class.getClassLoader();
+        if (null == loader) {
+            _logger
+                    .warning("RecordLoader class loader is null - trying system class loader");
+            loader = ClassLoader.getSystemClassLoader();
+            if (null == loader) {
+                throw new NullPointerException("null class loader");
+            }
+        }
+
+        // the xppUrl should look something like...
+        // jar:file:/foo/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
+        URL xppUrl = loader.getResource(XPP3_RESOURCE_NAME);
+        if (null == xppUrl) {
+            throw new FatalException(
+                    "Please configure your classpath to include"
+                            + " XPP3 (version 1.1.4 or later).");
+        }
+
+        checkXppVersion(getXppVersion(_logger, xppUrl));
+    }
+
+    /**
+     * @param _logger
+     * @param xppUrl
+     * @return
+     */
+    private static String[] getXppVersion(Logger _logger, URL xppUrl) {
+        String proto = xppUrl.getProtocol();
+        // TODO handle file protocol directly, too?
+        if (!"jar".equals(proto)) {
+            throw new FatalException("xppUrl protocol: " + proto);
+        }
+        try {
+            // the file portion should look something like...
+            // file:/foo/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
+            String file = xppUrl.getFile();
+            URL fileUrl = new URL(file);
+            proto = fileUrl.getProtocol();
+            if (!"file".equals(proto)) {
+                throw new FatalException("fileUrl protocol: " + proto);
+            }
+            file = fileUrl.getFile();
+            // allow for "!/"
+            String jarPath = file.substring(0, file.length()
+                    - XPP3_RESOURCE_NAME.length() - 2);
+            return getXppVersion(_logger, new JarFile(jarPath));
+        } catch (LoaderException e) {
+            throw new FatalException(e);
+        } catch (IOException e) {
+            throw new FatalException(e);
+        }
+    }
+
+    /**
+     * @param _logger
+     * @param jar
+     * @return
+     * @throws LoaderException
+     */
+    private static String[] getXppVersion(Logger _logger, JarFile jar)
+            throws LoaderException {
+        String versionSuffix = "_VERSION";
+        String versionPrefix = "XPP3_";
+        String name;
+        for (Enumeration<JarEntry> e = jar.entries(); e.hasMoreElements();) {
+            name = e.nextElement().getName();
+            if (name.startsWith(versionPrefix)
+                    && name.endsWith(versionSuffix)) {
+                name = name.substring(versionPrefix.length(), name
+                        .length()
+                        - versionSuffix.length());
+                _logger.info("XPP3 version = " + name);
+                return name.split("\\.");
+            }
+        }
+        throw new LoaderException("no XPP3 version information in "
+                + jar.getName());
+    }
+
+    /**
+     * @param version
+     */
+    private static void checkXppVersion(String[] version) {
+        if (null == version) {
+            throw new FatalException(
+                    "No version info found - XPP3 is probably too old.");
+        }
+
+        // check major, minor, patch for 1+, 1+, and 4+
+        int major = Integer.parseInt(version[0]);
+        if (major < 1) {
+            throw new FatalException(
+                    "The XPP3 major version is too old: " + major);
+        }
+        int minor = Integer.parseInt(version[1]);
+        if (1 == major && minor < 1) {
+            throw new FatalException(
+                    "The XPP3 minor version is too old: " + minor);
+        }
+        int patch = Integer.parseInt(version[2].replaceFirst(
+                "(\\d+)\\D+", "$1"));
+        if (1 == major && 1 == minor && patch < 4) {
+            throw new FatalException(
+                    "The XPP3 patch version is too old: " + version[2]);
         }
     }
 

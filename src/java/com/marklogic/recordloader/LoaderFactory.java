@@ -25,7 +25,9 @@ import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.charset.CharsetDecoder;
+import java.util.logging.Logger;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -56,10 +58,15 @@ public class LoaderFactory {
      * @throws NoSuchMethodException
      * @throws SecurityException
      * @throws ClassNotFoundException
+     * @throws InvocationTargetException
+     * @throws IllegalAccessException
+     * @throws IllegalArgumentException
      */
     public LoaderFactory(Monitor _monitor, CharsetDecoder _inputDecoder,
             Configuration _config) throws SecurityException,
-            NoSuchMethodException, ClassNotFoundException {
+            NoSuchMethodException, ClassNotFoundException,
+            IllegalArgumentException, IllegalAccessException,
+            InvocationTargetException {
         monitor = _monitor;
         config = _config;
         decoder = _inputDecoder;
@@ -74,6 +81,15 @@ public class LoaderFactory {
                         ClassLoader.getSystemClassLoader()).asSubclass(
                         LoaderInterface.class);
         loaderConstructor = loaderClass.getConstructor(new Class[] {});
+
+        /*
+         * AbstractLoader subclasses can define a static method
+         * checkEnvironment(), and this is where we call it. If anything goes
+         * wrong, it will throw a run-time exception.
+         */
+        Method check = loaderClass.getMethod("checkEnvironment",
+                Logger.class);
+        check.invoke(null, logger);
     }
 
     private LoaderInterface getLoader() throws LoaderException {
