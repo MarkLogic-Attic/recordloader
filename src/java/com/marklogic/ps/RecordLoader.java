@@ -53,7 +53,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-10-26.1";
+    public static final String VERSION = "2008-10-28.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -66,8 +66,9 @@ public class RecordLoader {
         /*
          * (non-Javadoc)
          * 
-         * @see java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java.lang.Runnable,
-         *      java.util.concurrent.ThreadPoolExecutor)
+         * @see
+         * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
+         * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
          */
         public void rejectedExecution(Runnable r,
                 ThreadPoolExecutor executor) {
@@ -100,7 +101,7 @@ public class RecordLoader {
         initConfiguration();
         logger.info("client hostname = "
                 + InetAddress.getLocalHost().getHostName());
-        logger.info(printVersion());
+        logger.info(getVersionMessage());
     }
 
     /**
@@ -109,7 +110,7 @@ public class RecordLoader {
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
-        
+
         // use system properties as a basis
         // this allows any number of properties at the command-line,
         // using -DPROPNAME=foo
@@ -142,16 +143,17 @@ public class RecordLoader {
     }
 
     public static void main(String[] args) throws Exception {
-        System.err.println(printVersion());
+        System.err.println(getVersionMessage());
         new RecordLoader(args).run();
     }
 
     /**
      * 
      */
-    protected static String printVersion() {
+    protected static String getVersionMessage() {
         return SIMPLE_NAME + " starting, version " + VERSION + " on "
-                + System.getProperty("java.runtime.name");
+                + System.getProperty("java.version") + "("
+                + System.getProperty("java.runtime.name") + ")";
     }
 
     private void run() throws LoaderException, SecurityException,
@@ -168,17 +170,17 @@ public class RecordLoader {
         }
         logger.info("thread count = " + threadCount);
 
-        pool = new ThreadPoolExecutor(config.getThreadCount(), config
-                .getThreadCount(), config.getKeepAliveSeconds(),
-                TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(config
+        pool = new ThreadPoolExecutor(threadCount, threadCount, config
+                .getKeepAliveSeconds(), TimeUnit.SECONDS,
+                new ArrayBlockingQueue<Runnable>(config
                         .getQueueCapacity()), new CallerBlocksPolicy());
+        pool.prestartCoreThread();
+        
         monitor = new Monitor(config, pool, Thread.currentThread());
 
         try {
             monitor.start();
-
             runInputHandler();
-
             pool.shutdown();
 
             while (monitor.isAlive()) {

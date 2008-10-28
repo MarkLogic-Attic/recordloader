@@ -86,17 +86,26 @@ com.marklogic.recordloader.Configuration class.</td>
 
 <tr><td>CONTENT_FACTORY_CLASSNAME</td>
 <td>com.marklogic.recordloader.xcc.XccContentFactory</td>
-<td>This class will be used to create new content objects,
+<td>
+<p>This class will be used to create new content objects,
 which implement com.marklogic.recordloader.ContentInterface.
 One alternative implementation is provided, as
 <code>com.marklogic.recordloader.xcc.XccModuleContentFactory</code>,
 which creates objects in the class
 <code>com.marklogic.recordloader.xcc.XccModuleContent</code>.
+</p>
+
+<p>
 When XccModuleContentFactory is used, new documents must fit in memory,
 and will be posted to the XQuery main module designated by the
 <code>CONTENT_MODULE_URI</code> property.
-When RecordLoader invokes this module,
-it will set several external <code>xs:string</code> variables:
+If the <code>SKIP_EXISTING</code> or <code>ERROR_EXISTING</code>
+features are desired, the module must implement each itself (see below).
+</p>
+
+<p>When RecordLoader invokes this module, it will set external variables:
+</p>
+
 <ul>
 <li><code>$URI</code></li>
 <li><code>$XML-STRING</code></li>
@@ -112,20 +121,32 @@ it will set several external <code>xs:string</code> variables:
 <li><code>$COLLECTIONS</code>&nbsp;
   (comma-separated values, using <code>OUTPUT_COLLECTIONS</code>)
 </li>
+<li><code>$SKIP-EXISTING</code>&nbsp;
+  (using <code>SKIP_EXISTING</code>)
+</li>
+<li><code>$ERROR-EXISTING</code>&nbsp;
+  (using <code>ERROR_EXISTING</code>)
+</li>
 </ul>
 
 <p>
   The following XQuery implements an example ContentModule,
   which implements a simple transform to lower-case all element names.
+  Note that the module implements its own versions of the
+  <code>SKIP_EXISTING</code> and <code>ERROR_EXISTING</code> checks.
 </p>
 
 <pre>
+xquery version "0.9-ml"
+
 define variable $URI as xs:string external
 define variable $XML-STRING as xs:string external
 define variable $NAMESPACE as xs:string external
 define variable $LANGUAGE as xs:string external
 define variable $ROLES as xs:string external
 define variable $COLLECTIONS as xs:string external
+define variable $SKIP-EXISTING as xs:boolean external
+define variable $ERROR-EXISTING as xs:boolean external
 
 define function do($list as node()*)
  as node()*
@@ -141,7 +162,9 @@ define function do($list as node()*)
   default return $n
 }
 
-xdmp:document-insert(
+if ($SKIP-EXISTING and doc($URI)) then ()
+else if ($ERROR-EXISTING and doc($URI)) then error('DUPLICATE-URI', $URI)
+else xdmp:document-insert(
   $URI,
   do(xdmp:unquote(
     $XML-STRING,
@@ -157,9 +180,12 @@ xdmp:document-insert(
 </tr>
 
 <tr><td>CONNECTION_STRING</td><td>xcc://admin:admin@localhost:9000/</td>
-<td>XCC URI, including username, password, host, and port,
-to use for all queries and inserts.
-  If desired, a database name may also be supplied.</td>
+<td>
+  XCC URI, including username, password, host, and port,
+  to use for all queries and inserts.
+  If desired, a database name may also be supplied.
+  Multiple connection strings may be separated with whitespace or commas.
+</td>
 </tr>
 
 <tr><td>DEFAULT_NAMESPACE</td><td>null</td>
@@ -174,8 +200,24 @@ to use for all queries and inserts.
 </tr>
 
 <tr><td>ERROR_EXISTING</td><td>false</td>
-<td>If true, RecordLoader will exit with an error
-  if it finds itself trying to overwrite an existing document uri.</td>
+<td>
+  If true, RecordLoader will throw an error
+  if it finds itself trying to overwrite an existing document uri.
+  This error may or may not be fatal,
+  depending on the value of <code>FATAL_ERRORS</code>.
+
+<p>
+  Note that this option requires the server to perform a separate check
+  for each document uri. This can reduce performance.
+</p>
+
+<p>
+  Note that if using
+  <code>CONTENT_FACTORY_CLASSNAME=com.marklogic.recordloader.xcc.XccModuleContentFactory</code>,
+  this option requires the module to implement its mechanism (see above).
+</p>
+
+</td>
 </tr>
 
 <tr><td>FATAL_ERRORS</td><td>true</td>
@@ -186,28 +228,42 @@ to use for all queries and inserts.
 </td>
 </tr>
 
+<tr><td>IGNORE_FILE_BASENAME</td><td>false</td>
+<td>
+  If true, RecordLoader will omit the file or zip archive basename
+  when composing new document uris.
+</td>
+</tr>
+
 <tr><td>ID_NAME</td><td><code>#FILENAME</code></td>
 <td>Within each input document or RECORD_NAME element,
 the first element called ID_NAME will be used to compose the new document uri.
 If ID_NAME starts with '@', an attribute with this local-name
 will be used to compose the new document uri.
+<p>
 Note that namespace is ignored: only the local-name is used.
 The named node must have a simple text value:
 it may not be empty, and it must not contain any non-text children.
-<br/>
+</p>
+<p>
 The special value <code>ID_NAME=#AUTO</code> will cause RecordLoader
 to automatically generate ids, in sequence, for each input record.
 Since RecordLoader automatically includes the base filename
 in each output URI, this is safe.
+</p>
+<p>
 Note that when the input is standard input,
 the default value is <code>#AUTO</code> - not <code>#FILENAME</code>.
-<br/>
+</p>
+<p>
 The special value <code>ID_NAME=#FILENAME</code> will cause RecordLoader
 to automatically load each input file into
 a single document per input file, using the file's basename
 to compose the new document uri. This is the default behavior.
-<br/>
+</p>
+<p>
 Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
+</p>
 </tr>
 
 <tr><td>IGNORE_UNKNOWN</td><td>false</td>
@@ -364,24 +420,48 @@ will be used for the entire RecordLoader run.</td>
 </tr>
 
 <tr><td>SKIP_EXISTING</td><td>false</td>
-<td>If true, existing document uris will be skipped.
-This allows RecordLoader to resume after being interrupted.
-Note that one read I/O is required per skip,
-so SKIP_EXISTING is slower than using START_ID (below).
-The two properties may be combined,
-in case the known value for START_ID already exists.
+<td>
+<p>
+  If true, existing document uris will be skipped.
+  This allows RecordLoader to resume after being interrupted.
+  This option may be combined with <code>START_ID</code>,
+  in case the known value for <code>START_ID</code> already exists.
+
+</p>
+<p>
+  Note that one read I/O is required per skip,
+  so SKIP_EXISTING is slower than using START_ID (below).
+</p>
+<p>
+
+  Note that if using
+  <code>CONTENT_FACTORY_CLASSNAME=com.marklogic.recordloader.xcc.XccModuleContentFactory</code>,
+  this option requires the module to implement its mechanism (see above).
+</p>
 </td>
 </tr>
 
 <tr><td>START_ID</td><td>null</td>
-<td>When set, records are skipped
-until one with an ID_NAME value equal to START_ID is found.
-This allows RecordLoader to resume after being interrupted.</td>
+<td>
+  When set, records are skipped
+  until one with an <code>ID_NAME</code> value
+  equal to <code>START_ID</code> is found.
+  This can be used to resume ingestion after interruptions or fatal errors.
+</td>
 </tr>
 
 <tr><td>THREADS</td><td>1</td>
-<td>Number of RecordLoader threads.
-Note that when using standard input, this value is ignored.</td>
+<td>
+<p>
+Number of RecordLoader threads.
+</p>
+<p>
+Note that when using standard input, this value is ignored.
+</p>
+<p>
+Note that RecordLoader uses at most 1 thread per input file or zip entry.
+</p>
+</td>
 </tr>
 
 <tr><td>THROTTLE_BYTES_PER_SECOND</td><td>0</td>

@@ -29,8 +29,6 @@ import java.lang.reflect.Method;
 import java.nio.charset.CharsetDecoder;
 import java.util.logging.Logger;
 
-import org.xmlpull.v1.XmlPullParserException;
-
 import com.marklogic.ps.SimpleLogger;
 
 /**
@@ -75,7 +73,8 @@ public class LoaderFactory {
 
         // this should only be called once, in a single-threaded context
         String loaderClassName = config.getLoaderClassName();
-        logger.info("Loader is " + loaderClassName);
+        logger.info("Loader is " + loaderClassName + " ("
+                + config.isUseFilenameIds() + ")");
         Class<? extends LoaderInterface> loaderClass = Class
                 .forName(loaderClassName, true,
                         ClassLoader.getSystemClassLoader()).asSubclass(

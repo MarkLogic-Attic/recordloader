@@ -123,6 +123,8 @@ public class Configuration extends AbstractConfiguration {
      */
     public static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
 
+    public static final String ERROR_EXISTING_DEFAULT = "false";
+
     public static final String ID_NAME_KEY = "ID_NAME";
 
     public static final String ID_NAME_AUTO = "#AUTO";
@@ -191,6 +193,8 @@ public class Configuration extends AbstractConfiguration {
      */
     public static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
 
+    public static final String SKIP_EXISTING_DEFAULT = "false";
+
     /**
      * 
      */
@@ -228,6 +232,8 @@ public class Configuration extends AbstractConfiguration {
      * 
      */
     public static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
+
+    public static final String REPAIR_LEVEL_DEFAULT = "NONE";
 
     /**
      * 
@@ -359,6 +365,8 @@ public class Configuration extends AbstractConfiguration {
 
     private boolean useDocumentRoot = false;
 
+    private boolean ignoreFileBasename;
+
     /**
      * 
      */
@@ -370,6 +378,10 @@ public class Configuration extends AbstractConfiguration {
             .getCanonicalName();
 
     public static final String INPUT_ENCODING_DEFAULT = OUTPUT_ENCODING_DEFAULT;
+
+    public static final String IGNORE_FILE_BASENAME_KEY = "IGNORE_FILE_BASENAME";
+
+    public static final String IGNORE_FILE_BASENAME_DEFAULT = "false";
 
     /**
      * @throws URISyntaxException
@@ -436,15 +448,14 @@ public class Configuration extends AbstractConfiguration {
         startId = properties.getProperty(START_ID_KEY);
 
         // should we check for existing docs?
-        skipExisting = Utilities.stringToBoolean(properties.getProperty(
-                SKIP_EXISTING_KEY, "false"));
+        skipExisting = Utilities.stringToBoolean(properties
+                .getProperty(SKIP_EXISTING_KEY));
 
         // should we throw an error for existing docs?
-        errorExisting = Utilities.stringToBoolean(properties.getProperty(
-                ERROR_EXISTING_KEY, "false"));
+        errorExisting = Utilities.stringToBoolean(properties
+                .getProperty(ERROR_EXISTING_KEY));
 
-        String repairString = properties.getProperty(REPAIR_LEVEL_KEY,
-                "NONE");
+        String repairString = properties.getProperty(REPAIR_LEVEL_KEY);
         if (repairString.equals("FULL")) {
             repairLevel = DocumentRepairLevel.FULL;
         }
@@ -494,6 +505,9 @@ public class Configuration extends AbstractConfiguration {
                     + formatString + " (using xml)");
             format = DocumentFormat.XML;
         }
+
+        ignoreFileBasename = Utilities.stringToBoolean(properties
+                .getProperty(IGNORE_FILE_BASENAME_KEY));
     }
 
     private void configureCollections() {
@@ -699,6 +713,8 @@ public class Configuration extends AbstractConfiguration {
         logger.info("generating ids from file names");
         useAutomaticIds = false;
         useFilenameIds = true;
+        properties.setProperty(LOADER_CLASSNAME_KEY, FileLoader.class
+                .getName());
     }
 
     /**
@@ -803,7 +819,7 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getConfigurationClassName() {
-        // this is used to construct the pre-defaults configuration
+        // keep the default - used to construct the pre-defaults configuration
         return properties.getProperty(CONFIGURATION_CLASSNAME_KEY,
                 CONFIGURATION_CLASSNAME_DEFAULT);
     }
@@ -812,9 +828,7 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getLoaderClassName() {
-        return properties.getProperty(LOADER_CLASSNAME_KEY,
-                isUseFilenameIds() ? FileLoader.class.getName()
-                        : LOADER_CLASSNAME_DEFAULT);
+        return properties.getProperty(LOADER_CLASSNAME_KEY);
     }
 
     /**
@@ -875,6 +889,13 @@ public class Configuration extends AbstractConfiguration {
      */
     public int getThrottledBytesPerSecond() {
         return throttledBytesPerSecond;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isIgnoreFileBasename() {
+        return ignoreFileBasename;
     }
 
 }

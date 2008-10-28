@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import com.marklogic.ps.SimpleLogger;
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.ContentFactory;
 import com.marklogic.recordloader.ContentInterface;
@@ -30,6 +31,8 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
     protected ContentSource cs;
 
     protected List<String> collections;
+
+    protected SimpleLogger logger;
 
     /*
      * (non-Javadoc)
@@ -70,6 +73,7 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
     public void setConfiguration(Configuration _configuration)
             throws LoaderException {
         configuration = (XccConfiguration) _configuration;
+        logger = configuration.getLogger();
         try {
             initOptions();
         } catch (XccException e) {

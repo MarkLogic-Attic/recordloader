@@ -20,14 +20,15 @@ import com.marklogic.xcc.Request;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
+import com.marklogic.xcc.types.ValueType;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
- * This implementation passes the XML source to a defined module. As such, it
- * cannot handle documents larger than available memory.
+ *         This implementation passes the XML source to a defined module. As
+ *         such, it cannot handle documents larger than available memory.
  * 
- * Also, this class can only handle XML, and possibly text: no binaries!
+ *         Also, this class can only handle XML, and possibly text: no binaries!
  * 
  */
 public class XccModuleContent extends XccAbstractContent implements
@@ -45,6 +46,10 @@ public class XccModuleContent extends XccAbstractContent implements
 
     protected String namespace;
 
+    private boolean skipExisting;
+
+    private boolean errorExisting;
+
     /**
      * @param _session
      * @param _uri
@@ -52,10 +57,13 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _collections
      * @param _language
      * @param _namespace
+     * @param _skipExisting
+     * @param _errorExisting
      */
     public XccModuleContent(Session _session, String _uri,
             String _moduleUri, String[] _roles, String[] _collections,
-            String _language, String _namespace) {
+            String _language, String _namespace, boolean _skipExisting,
+            boolean _errorExisting) {
         session = _session;
         uri = _uri;
         if (null == _moduleUri) {
@@ -66,6 +74,8 @@ public class XccModuleContent extends XccAbstractContent implements
         collections = _collections;
         language = _language;
         namespace = _namespace;
+        skipExisting = _skipExisting;
+        errorExisting = _errorExisting;
     }
 
     /*
@@ -93,6 +103,10 @@ public class XccModuleContent extends XccAbstractContent implements
             request.setNewStringVariable("ROLES", joinCsv(roles));
             request.setNewStringVariable("COLLECTIONS",
                     joinCsv(collections));
+            request.setNewVariable("SKIP-EXISTING", ValueType.XS_BOOLEAN,
+                    skipExisting);
+            request.setNewVariable("ERROR-EXISTING",
+                    ValueType.XS_BOOLEAN, errorExisting);
             // ignore results
             session.submitRequest(request);
         } catch (RequestException e) {
@@ -114,7 +128,9 @@ public class XccModuleContent extends XccAbstractContent implements
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentInterface#setProducer(com.marklogic.recordloader.Producer)
+     * @see
+     * com.marklogic.recordloader.ContentInterface#setProducer(com.marklogic
+     * .recordloader.Producer)
      */
     public void setInputStream(InputStream _producer)
             throws LoaderException {
@@ -156,7 +172,9 @@ public class XccModuleContent extends XccAbstractContent implements
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentInterface#setFormat(com.marklogic.xcc.DocumentFormat)
+     * @see
+     * com.marklogic.recordloader.ContentInterface#setFormat(com.marklogic.xcc
+     * .DocumentFormat)
      */
     public void setFormat(DocumentFormat _format) {
         if (Configuration.DOCUMENT_FORMAT_DEFAULT
@@ -167,6 +185,14 @@ public class XccModuleContent extends XccAbstractContent implements
                 "setFormat() not available with format = " + _format
                         + "; XccModuleContent supports only "
                         + Configuration.DOCUMENT_FORMAT_DEFAULT);
+    }
+
+    @SuppressWarnings("unused")
+    @Override
+    public boolean checkDocumentUri(String _uri) throws LoaderException {
+        // override super(), so that we don't check the database.
+        // checking the database does not work, as modules can rewrite uris.
+        return false;
     }
 
 }

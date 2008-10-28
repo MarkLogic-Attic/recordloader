@@ -69,9 +69,10 @@ public abstract class XccAbstractContent implements ContentInterface {
      * @see com.marklogic.recordloader.ContentInterface#checkDocumentUri(java.lang.String)
      */
     public boolean checkDocumentUri(String _uri) throws LoaderException {
+        // boolean doc is actually cheaper than xdmp:exists doc
         String query = XQUERY_VERSION_0_9_ML
                 + "define variable $URI as xs:string external\n"
-                + "xdmp:exists(doc($URI))\n";
+                + "boolean(doc($URI))\n";
         ResultSequence result = null;
         boolean exists = false;
         try {

@@ -38,7 +38,8 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
+     * @see
+     * com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
      */
     @SuppressWarnings("unused")
     @Override
@@ -57,20 +58,26 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#newContent(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.xcc.XccAbstractContentFactory#newContent(java
+     * .lang.String)
      */
     @SuppressWarnings("unused")
     @Override
     public ContentInterface newContent(String _uri)
             throws LoaderException {
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
-                readRoles, collectionsArray, language, namespace);
+                readRoles, collectionsArray, language, namespace,
+                configuration.isSkipExisting(), configuration
+                        .isErrorExisting());
     }
 
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String
+     * )
      */
     public void setFileBasename(String _name) throws LoaderException {
         super.setFileBasename(_name);

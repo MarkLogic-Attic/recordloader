@@ -325,10 +325,12 @@ public abstract class AbstractLoader implements LoaderInterface {
         // note that config.getUriPrefix() will ensure that the uri ends in '/'
         // TODO differentiate between files and zip archives?
         StringBuilder baseName = new StringBuilder(config.getUriPrefix());
-        baseName.append((currentFileBasename == null
-                || currentFileBasename.equals("") || config
-                .isUseFilenameIds()) ? "" : currentFileBasename);
-        if (baseName != null && baseName.length() > 0
+
+        if (useFileBasename()) {
+            baseName.append(currentFileBasename);
+        }
+
+        if (null != baseName && baseName.length() > 0
                 && '/' != baseName.charAt(baseName.length() - 1)) {
             baseName.append("/");
         }
@@ -338,6 +340,16 @@ public abstract class AbstractLoader implements LoaderInterface {
         String finalName = baseName.toString();
         logger.finest(finalName);
         return finalName;
+    }
+
+    /**
+     * @return
+     */
+    private boolean useFileBasename() {
+        return null != currentFileBasename
+                && !currentFileBasename.equals("")
+                && !config.isUseFilenameIds()
+                && !config.isIgnoreFileBasename();
     }
 
     /**
@@ -355,7 +367,7 @@ public abstract class AbstractLoader implements LoaderInterface {
             logger.fine("checking for uri " + uri + " = " + exists);
             if (exists) {
                 if (config.isErrorExisting()) {
-                    throw new IOException(
+                    throw new LoaderException(
                             "ERROR_EXISTING=true, cannot overwrite existing document: "
                                     + uri);
                 }
