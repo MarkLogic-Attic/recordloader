@@ -100,7 +100,7 @@ public class Producer extends InputStream {
         }
         if (useAutomaticIds) {
             // automatic ids, starting from 1
-            // config uses a synchronized sequence of long
+            // config uses a sequence of long
             // TODO change to be basefile/entry/sequence ???
             newId = config.getAutoId();
             logger.fine("automatic document id " + newId);
@@ -528,7 +528,7 @@ public class Producer extends InputStream {
             logger.warning(e.getClass().getSimpleName() + " at "
                     + xpp.getPositionDescription());
             if (e.getMessage().contains("quotation or apostrophe")
-                    && config.isFullRepair()) {
+                    && !config.isFatalErrors()) {
                 // messed-up attribute? skip it?
                 logger.warning("attribute error: " + e.getMessage());
                 // all we can do is ignore it, apparently

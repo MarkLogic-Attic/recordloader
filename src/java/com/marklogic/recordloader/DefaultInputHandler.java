@@ -32,6 +32,8 @@ public class DefaultInputHandler extends AbstractInputHandler {
 
     private boolean hadInputs;
 
+    private int inputCount = 0;
+
     /*
      * (non-Javadoc)
      * 
@@ -53,6 +55,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
                 handleZipFiles();
                 handleGzFiles();
                 handleFiles();
+                logger.info("queued " + inputCount + " loader(s)");
             } catch (ZipException e) {
                 throw new LoaderException(e);
             } catch (IOException e) {
@@ -141,8 +144,8 @@ public class DefaultInputHandler extends AbstractInputHandler {
                 handleZipFiles(zipList);
                 continue;
             }
-            logger.fine("queuing " + canonicalPath);
-            pool.submit(factory.newLoader(file));
+
+            submit(canonicalPath, factory.newLoader(file));
         }
     }
 
@@ -172,18 +175,23 @@ public class DefaultInputHandler extends AbstractInputHandler {
                 }
 
                 path = file.getPath();
-                logger.fine("queuing " + path);
-                pool.submit(factory.newLoader(new GZIPInputStream(
+                submit(path, factory.newLoader(new GZIPInputStream(
                         new FileInputStream(file)), name, path));
             }
         }
+    }
+
+    private void submit(String _path, LoaderInterface _loader) {
+        pool.submit(_loader);
+        inputCount++;
+        logger.fine("queued " + inputCount + ": " + _path);
     }
 
     private void handleStandardInput() throws LoaderException,
             SecurityException {
         // use standard input
         logger.info("Reading from standard input...");
-        pool.submit(factory.newLoader(System.in));
+        submit("standard input", factory.newLoader(System.in));
     }
 
     /**
@@ -292,8 +300,9 @@ public class DefaultInputHandler extends AbstractInputHandler {
             while (stringIter.hasNext()) {
                 entryName = stringIter.next();
                 ze = zipFile.getEntry(entryName);
-                pool.submit(factory.newLoader(zipFile.getInputStream(ze),
-                        zipFileName, entryName));
+                submit(zipFileName + "/" + entryName, factory.newLoader(
+                        zipFile.getInputStream(ze), zipFileName,
+                        entryName));
                 count++;
                 if (0 == count % 1000) {
                     logger.finer("queued " + count

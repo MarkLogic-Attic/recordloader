@@ -23,7 +23,6 @@ import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.LoaderInterface;
-import com.marklogic.xcc.DocumentFormat;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -147,7 +146,8 @@ public class SvnInputHandler extends AbstractInputHandler {
 
         LoaderInterface loader = factory.newLoader(baos.toByteArray());
         loader.setRecordPath(rootedPath);
-        // TODO improve path-based type lookup
+        // TODO implement path-based type lookup - move to a content factory?
+        /*
         if (path.matches("^.+\\.(xml|xsd)")) {
             logger.finer(path + " is xml");
             loader.setFormat(DocumentFormat.XML);
@@ -159,6 +159,7 @@ public class SvnInputHandler extends AbstractInputHandler {
             logger.finer(path + " is binary");
             loader.setFormat(DocumentFormat.BINARY);
         }
+        */
         pool.submit(loader);
     }
 

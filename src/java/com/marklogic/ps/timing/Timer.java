@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2006 Mark Logic Corporation
+ * Copyright (c)2005-2008 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,17 +43,17 @@ public class Timer {
     public static final int NANOSECONDS_PER_SECOND = NANOSECONDS_PER_MILLISECOND
             * MILLISECONDS_PER_SECOND;
 
-    private long errors = 0;
+    private volatile long errors = 0;
 
-    private long bytes = 0;
+    private volatile long bytes = 0;
 
     private long duration = -1;
 
-    private ArrayList<TimedEvent> events = new ArrayList<TimedEvent>();
+    private volatile ArrayList<TimedEvent> events = new ArrayList<TimedEvent>();
 
     private long start;
 
-    private long eventCount;
+    private volatile long eventCount;
 
     public Timer() {
         start = System.nanoTime();
@@ -61,6 +61,10 @@ public class Timer {
     }
 
     public void add(TimedEvent event) {
+        add(event, true);
+    }
+
+    public void add(TimedEvent event, boolean _keepEvent) {
         // in case the user forgot to call stop(): note that bytes won't be
         // counted!
         event.stop();
@@ -69,7 +73,9 @@ public class Timer {
             if (event.isError()) {
                 errors++;
             }
-            events.add(event);
+            if (_keepEvent) {
+                events.add(event);
+            }
             eventCount++;
         }
     }
@@ -78,11 +84,21 @@ public class Timer {
      * @param _timer
      */
     public void add(Timer _timer) {
+        add(_timer, true);
+    }
+
+    /**
+     * @param _timer
+     * @param _keep
+     */
+    public void add(Timer _timer, boolean _keep) {
         _timer.stop();
         synchronized (events) {
             bytes += _timer.getBytes();
             errors += _timer.getErrorCount();
-            events.addAll(_timer.events);
+            if (_keep) {
+                events.addAll(_timer.events);
+            }
             eventCount += _timer.eventCount;
         }
     }

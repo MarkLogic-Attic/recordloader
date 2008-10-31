@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2008 Mark Logic Corporation. All rights reserved.
  */
-package com.marklogic.recordloader;
+package com.marklogic.recordloader.xcc;
 
 import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.xcc.XccConfiguration;

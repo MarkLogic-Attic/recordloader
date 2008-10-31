@@ -11,15 +11,12 @@ import java.io.StringWriter;
 import java.io.Writer;
 
 import com.marklogic.ps.Utilities;
-import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
-import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.Request;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.RequestException;
-import com.marklogic.xcc.exceptions.UnimplementedFeatureException;
 import com.marklogic.xcc.types.ValueType;
 
 /**
@@ -167,24 +164,6 @@ public class XccModuleContent extends XccAbstractContent implements
         // ModuleContent only works with strings
         // TODO support text? binary?
         xml = new String(_xml);
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see
-     * com.marklogic.recordloader.ContentInterface#setFormat(com.marklogic.xcc
-     * .DocumentFormat)
-     */
-    public void setFormat(DocumentFormat _format) {
-        if (Configuration.DOCUMENT_FORMAT_DEFAULT
-                .equalsIgnoreCase(_format.toString())) {
-            return;
-        }
-        throw new UnimplementedFeatureException(
-                "setFormat() not available with format = " + _format
-                        + "; XccModuleContent supports only "
-                        + Configuration.DOCUMENT_FORMAT_DEFAULT);
     }
 
     @SuppressWarnings("unused")

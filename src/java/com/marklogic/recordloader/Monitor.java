@@ -42,11 +42,11 @@ public class Monitor extends Thread {
 
     private static SimpleLogger logger;
 
-    private Timer timer;
+    private volatile Timer timer;
 
     private static long lastDisplayMillis = 0;
 
-    String lastUri;
+    private volatile String lastUri;
 
     private boolean running = true;
 
@@ -183,7 +183,8 @@ public class Monitor extends Thread {
             logger.finer("adding event for " + _uri);
             lastUri = _uri;
         }
-        timer.add(_event);
+        // do not keep the TimedEvent objects in the timer: 48-B each
+        timer.add(_event, false);
 
         // optional throttling
         if (config.isThrottled()) {

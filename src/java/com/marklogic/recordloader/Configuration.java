@@ -28,6 +28,7 @@ import java.nio.charset.CodingErrorAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -36,8 +37,6 @@ import com.marklogic.ps.RecordLoader;
 import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.xcc.XccConfiguration;
 import com.marklogic.recordloader.xcc.XccContentFactory;
-import com.marklogic.xcc.DocumentFormat;
-import com.marklogic.xcc.DocumentRepairLevel;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -63,23 +62,12 @@ public class Configuration extends AbstractConfiguration {
     /**
      * 
      */
-    public static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
-
-    /**
-     * 
-     */
     public static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
     /**
      * 
      */
     public final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
-
-    /**
-     * 
-     */
-    public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
-            .toString();
 
     /**
      * 
@@ -99,7 +87,7 @@ public class Configuration extends AbstractConfiguration {
     /**
      * 
      */
-    public static final String INPUT_STRIP_PREFIX = "INPUT_STRIP_PREFIX";
+    public static final String INPUT_STRIP_PREFIX_KEY = "INPUT_STRIP_PREFIX";
 
     /**
      * 
@@ -266,8 +254,6 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String ZIP_INPUT_PATTERN_KEY = "ZIP_INPUT_PATTERN";
 
-    public static final String ZIP_INPUT_PATTERN_DEFAULT = null;
-
     public static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
 
     public static final String COPY_NAMESPACES_DEFAULT = "true";
@@ -323,11 +309,9 @@ public class Configuration extends AbstractConfiguration {
 
     private String malformedInputAction;
 
-    private String recordName;
+    private volatile String recordName;
 
-    private String recordNamespace;
-
-    protected DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
+    private volatile String recordNamespace;
 
     private boolean skipExisting = false;
 
@@ -343,9 +327,7 @@ public class Configuration extends AbstractConfiguration {
 
     private boolean useFilenameIds = false;
 
-    private Object autoIdMutex = new Object();
-
-    private int autoid = 1;
+    private AtomicInteger autoid = new AtomicInteger(1);
 
     private String zipInputPattern;
 
@@ -357,9 +339,7 @@ public class Configuration extends AbstractConfiguration {
 
     private int throttledBytesPerSecond;
 
-    private DocumentFormat format = DocumentFormat.XML;
-
-    private Constructor<? extends ContentFactory> contentFactoryConstructor;
+    private volatile Constructor<? extends ContentFactory> contentFactoryConstructor;
 
     private Object contentFactoryMutex = new Object();
 
@@ -455,11 +435,6 @@ public class Configuration extends AbstractConfiguration {
         errorExisting = Utilities.stringToBoolean(properties
                 .getProperty(ERROR_EXISTING_KEY));
 
-        String repairString = properties.getProperty(REPAIR_LEVEL_KEY);
-        if (repairString.equals("FULL")) {
-            repairLevel = DocumentRepairLevel.FULL;
-        }
-
         copyNamespaceDeclarations = Utilities.stringToBoolean(properties
                 .getProperty(COPY_NAMESPACES_KEY));
 
@@ -479,7 +454,7 @@ public class Configuration extends AbstractConfiguration {
         inputPath = properties.getProperty(INPUT_PATH_KEY);
 
         inputPattern = properties.getProperty(INPUT_PATTERN_KEY);
-        inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX);
+        inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX_KEY);
         inputNormalizePaths = Utilities.stringToBoolean(properties
                 .getProperty(INPUT_NORMALIZE_PATHS_KEY));
 
@@ -490,21 +465,6 @@ public class Configuration extends AbstractConfiguration {
 
         throttledBytesPerSecond = Integer.parseInt(properties
                 .getProperty(THROTTLE_BYTES_KEY));
-
-        String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY)
-                .toLowerCase();
-        if (DocumentFormat.TEXT.toString().startsWith(formatString)) {
-            format = DocumentFormat.TEXT;
-        } else if (DocumentFormat.BINARY.toString().startsWith(
-                formatString)) {
-            format = DocumentFormat.BINARY;
-        } else if (DocumentFormat.XML.toString().startsWith(formatString)) {
-            format = DocumentFormat.XML;
-        } else {
-            logger.warning("Unexpected: " + DOCUMENT_FORMAT_KEY + "="
-                    + formatString + " (using xml)");
-            format = DocumentFormat.XML;
-        }
 
         ignoreFileBasename = Utilities.stringToBoolean(properties
                 .getProperty(IGNORE_FILE_BASENAME_KEY));
@@ -553,10 +513,6 @@ public class Configuration extends AbstractConfiguration {
         return startId;
     }
 
-    public DocumentRepairLevel getRepairLevel() {
-        return repairLevel;
-    }
-
     public String getUriSuffix() {
         return uriSuffix;
     }
@@ -571,13 +527,6 @@ public class Configuration extends AbstractConfiguration {
 
     public boolean isIgnoreUnknown() {
         return ignoreUnknown;
-    }
-
-    /**
-     * @return
-     */
-    public boolean isFullRepair() {
-        return DocumentRepairLevel.FULL == repairLevel;
     }
 
     public boolean isUseAutomaticIds() {
@@ -660,9 +609,7 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getAutoId() {
-        synchronized (autoIdMutex) {
-            return "" + (autoid++);
-        }
+        return "" + autoid.incrementAndGet();
     }
 
     public boolean isUseFilenameIds() {
@@ -749,10 +696,6 @@ public class Configuration extends AbstractConfiguration {
 
     public double getThrottledEventsPerSecond() {
         return throttledEventsPerSecond;
-    }
-
-    public DocumentFormat getFormat() {
-        return format;
     }
 
     public String getInputStripPrefix() {

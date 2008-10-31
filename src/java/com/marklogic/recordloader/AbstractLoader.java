@@ -15,7 +15,6 @@ import java.util.logging.Logger;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
-import com.marklogic.xcc.DocumentFormat;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -54,8 +53,6 @@ public abstract class AbstractLoader implements LoaderInterface {
     protected File inputFile;
 
     protected String inputFilePath;
-
-    protected DocumentFormat format = null;
 
     /**
      * @param _logger
@@ -392,9 +389,6 @@ public abstract class AbstractLoader implements LoaderInterface {
             throws LoaderException {
         config = _config;
         logger = config.getLogger();
-        if (null == format) {
-            format = config.getFormat();
-        }
     }
 
     /*
@@ -430,17 +424,6 @@ public abstract class AbstractLoader implements LoaderInterface {
     @SuppressWarnings("unused")
     public void setMonitor(Monitor _monitor) throws LoaderException {
         monitor = _monitor;
-    }
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see
-     * com.marklogic.recordloader.LoaderInterface#setFormat(com.marklogic.xcc
-     * .DocumentFormat)
-     */
-    public void setFormat(DocumentFormat _xml) {
-        format = _xml;
     }
 
 }

@@ -73,8 +73,7 @@ public class LoaderFactory {
 
         // this should only be called once, in a single-threaded context
         String loaderClassName = config.getLoaderClassName();
-        logger.info("Loader is " + loaderClassName + " ("
-                + config.isUseFilenameIds() + ")");
+        logger.info("Loader is " + loaderClassName);
         Class<? extends LoaderInterface> loaderClass = Class
                 .forName(loaderClassName, true,
                         ClassLoader.getSystemClassLoader()).asSubclass(

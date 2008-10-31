@@ -32,7 +32,7 @@ public class FileLoader extends AbstractLoader {
             boolean skippingRecord = checkIdAndUri(currentRecordPath);
 
             // grab the entire document, as bytes to support binaries
-            // do not pass the stream directly, so that XCC can retry
+            // do not pass the stream directly, so that content can retry
             byte[] bytes = Utilities.read(input);
             size = bytes.length;
             if (null == bytes || 0 == size) {
@@ -43,7 +43,6 @@ public class FileLoader extends AbstractLoader {
             if (!skippingRecord) {
                 logger.finest("bytes = " + bytes.length);
                 content.setBytes(bytes);
-                content.setFormat(format);
                 insert();
             }
         } catch (Exception e) {

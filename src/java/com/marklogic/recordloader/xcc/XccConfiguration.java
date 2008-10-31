@@ -13,6 +13,8 @@ import com.marklogic.xcc.ContentPermission;
 import com.marklogic.xcc.ContentSource;
 import com.marklogic.xcc.ContentSourceFactory;
 import com.marklogic.xcc.ContentbaseMetaData;
+import com.marklogic.xcc.DocumentFormat;
+import com.marklogic.xcc.DocumentRepairLevel;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.XccConfigException;
 import com.marklogic.xcc.exceptions.XccException;
@@ -22,6 +24,17 @@ import com.marklogic.xcc.exceptions.XccException;
  * 
  */
 public class XccConfiguration extends Configuration {
+
+    /**
+     * 
+     */
+    public static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
+
+    /**
+     * 
+     */
+    public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
+            .toString();
 
     /**
      */
@@ -43,11 +56,15 @@ public class XccConfiguration extends Configuration {
 
     Object metadataMutex = new Object();
 
-    BigInteger[] placeKeys;
+    volatile BigInteger[] placeKeys;
 
-    ContentbaseMetaData metadata;
+    volatile ContentbaseMetaData metadata;
 
     int quality = 0;
+
+    DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
+
+    DocumentFormat format = DocumentFormat.XML;
 
     /**
      * @return
@@ -91,39 +108,6 @@ public class XccConfiguration extends Configuration {
      * @throws XccException
      */
     public BigInteger[] getPlaceKeys() throws XccException {
-        // lazy initialization
-        if (null != placeKeys) {
-            return placeKeys;
-        }
-
-        synchronized (placeKeysMutex) {
-            String forestNames = properties
-                    .getProperty(OUTPUT_FORESTS_KEY);
-            // check again, to avoid any race for the mutex
-            if (forestNames != null) {
-                forestNames = forestNames.trim();
-                if (!forestNames.equals("")) {
-                    logger.info("sending output to forests: "
-                            + forestNames);
-                    logger.fine("querying for Forest ids");
-                    String[] placeNames = forestNames.split("\\s+");
-                    ContentbaseMetaData meta = getMetaData();
-                    Map<?, ?> forestMap = meta.getForestMap();
-                    placeKeys = new BigInteger[placeNames.length];
-                    for (int i = 0; i < placeNames.length; i++) {
-                        logger.finest("looking up " + placeNames[i]);
-                        placeKeys[i] = (BigInteger) forestMap
-                                .get(placeNames[i]);
-                        if (null == placeKeys[i]) {
-                            throw new FatalException("no forest named "
-                                    + placeNames[i]);
-                        }
-                        logger.fine("mapping " + placeNames[i] + " to "
-                                + placeKeys[i]);
-                    }
-                }
-            }
-        }
         return placeKeys;
     }
 
@@ -138,14 +122,14 @@ public class XccConfiguration extends Configuration {
         }
         synchronized (metadataMutex) {
             // check again, to prevent races
-            if (null == metadata) {
-                URI uri = getConnectionStrings()[0];
-                ContentSource cs = ContentSourceFactory
-                        .newContentSource(uri);
-                // be sure to use the default db
-                Session session = cs.newSession();
-                metadata = session.getContentbaseMetaData();
+            if (null != metadata) {
+                return metadata;
             }
+            URI uri = getConnectionStrings()[0];
+            ContentSource cs = ContentSourceFactory.newContentSource(uri);
+            // be sure to use the default db
+            Session session = cs.newSession();
+            metadata = session.getContentbaseMetaData();
         }
         return metadata;
     }
@@ -167,8 +151,82 @@ public class XccConfiguration extends Configuration {
     /**
      * @return
      */
+    public DocumentFormat getFormat() {
+        return format;
+    }
+
+    /**
+     * @return
+     */
     public String getLanguage() {
         return properties.getProperty(LANGUAGE_KEY);
+    }
+
+    public DocumentRepairLevel getRepairLevel() {
+        return repairLevel;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isFullRepair() {
+        return DocumentRepairLevel.FULL == repairLevel;
+    }
+
+    @Override
+    public void configure() {
+        super.configure();
+
+        // XCC-specific options
+        logger.info("configuring XCC-specific options");
+
+        String repairString = properties.getProperty(REPAIR_LEVEL_KEY);
+        if (repairString.equals("FULL")) {
+            repairLevel = DocumentRepairLevel.FULL;
+        }
+
+        String formatString = properties.getProperty(DOCUMENT_FORMAT_KEY)
+                .toLowerCase();
+        if (DocumentFormat.TEXT.toString().startsWith(formatString)) {
+            format = DocumentFormat.TEXT;
+        } else if (DocumentFormat.BINARY.toString().startsWith(
+                formatString)) {
+            format = DocumentFormat.BINARY;
+        } else if (DocumentFormat.XML.toString().startsWith(formatString)) {
+            format = DocumentFormat.XML;
+        } else {
+            logger.warning("Unexpected: " + DOCUMENT_FORMAT_KEY + "="
+                    + formatString + " (using xml)");
+            format = DocumentFormat.XML;
+        }
+
+        String forestNames = properties.getProperty(OUTPUT_FORESTS_KEY);
+        if (null != forestNames) {
+            forestNames = forestNames.trim();
+            if (!forestNames.equals("")) {
+                logger.info("sending output to forests: " + forestNames);
+                logger.fine("querying for Forest ids");
+                String[] placeNames = forestNames.split("\\s+");
+                try {
+                    ContentbaseMetaData meta = getMetaData();
+                    Map<?, ?> forestMap = meta.getForestMap();
+                    placeKeys = new BigInteger[placeNames.length];
+                    for (int i = 0; i < placeNames.length; i++) {
+                        logger.finest("looking up " + placeNames[i]);
+                        placeKeys[i] = (BigInteger) forestMap
+                                .get(placeNames[i]);
+                        if (null == placeKeys[i]) {
+                            throw new FatalException("no forest named "
+                                    + placeNames[i]);
+                        }
+                        logger.fine("mapping " + placeNames[i] + " to "
+                                + placeKeys[i]);
+                    }
+                } catch (XccException e) {
+                    throw new FatalException(e);
+                }
+            }
+        }
     }
 
 }
