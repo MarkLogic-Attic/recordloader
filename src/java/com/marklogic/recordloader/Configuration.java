@@ -67,7 +67,7 @@ public class Configuration extends AbstractConfiguration {
     /**
      * 
      */
-    public final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
+    public static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
 
     /**
      * 
@@ -78,6 +78,16 @@ public class Configuration extends AbstractConfiguration {
      * 
      */
     public static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
+
+    /**
+     * 
+     */
+    public static final String INPUT_FILE_SIZE_LIMIT_KEY = "INPUT_FILE_SIZE_LIMIT";
+
+    /**
+     * 
+     */
+    public static final String INPUT_FILE_SIZE_LIMIT_DEFAULT = "0";
 
     /**
      * 
@@ -347,9 +357,6 @@ public class Configuration extends AbstractConfiguration {
 
     private boolean ignoreFileBasename;
 
-    /**
-     * 
-     */
     public static final String ZIP_SUFFIX = ".zip";
 
     public static final String INPUT_HANDLER_CLASSNAME_KEY = "INPUT_HANDLER_CLASSNAME";
@@ -839,6 +846,14 @@ public class Configuration extends AbstractConfiguration {
      */
     public boolean isIgnoreFileBasename() {
         return ignoreFileBasename;
+    }
+
+    /**
+     * @return
+     */
+    public long getFileSizeLimit() {
+        return Long.parseLong(properties
+                .getProperty(INPUT_FILE_SIZE_LIMIT_KEY));
     }
 
 }

@@ -24,7 +24,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
 
     private FileFilter filter;
 
-    private ArrayList<File> xmlFiles = new ArrayList<File>();
+    private ArrayList<File> plainFiles = new ArrayList<File>();
 
     private ArrayList<File> zipFiles = new ArrayList<File>();
 
@@ -34,20 +34,24 @@ public class DefaultInputHandler extends AbstractInputHandler {
 
     private int inputCount = 0;
 
+    private long sizeLimit;
+
     /*
      * (non-Javadoc)
      * 
      * @see com.marklogic.recordloader.InputHandlerInterface#run()
      */
     public void run() throws LoaderException, FatalException {
+        sizeLimit = configuration.getFileSizeLimit();
+
         configureInputs();
 
         logger.fine("zipFiles.size = " + zipFiles.size());
         logger.fine("gzFiles.size = " + gzFiles.size());
-        logger.info("xmlFiles.size = " + xmlFiles.size());
+        logger.info("plainFiles.size = " + plainFiles.size());
 
         if (zipFiles.size() > 0 || gzFiles.size() > 0
-                || xmlFiles.size() > 0) {
+                || plainFiles.size() > 0) {
             getFactory();
             logger.info("populating queue");
             // queue any zip-entries first
@@ -102,7 +106,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
             }
         };
 
-        handleFiles(xmlFiles);
+        handleFiles(plainFiles);
     }
 
     /**
@@ -138,13 +142,22 @@ public class DefaultInputHandler extends AbstractInputHandler {
                 }
                 continue;
             }
-            if (file.getName().endsWith(Configuration.ZIP_SUFFIX)) {
+            if (canonicalPath.endsWith(Configuration.ZIP_SUFFIX)) {
+                // inefficient, but how many zip files will you queue?
                 ArrayList<File> zipList = new ArrayList<File>();
                 zipList.add(file);
                 handleZipFiles(zipList);
                 continue;
             }
 
+            // check size
+            if (0 < sizeLimit && file.length() > sizeLimit) {
+                logger.info("skipping " + canonicalPath
+                        + ": larger than " + sizeLimit + " B");
+                continue;
+            }
+
+            // plain file - add to the queue
             submit(canonicalPath, factory.newLoader(file));
         }
     }
@@ -201,7 +214,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
      */
     private void handleZipFiles() throws ZipException, IOException,
             LoaderException {
-        if (null == zipFiles) {
+        if (null == zipFiles || 1 > zipFiles.size()) {
             return;
         }
         handleZipFiles(zipFiles);
@@ -327,7 +340,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
             file = new File(path);
             if (checkPath(file)) {
                 logger.info("adding " + path);
-                xmlFiles.add(file);
+                plainFiles.add(file);
             }
         }
 
@@ -344,7 +357,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
             } else if (inputs[i].endsWith(".gz")) {
                 gzFiles.add(file);
             } else {
-                xmlFiles.add(file);
+                plainFiles.add(file);
             }
         }
     }
