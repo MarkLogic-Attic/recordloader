@@ -228,13 +228,6 @@ else xdmp:document-insert(
 </td>
 </tr>
 
-<tr><td>IGNORE_FILE_BASENAME</td><td>false</td>
-<td>
-  If true, RecordLoader will omit the file or zip archive basename
-  when composing new document uris.
-</td>
-</tr>
-
 <tr><td>ID_NAME</td><td><code>#FILENAME</code></td>
 <td>Within each input document or RECORD_NAME element,
 the first element called ID_NAME will be used to compose the new document uri.
@@ -264,6 +257,13 @@ to compose the new document uri. This is the default behavior.
 <p>
 Examples: ID_NAME=MedlineID, ID_NAME=@id</td>
 </p>
+</tr>
+
+<tr><td>IGNORE_FILE_BASENAME</td><td>false</td>
+<td>
+  If true, RecordLoader will omit the file or zip archive basename
+  when composing new document uris.
+</td>
 </tr>
 
 <tr><td>IGNORE_UNKNOWN</td><td>false</td>
@@ -297,6 +297,14 @@ use <code>INPUT_ENCODING=Cp1252</code> to ensure correct conversion.
 </td>
 </tr>
 
+<tr><td>INPUT_FILE_SIZE_LIMIT</td><td>0</td>
+<td>
+  If greater than zero, RecordLoader will skip any input files
+  larger that <code>INPUT_FILE_SIZE_LIMIT</code> Bytes.
+  This does not apply to zip archives, nor to the size of their entries.
+</td>
+</tr>
+
 <tr>
 <td>INPUT_HANDLER_CLASSNAME</td>
 <td>com.marklogic.recordloader.DefaultInputHandler</td>
@@ -312,7 +320,8 @@ class.
 Built-in alternatives:
 <ul>
 <li>com.marklogic.recordloader.svn.SvnInputHandler
-  treats <code>INPUT_PATH</code> as a subversion repository url.
+  treats <code>INPUT_PATH</code> as a subversion repository url
+  (EXPERIMENTAL).
 </li>
 </ul>
 </td>
