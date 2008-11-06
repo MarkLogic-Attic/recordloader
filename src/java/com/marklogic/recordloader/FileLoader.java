@@ -25,8 +25,7 @@ public class FileLoader extends AbstractLoader {
         int size = 0;
         try {
             // we need the content object, hence the URI, before we can
-            // check
-            // its existence
+            // check its existence
             currentUri = composeUri(currentRecordPath);
             content = contentFactory.newContent(currentUri);
             boolean skippingRecord = checkIdAndUri(currentRecordPath);

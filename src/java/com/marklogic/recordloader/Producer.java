@@ -43,6 +43,8 @@ public class Producer extends InputStream {
 
     private String recordNamespace;
 
+    private int recordDepth = 0;
+
     private StringBuilder buffer;
 
     private byte[] byteBuffer;
@@ -88,6 +90,14 @@ public class Producer extends InputStream {
      * 
      */
     private void handleRecordStart() throws XmlPullParserException {
+
+        if (recordDepth > 0) {
+            // if recordDepth is set, we're already in a record and this
+            // element just happens to have RECORD_NAME
+            return;
+        }
+        recordDepth = xpp.getDepth();
+        logger.finest("recordDepth = " + recordDepth);
 
         // handle automatic id generation here
         String newId;
@@ -142,6 +152,7 @@ public class Producer extends InputStream {
             XmlPullParserException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
+        String prefix = xpp.getPrefix();
         boolean isEmpty = xpp.isEmptyElementTag();
 
         logger.finest("name = " + name);
@@ -151,7 +162,7 @@ public class Producer extends InputStream {
         if (!text.contains(name)) {
             logger.warning("working around xpp3 bug 249: name = " + name
                     + ", text = " + text);
-            text = "<" + name;
+            text = "<" + (null == prefix ? "" : (prefix + ":")) + name;
             int attributeCount = xpp.getAttributeCount();
             String aPrefix;
             if (attributeCount > 0) {
@@ -229,7 +240,8 @@ public class Producer extends InputStream {
             // preserve namespace declarations into this element
             int depth = xpp.getDepth();
             if (depth > 0) {
-                int stop = xpp.getNamespaceCount(depth - 1);
+                int stop = xpp.getNamespaceCount((depth > 1) ? depth - 1
+                        : 1);
                 if (stop > 0) {
                     StringBuilder decl = null;
                     String nsDeclPrefix, nsDeclUri;
@@ -283,11 +295,15 @@ public class Producer extends InputStream {
             write(xpp.getText());
         }
 
-        if (!(recordName.equals(name) && recordNamespace
-                .equals(namespace))) {
+        if (!(recordName.equals(name)
+                && recordNamespace.equals(namespace) && recordDepth == xpp
+                .getDepth())) {
             // not the end of the record: go look for more nodes
             return true;
         }
+
+        // reset recordDepth
+        recordDepth = 0;
 
         // end of record: were we skipping?
         if (skippingRecord) {
@@ -296,7 +312,7 @@ public class Producer extends InputStream {
         }
 
         // did something go wrong?
-        if (currentId == null) {
+        if (null == currentId) {
             throw new XmlPullParserException("end of record element "
                     + name + " with no id found: "
                     + Configuration.ID_NAME_KEY + "=" + idName);
@@ -466,47 +482,56 @@ public class Producer extends InputStream {
             // NOTE: next() skips comments, ignorable-whitespace, etc.
             // to catch these, use nextToken() instead.
             eventType = xpp.nextToken();
-            logger.finest("eventType = " + eventType);
             switch (eventType) {
             case XmlPullParser.START_TAG:
+                logger.finest("eventType = START_TAG");
                 processStartElement();
                 break;
             case XmlPullParser.TEXT:
+                logger.finest("eventType = TEXT: " + xpp.getText());
                 write(Utilities.escapeXml(xpp.getText()));
                 break;
             case XmlPullParser.CDSECT:
+                logger.finest("eventType = CDSECT");
                 // round-trip it
                 write("<![CDATA[");
                 write(xpp.getText());
                 write("]]>");
                 break;
             case XmlPullParser.IGNORABLE_WHITESPACE:
+                logger.finest("eventType = IGNORABLE_WHITESPACE");
                 write(xpp.getText());
                 break;
             case XmlPullParser.ENTITY_REF:
+                logger.finest("eventType = ENTITY_REF");
                 write("&");
                 write(xpp.getName());
                 write(";");
                 break;
             case XmlPullParser.DOCDECL:
+                logger.finest("eventType = DOCDECL");
                 write("<!DOCTYPE");
                 write(xpp.getText());
                 write(">");
                 break;
             case XmlPullParser.PROCESSING_INSTRUCTION:
+                logger.finest("eventType = PROCESSING_INSTRUCTION");
                 write("<?");
                 write(xpp.getText());
                 write("?>");
                 break;
             case XmlPullParser.COMMENT:
+                logger.finest("eventType = COMMENT");
                 write("<!--");
                 write(xpp.getText());
                 write("-->");
                 break;
             case XmlPullParser.END_TAG:
+                logger.finest("eventType = END_TAG");
                 keepGoing = processEndElement();
                 break;
             case XmlPullParser.START_DOCUMENT:
+                logger.finest("eventType = START_DOCUMENT");
                 throw new XmlPullParserException(
                         "unexpected start of document within record!\n"
                                 + "recordName = " + recordName
@@ -514,6 +539,7 @@ public class Producer extends InputStream {
                                 + recordNamespace + " at "
                                 + xpp.getPositionDescription());
             case XmlPullParser.END_DOCUMENT:
+                logger.finest("eventType = END_DOCUMENT");
                 throw new XmlPullParserException(
                         "end of document before end of current record!\n"
                                 + "recordName = " + recordName
