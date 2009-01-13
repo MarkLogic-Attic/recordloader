@@ -297,6 +297,15 @@ use <code>INPUT_ENCODING=Cp1252</code> to ensure correct conversion.
 </td>
 </tr>
 
+<tr>
+  <td>INPUT_ESCAPE_IDS</td><td>true</td>
+  <td>
+    If true, all input ids will be URI-escaped.
+    Note that the default is true if <code>ID_NAME=#FILENAME</code>,
+    which is the default. In other modes, the default is false.
+  </td>
+</tr>
+
 <tr><td>INPUT_FILE_SIZE_LIMIT</td><td>0</td>
 <td>
   If greater than zero, RecordLoader will skip any input files

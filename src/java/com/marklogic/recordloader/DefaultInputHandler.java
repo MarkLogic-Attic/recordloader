@@ -10,15 +10,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.List;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
-import java.util.zip.ZipFile;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class DefaultInputHandler extends AbstractInputHandler {
 
@@ -38,7 +36,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.InputHandlerInterface#run()
      */
     public void run() throws LoaderException, FatalException {
@@ -230,16 +228,12 @@ public class DefaultInputHandler extends AbstractInputHandler {
 
         String entryName;
         Iterator<File> fileIter;
-        Iterator<String> stringIter;
         Enumeration<? extends ZipEntry> entries;
         File file;
-        ZipFile zipFile;
+        ZipReference zipFile;
         ZipEntry ze;
-        String zipInputPattern = configuration.getZipInputPattern();
         String inputPattern = configuration.getInputPattern();
-        List<String> entryNameList;
 
-        // NOTE this technique will intentionally leak zipfile objects!
         fileIter = zipFiles.iterator();
         int size;
         if (!fileIter.hasNext()) {
@@ -250,21 +244,28 @@ public class DefaultInputHandler extends AbstractInputHandler {
         while (fileIter.hasNext()) {
             file = fileIter.next();
             try {
-                zipFile = new ZipFile(file);
+                zipFile = new ZipReference(file, logger);
             } catch (ZipException e) {
                 // user-friendly error message
                 logger.warning("Error opening " + file.getCanonicalPath()
                         + ": " + e + " " + e.getMessage());
                 throw e;
             }
+
+            // prevent the zip from closing while we queue
+            zipFile.addReference();
+
             entries = zipFile.entries();
             size = zipFile.size();
             String canonicalPath = file.getCanonicalPath();
             logger.fine("queuing " + size + " entries from zip file "
                     + canonicalPath);
             int count = 0;
-            entryNameList = new ArrayList<String>();
             String zipFileName = zipFile.getName();
+            // monitor will track the references for us
+            // TODO teach the Callable to track the zip references?
+            monitor.add(zipFile, zipFileName);
+
             while (entries.hasMoreElements()) {
                 ze = entries.nextElement();
                 logger.fine("found zip entry " + ze);
@@ -275,44 +276,18 @@ public class DefaultInputHandler extends AbstractInputHandler {
                     logger.finer("skipping directory entry " + entryName);
                     continue;
                 }
+
                 // check inputPattern
                 if (!entryName.matches(inputPattern)) {
                     // skip it
-                    logger.finer("skipping " + entryName);
+                    logger.info("skipping " + entryName);
                     continue;
                 }
-                // check zipInputPattern
-                if (null != zipInputPattern
-                        && !entryName.matches(zipInputPattern)) {
-                    // skip it
-                    logger.finer("skipping " + entryName);
-                    continue;
-                }
+
                 // to avoid closing zip inputs randomly,
                 // we have to "leak" them temporarily
-                // tell the monitor about them, for later cleanup
-                logger.finest("adding " + entryName + " from "
-                        + zipFileName);
-                entryNameList.add(entryName);
-            }
-            logger.fine("queued " + count + " entries from zip file "
-                    + canonicalPath);
-            if (0 < entryNameList.size()) {
-                // tell the monitor to clean up after the open zip entries
-                monitor.add(zipFile, zipFileName, entryNameList);
-            } else {
-                // nothing from this one
-                logger.info("no entries queued from " + zipFileName);
-                zipFile.close();
-            }
-            // now queue the entries
-            // I don't like doing this twice,
-            // but Monitor needs to know about all the entries
-            // before we submit the first Loader.
-            stringIter = entryNameList.iterator();
-            while (stringIter.hasNext()) {
-                entryName = stringIter.next();
-                ze = zipFile.getEntry(entryName);
+                // via reference counts.
+                zipFile.addReference();
                 submit(zipFileName + "/" + entryName, factory.newLoader(
                         zipFile.getInputStream(ze), zipFileName,
                         entryName));
@@ -322,11 +297,23 @@ public class DefaultInputHandler extends AbstractInputHandler {
                             + " entries from zip file " + canonicalPath);
                 }
             }
+            logger.fine("queued " + count + " entries from zip file "
+                    + canonicalPath);
+
+            zipFile.closeReference();
+
+            if (1 > count) {
+                // nothing from this one
+                logger.info("no entries queued from " + zipFileName);
+                // does not leak - we just closed the last reference
+                continue;
+            }
 
             fileCount++;
             if (0 == fileCount % 100) {
                 logger.info("queued " + fileCount + " zip files");
             }
+
         }
     }
 

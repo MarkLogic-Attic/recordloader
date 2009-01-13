@@ -40,84 +40,84 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class Configuration extends AbstractConfiguration {
 
     /**
-     * 
+     *
      */
     public static final String THREADS_DEFAULT = "1";
 
     /**
-     * 
+     *
      */
     public static final String FATAL_ERRORS_DEFAULT = "true";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_PATTERN_DEFAULT = "^.+\\.[Xx][Mm][Ll]$";
 
     /**
-     * 
+     *
      */
     public static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
     /**
-     * 
+     *
      */
     public static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
 
     /**
-     * 
+     *
      */
     public static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_PATTERN_KEY = "INPUT_PATTERN";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_FILE_SIZE_LIMIT_KEY = "INPUT_FILE_SIZE_LIMIT";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_FILE_SIZE_LIMIT_DEFAULT = "0";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_PATH_KEY = "INPUT_PATH";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_STRIP_PREFIX_KEY = "INPUT_STRIP_PREFIX";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_NORMALIZE_PATHS_KEY = "INPUT_NORMALIZE_PATHS";
 
     /**
-     * 
+     *
      */
     public static final String INPUT_NORMALIZE_PATHS_DEFAULT = "false";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
 
     public static final String OUTPUT_NAMESPACE_DEFAULT = "";
 
     /**
-     * 
+     *
      */
     public static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
 
@@ -132,74 +132,78 @@ public class Configuration extends AbstractConfiguration {
     public static final String ID_NAME_DEFAULT = ID_NAME_FILENAME;
 
     /**
-     * 
+     *
      */
     public static final String IGNORE_UNKNOWN_KEY = "IGNORE_UNKNOWN";
 
     /**
-     * 
+     *
      */
     public static final int DISPLAY_MILLIS = 15000;
 
     /**
-     * 
+     *
      */
-    static public final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
+    public static final String INPUT_ENCODING_KEY = "INPUT_ENCODING";
+
+    public static final String INPUT_ESCAPE_IDS_KEY = "INPUT_ESCAPE_IDS";
+
+    public static final String INPUT_ESCAPE_IDS_DEFAULT = "false";
 
     /**
-     * 
+     *
      */
-    static public final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
+    public static final String INPUT_MALFORMED_ACTION_KEY = "INPUT_MALFORMED_ACTION";
 
     /**
-     * 
+     *
      */
-    static public final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
+    public static final String INPUT_MALFORMED_ACTION_IGNORE = CodingErrorAction.IGNORE
             .toString();
 
     /**
-     * 
+     *
      */
-    static public final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
+    public static final String INPUT_MALFORMED_ACTION_REPLACE = CodingErrorAction.REPLACE
             .toString();
 
     /**
-     * 
+     *
      */
     public static final String INPUT_MALFORMED_ACTION_REPORT = CodingErrorAction.REPORT
             .toString();
 
     /**
-     * 
+     *
      */
     public static final String INPUT_MALFORMED_ACTION_DEFAULT = INPUT_MALFORMED_ACTION_REPORT;
 
     public static final String RECORD_NAME_DOCUMENT_ROOT = "#DOCUMENT";
 
     /**
-     * 
+     *
      */
-    static public final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
+    public static final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
 
     /**
-     * 
+     *
      */
-    static public final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
+    public static final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
 
     /**
-     * 
+     *
      */
     public static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
 
     public static final String SKIP_EXISTING_DEFAULT = "false";
 
     /**
-     * 
+     *
      */
     public static final String START_ID_KEY = "START_ID";
 
     /**
-     * 
+     *
      */
     public static final String THREADS_KEY = "THREADS";
 
@@ -212,57 +216,55 @@ public class Configuration extends AbstractConfiguration {
     public static final String THROTTLE_BYTES_DEFAULT = "0";
 
     /**
-     * 
+     *
      */
     public static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
 
     /**
-     * 
+     *
      */
     public static final String RECORD_NAME_KEY = "RECORD_NAME";
 
     /**
-     * 
+     *
      */
-    static public final int SLEEP_TIME = 500;
+    public static final int SLEEP_TIME = 500;
 
     /**
-     * 
+     *
      */
     public static final String REPAIR_LEVEL_KEY = "XML_REPAIR_LEVEL";
 
     public static final String REPAIR_LEVEL_DEFAULT = "NONE";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_URI_SUFFIX_KEY = "URI_SUFFIX";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_URI_PREFIX_KEY = "URI_PREFIX";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_URI_PREFIX_DEFAULT = "";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_URI_SUFFIX_DEFAULT = "";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_COLLECTIONS_KEY = "OUTPUT_COLLECTIONS";
 
     public static final String OUTPUT_ENCODING_KEY = "OUTPUT_ENCODING";
 
     public static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
-
-    public static final String ZIP_INPUT_PATTERN_KEY = "ZIP_INPUT_PATTERN";
 
     public static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
 
@@ -297,11 +299,7 @@ public class Configuration extends AbstractConfiguration {
 
     private URI[] uris;
 
-    private boolean errorExisting = false;
-
     private XmlPullParserFactory factory = null;
-
-    private boolean fatalErrors = true;
 
     private boolean ignoreUnknown;
 
@@ -339,8 +337,6 @@ public class Configuration extends AbstractConfiguration {
 
     private AtomicInteger autoid = new AtomicInteger(1);
 
-    private String zipInputPattern;
-
     private boolean copyNamespaceDeclarations = true;
 
     private int capacity = DEFAULT_CAPACITY;
@@ -354,8 +350,6 @@ public class Configuration extends AbstractConfiguration {
     private Object contentFactoryMutex = new Object();
 
     private boolean useDocumentRoot = false;
-
-    private boolean ignoreFileBasename;
 
     public static final String ZIP_SUFFIX = ".zip";
 
@@ -372,7 +366,7 @@ public class Configuration extends AbstractConfiguration {
 
     /**
      * @throws URISyntaxException
-     * 
+     *
      */
     public void configure() {
         // set up the logger early, for verbose configuration output
@@ -438,15 +432,8 @@ public class Configuration extends AbstractConfiguration {
         skipExisting = Utilities.stringToBoolean(properties
                 .getProperty(SKIP_EXISTING_KEY));
 
-        // should we throw an error for existing docs?
-        errorExisting = Utilities.stringToBoolean(properties
-                .getProperty(ERROR_EXISTING_KEY));
-
         copyNamespaceDeclarations = Utilities.stringToBoolean(properties
                 .getProperty(COPY_NAMESPACES_KEY));
-
-        fatalErrors = Utilities.stringToBoolean(properties
-                .getProperty(FATAL_ERRORS_KEY));
 
         inputEncoding = properties.getProperty(INPUT_ENCODING_KEY);
         malformedInputAction = properties
@@ -465,16 +452,11 @@ public class Configuration extends AbstractConfiguration {
         inputNormalizePaths = Utilities.stringToBoolean(properties
                 .getProperty(INPUT_NORMALIZE_PATHS_KEY));
 
-        zipInputPattern = properties.getProperty(ZIP_INPUT_PATTERN_KEY);
-
         throttledEventsPerSecond = Double.parseDouble(properties
                 .getProperty(THROTTLE_EVENTS_KEY));
 
         throttledBytesPerSecond = Integer.parseInt(properties
                 .getProperty(THROTTLE_BYTES_KEY));
-
-        ignoreFileBasename = Utilities.stringToBoolean(properties
-                .getProperty(IGNORE_FILE_BASENAME_KEY));
     }
 
     private void configureCollections() {
@@ -529,7 +511,8 @@ public class Configuration extends AbstractConfiguration {
     }
 
     public boolean isFatalErrors() {
-        return fatalErrors;
+        return Utilities.stringToBoolean(properties
+                                         .getProperty(FATAL_ERRORS_KEY));
     }
 
     public boolean isIgnoreUnknown() {
@@ -541,7 +524,8 @@ public class Configuration extends AbstractConfiguration {
     }
 
     public boolean isErrorExisting() {
-        return errorExisting;
+        return Utilities.stringToBoolean(properties
+                                         .getProperty(ERROR_EXISTING_KEY));
     }
 
     public boolean isSkipExisting() {
@@ -581,7 +565,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     * 
+     *
      * @throws XmlPullParserException
      * @return
      */
@@ -626,13 +610,6 @@ public class Configuration extends AbstractConfiguration {
     /**
      * @return
      */
-    public String getZipInputPattern() {
-        return zipInputPattern;
-    }
-
-    /**
-     * @return
-     */
     public boolean isCopyNamespaceDeclarations() {
         return copyNamespaceDeclarations;
     }
@@ -661,7 +638,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     * 
+     *
      */
     private void setUseFilenameIds() {
         logger.info("generating ids from file names");
@@ -669,10 +646,12 @@ public class Configuration extends AbstractConfiguration {
         useFilenameIds = true;
         properties.setProperty(LOADER_CLASSNAME_KEY, FileLoader.class
                 .getName());
+        // better to escape ids by default
+        defaults.put(INPUT_ESCAPE_IDS_KEY, "true");
     }
 
     /**
-     * 
+     *
      */
     public void setUseAutomaticIds() {
         logger.info("generating automatic ids");
@@ -845,7 +824,9 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public boolean isIgnoreFileBasename() {
-        return ignoreFileBasename;
+        return Utilities
+            .stringToBoolean(properties
+                             .getProperty(IGNORE_FILE_BASENAME_KEY));
     }
 
     /**
@@ -854,6 +835,11 @@ public class Configuration extends AbstractConfiguration {
     public long getFileSizeLimit() {
         return Long.parseLong(properties
                 .getProperty(INPUT_FILE_SIZE_LIMIT_KEY));
+    }
+
+    public boolean isEscapeUri() {
+        return Utilities.stringToBoolean(properties
+                                         .getProperty(INPUT_ESCAPE_IDS_KEY));
     }
 
 }

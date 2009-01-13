@@ -79,6 +79,8 @@ public abstract class AbstractLoader implements LoaderInterface {
             }
             event = new TimedEvent();
             process();
+            // preempt the finally block
+            cleanup();
             return null;
         } catch (RuntimeException e) {
             // for NullPointerException, etc
@@ -96,20 +98,31 @@ public abstract class AbstractLoader implements LoaderInterface {
             monitor.halt(t);
             return null;
         } finally {
-            // clean up via monitor
-            if (null != fileBasename && null != entryPath) {
-                monitor.cleanup(fileBasename, entryPath);
-            }
-            if (null != input) {
-                input.close();
-                input = null;
-            }
-            if (null != inputFile) {
-                inputFile = null;
-            }
-            if (null != contentFactory) {
-                contentFactory.close();
-            }
+            cleanup();
+        }
+    }
+
+    /**
+     * @throws IOException
+     */
+    private void cleanup() throws IOException {
+        // clean up via monitor
+        // TODO test for entryPath isn't useful, since it's always set
+        if (null != fileBasename && null != entryPath) {
+            monitor.cleanup(fileBasename);
+            fileBasename = null;
+            entryPath = null;
+        }
+        if (null != input) {
+            input.close();
+            input = null;
+        }
+        if (null != inputFile) {
+            inputFile = null;
+        }
+        if (null != contentFactory) {
+            contentFactory.close();
+            contentFactory = null;
         }
     }
 
@@ -227,12 +240,21 @@ public abstract class AbstractLoader implements LoaderInterface {
 
         // this form of URI() does escaping nicely
         if (config.isUseFilenameIds()) {
+            URI uri;
             try {
-                currentRecordPath = new URI(null, currentRecordPath, null)
-                        .toString();
+                // URI(schema, ssp, fragment) constructor cannot handle
+                // ssp = 2008-11-07T12:23:47.617766-08:00/1
+                // (despite what the javadoc says)...
+                // in this situation, treat the path as the fragment.
+                uri = new URI(null, currentRecordPath, null);
             } catch (URISyntaxException e) {
-                throw new LoaderException(e);
+                try {
+                    uri = new URI(null, null, currentRecordPath);
+                } catch (URISyntaxException e1) {
+                    throw new LoaderException(e);
+                }
             }
+            currentRecordPath = uri.toString();
         }
 
     }

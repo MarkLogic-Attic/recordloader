@@ -45,7 +45,7 @@ import com.marklogic.recordloader.Monitor;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
- * 
+ *
  */
 
 public class RecordLoader {
@@ -53,7 +53,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2008-11-06.1";
+    public static final String VERSION = "2008-11-21.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -65,7 +65,7 @@ public class RecordLoader {
 
         /*
          * (non-Javadoc)
-         * 
+         *
          * @see
          * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
          * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
@@ -106,7 +106,7 @@ public class RecordLoader {
 
     /**
      * @throws URISyntaxException
-     * 
+     *
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
@@ -148,7 +148,7 @@ public class RecordLoader {
     }
 
     /**
-     * 
+     *
      */
     protected static String getVersionMessage() {
         return SIMPLE_NAME + " starting, version " + VERSION + " on "
@@ -175,7 +175,7 @@ public class RecordLoader {
                 new ArrayBlockingQueue<Runnable>(config
                         .getQueueCapacity()), new CallerBlocksPolicy());
         pool.prestartCoreThread();
-        
+
         monitor = new Monitor(config, pool, Thread.currentThread());
 
         try {
@@ -217,7 +217,7 @@ public class RecordLoader {
 
     /**
      * @throws LoaderException
-     * 
+     *
      */
     private synchronized void runInputHandler() throws LoaderException {
         // this should only be called once, in a single-threaded context

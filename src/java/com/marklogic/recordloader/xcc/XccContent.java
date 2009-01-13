@@ -48,7 +48,7 @@ public class XccContent extends XccAbstractContent implements
         try {
             session.insertContent(content);
         } catch (XccException e) {
-            throw new LoaderException(e);
+            throw new LoaderException(content.getUri(), e);
         }
     }
 

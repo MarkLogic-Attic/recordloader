@@ -18,16 +18,12 @@
  */
 package com.marklogic.recordloader;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
-import java.util.zip.ZipFile;
 
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.ps.Utilities;
@@ -50,11 +46,8 @@ public class Monitor extends Thread {
 
     private boolean running = true;
 
-    private Map<String, ZipFile> openZipFiles = Collections
-            .synchronizedMap(new HashMap<String, ZipFile>());
-
-    private Map<String, List<String>> openZipFileEntries = Collections
-            .synchronizedMap(new HashMap<String, List<String>>());
+    protected Map<String, ZipReference> openZipFiles = Collections
+            .synchronizedMap(new HashMap<String, ZipReference>());
 
     private ThreadPoolExecutor pool;
 
@@ -169,8 +162,8 @@ public class Monitor extends Thread {
      * 
      */
     public void halt(Throwable t) {
-        logger.logException("fatal - halting monitor", Utilities
-                .getCause(t));
+        logger.warning("fatal - halting monitor");
+        logger.logException(t.getMessage(), Utilities.getCause(t));
         halt();
     }
 
@@ -237,38 +230,16 @@ public class Monitor extends Thread {
 
     /**
      * @param fileName
-     * @param name
      */
-    void cleanup(String fileName, String name) {
-        // clean up any zip entries
-        List<String> list = openZipFileEntries.get(fileName);
-        if (null == list && fileName.endsWith(Configuration.ZIP_SUFFIX)) {
-            logger.warning("no file to clean up for " + fileName + " ("
-                    + name + ")");
+    protected void cleanup(String fileName) {
+        // clean up any zip references
+        ZipReference ref = openZipFiles.get(fileName);
+        if (null == ref) {
+            // TODO must ignore for now
+            // throw new NullPointerException("no reference to " + fileName);
             return;
         }
-        synchronized (list) {
-            if (!list.contains(name)) {
-                logger.fine("no entry to clean up for " + fileName + " ("
-                        + name + ")");
-                return;
-            }
-            logger.fine("removing entry " + name + " from " + fileName);
-            list.remove(name);
-            logger.fine("list for " + fileName + ": " + list.size()
-                    + " entries");
-            if (0 == list.size()) {
-                logger.info("cleaning up " + fileName);
-                ZipFile zipFile = openZipFiles.get(fileName);
-                try {
-                    zipFile.close();
-                } catch (IOException e) {
-                    logger.logException(name, e);
-                }
-                openZipFileEntries.remove(fileName);
-                openZipFiles.remove(fileName);
-            }
-        }
+        ref.closeReference();
     }
 
     /**
@@ -313,15 +284,12 @@ public class Monitor extends Thread {
     }
 
     /**
+     * @param zipFile
      * @param zipFileName
-     * @param entryNameList
      */
-    public void add(ZipFile zipFile, String zipFileName,
-            List<String> entryNameList) {
+    public void add(ZipReference zipFile, String zipFileName) {
         // queue for later cleanup
         openZipFiles.put(zipFileName, zipFile);
-        openZipFileEntries.put(zipFileName, Collections
-                .synchronizedList(new ArrayList<String>(entryNameList)));
     }
 
 }
