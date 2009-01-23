@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <!--
 /*
- * Copyright (c)2005-2008 Mark Logic Corporation
+ * Copyright (c)2005-2009 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -346,6 +346,14 @@ If unset, RecordLoader will read XML directly from standard input.</td>
 The default value matches all filenames ending with <code>.xml</code></td>
 </tr>
 
+<tr><td>INPUT_STREAMING</td><td>false</td>
+<td>If true, the input content will be streamed into the database.
+  By default, content will be buffered one document at a time, per thread.
+  The streaming option requires less memory, but is more fragile:
+  if interrupted, a document insert cannot be retried.
+</td>
+</tr>
+
 <tr><td>INPUT_STRIP_PREFIX</td><td>null</td>
 <td>If not null, characters matching this pattern (regex)
   will be removed from all input URIs.
@@ -456,6 +464,13 @@ will be used for the entire RecordLoader run.</td>
   <code>CONTENT_FACTORY_CLASSNAME=com.marklogic.recordloader.xcc.XccModuleContentFactory</code>,
   this option requires the module to implement its mechanism (see above).
 </p>
+</td>
+</tr>
+
+<tr><td>SKIP_EXISTING_UNTIL_FIRST_MISS</td><td>false</td>
+<td>If true, existing documents will be skipped until the first miss
+is found. This can be somewhat faster than <code>SKIP_EXISTING</code> alone,
+but may result in updates to some existing documents.
 </td>
 </tr>
 

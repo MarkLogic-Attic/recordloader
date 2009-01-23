@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2006-2008 Mark Logic Corporation
+ * Copyright (c)2006-2009 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -280,9 +280,14 @@ public class Loader extends AbstractLoader {
             currentUri = composeUri(id);
             content = contentFactory.newContent(currentUri);
             producer.setSkippingRecord(checkIdAndUri(id));
-            content.setInputStream(producer);
-
             if (!producer.isSkippingRecord()) {
+                // are we streaming this content?
+                if (config.isInputStreaming()) {
+                    content.setInputStream(producer);
+                } else {
+                    content.setBytes(Utilities.read(producer));
+                }
+
                 insert();
             }
 

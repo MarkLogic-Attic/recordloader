@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
  */
 package com.marklogic.recordloader;
 
@@ -394,6 +394,9 @@ public abstract class AbstractLoader implements LoaderInterface {
                 // count it and log the message
                 monitor.incrementSkipped("existing uri " + uri);
                 return true;
+            } else if (config.isSkipExistingUntilFirstMiss()) {
+                logger.info("resetting " + Configuration.SKIP_EXISTING_KEY);
+                config.setSkipExisting(false);
             }
         }
         return false;

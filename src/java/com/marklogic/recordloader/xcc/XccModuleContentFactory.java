@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
  */
 package com.marklogic.recordloader.xcc;
 
@@ -66,6 +66,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     @Override
     public ContentInterface newContent(String _uri)
             throws LoaderException {
+        // TODO add isSkipExistingUntilFirstMiss
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
                 readRoles, collectionsArray, language, namespace,
                 configuration.isSkipExisting(), configuration

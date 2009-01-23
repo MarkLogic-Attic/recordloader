@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2009 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class Configuration extends AbstractConfiguration {
 
@@ -93,6 +93,13 @@ public class Configuration extends AbstractConfiguration {
      *
      */
     public static final String INPUT_PATH_KEY = "INPUT_PATH";
+
+    /**
+    *
+    */
+    public static final String INPUT_STREAMING_KEY = "INPUT_STREAMING";
+
+    public static final String INPUT_STREAMING_DEFAULT = "false";
 
     /**
      *
@@ -196,6 +203,10 @@ public class Configuration extends AbstractConfiguration {
     public static final String SKIP_EXISTING_KEY = "SKIP_EXISTING";
 
     public static final String SKIP_EXISTING_DEFAULT = "false";
+
+    public static final String SKIP_EXISTING_UNTIL_FIRST_MISS_KEY = "SKIP_EXISTING_UNTIL_FIRST_MISS";
+
+    public static final String SKIP_EXISTING_UNTIL_FIRST_MISS_DEFAULT = "false";
 
     /**
      *
@@ -321,8 +332,6 @@ public class Configuration extends AbstractConfiguration {
 
     private volatile String recordNamespace;
 
-    private boolean skipExisting = false;
-
     private String startId = null;
 
     private int threadCount;
@@ -366,7 +375,7 @@ public class Configuration extends AbstractConfiguration {
 
     /**
      * @throws URISyntaxException
-     *
+     * 
      */
     public void configure() {
         // set up the logger early, for verbose configuration output
@@ -428,9 +437,10 @@ public class Configuration extends AbstractConfiguration {
         // look for startId, to skip records
         startId = properties.getProperty(START_ID_KEY);
 
-        // should we check for existing docs?
-        skipExisting = Utilities.stringToBoolean(properties
-                .getProperty(SKIP_EXISTING_KEY));
+        // copy SKIP_EXISTING from SKIP_EXISTING_UNTIL_FIRST_MISS, if true
+        if (isSkipExistingUntilFirstMiss()) {
+            setSkipExisting(true);
+        }
 
         copyNamespaceDeclarations = Utilities.stringToBoolean(properties
                 .getProperty(COPY_NAMESPACES_KEY));
@@ -512,7 +522,7 @@ public class Configuration extends AbstractConfiguration {
 
     public boolean isFatalErrors() {
         return Utilities.stringToBoolean(properties
-                                         .getProperty(FATAL_ERRORS_KEY));
+                .getProperty(FATAL_ERRORS_KEY));
     }
 
     public boolean isIgnoreUnknown() {
@@ -525,11 +535,12 @@ public class Configuration extends AbstractConfiguration {
 
     public boolean isErrorExisting() {
         return Utilities.stringToBoolean(properties
-                                         .getProperty(ERROR_EXISTING_KEY));
+                .getProperty(ERROR_EXISTING_KEY));
     }
 
     public boolean isSkipExisting() {
-        return skipExisting;
+        return Utilities.stringToBoolean(properties
+                .getProperty(SKIP_EXISTING_KEY));
     }
 
     public String getUriPrefix() {
@@ -565,7 +576,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     *
+     * 
      * @throws XmlPullParserException
      * @return
      */
@@ -824,9 +835,8 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public boolean isIgnoreFileBasename() {
-        return Utilities
-            .stringToBoolean(properties
-                             .getProperty(IGNORE_FILE_BASENAME_KEY));
+        return Utilities.stringToBoolean(properties
+                .getProperty(IGNORE_FILE_BASENAME_KEY));
     }
 
     /**
@@ -839,7 +849,30 @@ public class Configuration extends AbstractConfiguration {
 
     public boolean isEscapeUri() {
         return Utilities.stringToBoolean(properties
-                                         .getProperty(INPUT_ESCAPE_IDS_KEY));
+                .getProperty(INPUT_ESCAPE_IDS_KEY));
+    }
+
+    /**
+     * @return
+     */
+    public boolean isInputStreaming() {
+        return Utilities.stringToBoolean(properties
+                .getProperty(INPUT_STREAMING_KEY));
+    }
+
+    /**
+     * @return
+     */
+    public boolean isSkipExistingUntilFirstMiss() {
+        return Utilities.stringToBoolean(properties
+                .getProperty(SKIP_EXISTING_UNTIL_FIRST_MISS_KEY));
+    }
+
+    /**
+     * @param _value
+     */
+    public void setSkipExisting(boolean _value) {
+        properties.setProperty(SKIP_EXISTING_KEY, "" + _value);
     }
 
 }
