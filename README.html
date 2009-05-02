@@ -192,6 +192,16 @@ else xdmp:document-insert(
 <td>If present, all XML will default to the supplied namespace uri.</td>
 </tr>
 
+<tr><td>DELETE_INPUT_FILES</td>
+<td>false</td>
+<td>If true, each input file will be deleted after being loaded.
+  This setting does not affect zip archives.
+  This setting does not delete directories.
+  If <code>FATAL_ERRORS</code> is false,
+  then the input document may be deleted even though errors have occured.
+</td>
+</tr>
+
 <tr><td>DOCUMENT_FORMAT</td><td>xml</td>
 <td>Document format for all new documents.
   Valid settings are
@@ -400,6 +410,15 @@ The default value matches all filenames ending with <code>.xml</code></td>
   <td>java.util.logger log handlers with which to log.</td>
 </tr>
 
+<tr>
+  <td>LOOP_FOREVER</td>
+  <td>false</td>
+  <td>
+    If set, RecordLoader will loop forever on the arguments and properties.
+    This is most useful when combined with <code>DELETE_INPUT_FILES</code>.
+  </td>
+</tr>
+
 <tr><td>OUTPUT_COLLECTIONS</td><td>null</td>
 <td>One or more collections to apply to every new document.
 Use whitespace to separate multiple collection uris.</td>
@@ -480,6 +499,21 @@ but may result in updates to some existing documents.
   until one with an <code>ID_NAME</code> value
   equal to <code>START_ID</code> is found.
   This can be used to resume ingestion after interruptions or fatal errors.
+</td>
+</tr>
+
+<tr><td>START_ID_MULTITHREADED</td><td>false</td>
+<td>
+  Normally, <code>START_ID</code> causes RecordLoader to temporarily reduce
+  <code>THREADS</code> to 1 until the starting value is found.
+  When this property is true, RecordLoader allows multiple threads to run
+  even before the start value has been found.
+  Before the start value has been found, all threads will skip
+  their input records. Once the start value has been found by one thread,
+  all threads will begin processing records input normally.
+  <br/>
+  Enabling this property can sometimes be useful,
+  but may result in unpredictable or non-deterministic behavior.
 </td>
 </tr>
 

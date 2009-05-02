@@ -65,6 +65,11 @@ public class Configuration extends AbstractConfiguration {
     public static final String FATAL_ERRORS_KEY = "FATAL_ERRORS";
 
     /**
+    *
+    */
+    public static final String DELETE_INPUT_FILES_KEY = "DELETE_INPUT_FILES";
+
+    /**
      *
      */
     public static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
@@ -213,6 +218,10 @@ public class Configuration extends AbstractConfiguration {
      */
     public static final String START_ID_KEY = "START_ID";
 
+    public static final String START_ID_MULTITHREADED_KEY = "START_ID_MULTITHREADED";
+
+    public static final String START_ID_MULTITHREADED_DEFAULT = "false";
+
     /**
      *
      */
@@ -300,6 +309,8 @@ public class Configuration extends AbstractConfiguration {
     public static final String LOADER_CLASSNAME_DEFAULT = Loader.class
             .getName();
 
+    public static final String LOOP_FOREVER_KEY = "LOOP_FOREVER";
+
     public static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
 
     public static final String USE_FILENAME_COLLECTION_DEFAULT = "true";
@@ -359,6 +370,8 @@ public class Configuration extends AbstractConfiguration {
     private Object contentFactoryMutex = new Object();
 
     private boolean useDocumentRoot = false;
+
+    private boolean isFirstLoop = true;
 
     public static final String ZIP_SUFFIX = ".zip";
 
@@ -449,6 +462,8 @@ public class Configuration extends AbstractConfiguration {
         malformedInputAction = properties
                 .getProperty(INPUT_MALFORMED_ACTION_KEY);
         logger.info("using input encoding " + inputEncoding);
+        logger.info("using malformed input action "
+                + malformedInputAction);
 
         threadCount = Integer.parseInt(properties
                 .getProperty(THREADS_KEY));
@@ -596,7 +611,7 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public boolean hasStartId() {
-        return startId != null;
+        return null != startId;
     }
 
     /**
@@ -806,7 +821,6 @@ public class Configuration extends AbstractConfiguration {
         String malformedInputAction = getMalformedInputAction();
 
         CharsetDecoder inputDecoder;
-        logger.info("using input encoding " + inputEncoding);
         // using an explicit decoder allows us to control the error reporting
         inputDecoder = Charset.forName(inputEncoding).newDecoder();
         if (malformedInputAction
@@ -818,8 +832,6 @@ public class Configuration extends AbstractConfiguration {
         } else {
             inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
         }
-        logger.info("using malformed input action "
-                + inputDecoder.unmappableCharacterAction().toString());
         inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
         return inputDecoder;
     }
@@ -873,6 +885,44 @@ public class Configuration extends AbstractConfiguration {
      */
     public void setSkipExisting(boolean _value) {
         properties.setProperty(SKIP_EXISTING_KEY, "" + _value);
+    }
+
+    /**
+     * @return
+     */
+    public boolean isStartIdMultiThreaded() {
+        return Utilities.stringToBoolean(properties
+                .getProperty(START_ID_MULTITHREADED_KEY));
+    }
+
+    /**
+     * @return
+     */
+    public boolean isDeleteInputFile() {
+        return Utilities.stringToBoolean(properties
+                .getProperty(DELETE_INPUT_FILES_KEY));
+    }
+
+    /**
+     * @return
+     */
+    public boolean isLoopForever() {
+        return Utilities.stringToBoolean(properties
+                .getProperty(LOOP_FOREVER_KEY));
+    }
+
+    /**
+     * @return
+     */
+    public boolean isFirstLoop() {
+        return isFirstLoop;
+    }
+
+    /**
+     * @param _bool
+     */
+    public void setFirstLoop(boolean _bool) {
+        isFirstLoop = _bool;
     }
 
 }

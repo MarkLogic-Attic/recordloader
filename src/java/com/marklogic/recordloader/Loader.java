@@ -100,7 +100,6 @@ public class Loader extends AbstractLoader {
 
         try {
             processRecords();
-            cleanupInput();
         } catch (Exception e) {
             if (e instanceof RuntimeException) {
                 throw (RuntimeException) e;
@@ -135,6 +134,8 @@ public class Loader extends AbstractLoader {
             }
 
             throw new LoaderException(e);
+        } finally {
+            cleanupInput(event.isError());
         }
     }
 

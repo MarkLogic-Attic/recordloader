@@ -1,5 +1,20 @@
 /**
  * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * The use of the Apache License does not indicate that this project is
+ * affiliated with the Apache Software Foundation.
  */
 package com.marklogic.recordloader;
 
@@ -164,17 +179,42 @@ public abstract class AbstractLoader implements LoaderInterface {
     }
 
     /**
+     * @param _isError
+     * @throws LoaderException
      * 
      */
-    protected void cleanupInput() {
+    protected void cleanupInput(boolean _isError) throws LoaderException {
         cleanupRecord();
-        if (null != input) {
-            try {
-                input.close();
-            } catch (IOException e) {
-                // nothing we can do about it
-                logger.logException(e);
+        if (null == input) {
+            return;
+        }
+
+        try {
+            input.close();
+        } catch (IOException e) {
+            // nothing we can do about it
+            logger.logException(e);
+        }
+
+        if (null == inputFile) {
+            return;
+        }
+        if (!config.isDeleteInputFile()) {
+            return;
+        }
+        // if there was a non-fatal error, delete it anyway
+        if (_isError && config.isFatalErrors()) {
+            return;
+        }
+        // remove the input file
+        try {
+            String path = inputFile.getCanonicalPath();
+            logger.info("deleting " + path);
+            if (!inputFile.delete()) {
+                throw new LoaderException("delete failed for " + path);
             }
+        } catch (IOException e) {
+            throw new LoaderException(e);
         }
     }
 
@@ -307,6 +347,7 @@ public abstract class AbstractLoader implements LoaderInterface {
         logger.info("found START_ID " + id);
         startId = null;
         config.setStartId(null);
+        // not needed for multithreaded start_id config, but doesn't hurt
         monitor.resetThreadPool();
         return false;
     }
@@ -395,7 +436,8 @@ public abstract class AbstractLoader implements LoaderInterface {
                 monitor.incrementSkipped("existing uri " + uri);
                 return true;
             } else if (config.isSkipExistingUntilFirstMiss()) {
-                logger.info("resetting " + Configuration.SKIP_EXISTING_KEY);
+                logger.info("resetting "
+                        + Configuration.SKIP_EXISTING_KEY);
                 config.setSkipExisting(false);
             }
         }

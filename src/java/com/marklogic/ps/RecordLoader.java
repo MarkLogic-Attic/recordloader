@@ -24,6 +24,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -36,6 +37,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
@@ -45,7 +47,7 @@ import com.marklogic.recordloader.Monitor;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
- *
+ * 
  */
 
 public class RecordLoader {
@@ -53,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2009-01-20.1";
+    public static final String VERSION = "2009-05-01.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -65,7 +67,7 @@ public class RecordLoader {
 
         /*
          * (non-Javadoc)
-         *
+         * 
          * @see
          * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
          * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
@@ -106,7 +108,7 @@ public class RecordLoader {
 
     /**
      * @throws URISyntaxException
-     *
+     * 
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
@@ -144,7 +146,9 @@ public class RecordLoader {
 
     public static void main(String[] args) throws Exception {
         System.err.println(getVersionMessage());
-        new RecordLoader(args).run();
+
+        RecordLoader rl = new RecordLoader(args);
+        rl.run();
     }
 
     /**
@@ -157,93 +161,142 @@ public class RecordLoader {
     }
 
     private void run() throws LoaderException, SecurityException,
-            IllegalArgumentException {
-
+            IllegalArgumentException, ClassNotFoundException,
+            NoSuchMethodException {
         // if START_ID was supplied, run single-threaded until found
         int threadCount = config.getThreadCount();
         String startId = null;
         if (config.hasStartId()) {
             startId = config.getStartId();
-            logger.warning("will single-thread until start-id \""
-                    + startId + "\" is reached");
-            threadCount = 1;
+            if (config.isStartIdMultiThreaded()) {
+                logger
+                        .warning("all threads will skip records until start-id \""
+                                + startId + "\" is reached");
+
+            } else {
+                logger.warning("will single-thread until start-id \""
+                        + startId + "\" is reached");
+                threadCount = 1;
+            }
         }
         logger.info("thread count = " + threadCount);
 
-        pool = new ThreadPoolExecutor(threadCount, threadCount, config
-                .getKeepAliveSeconds(), TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(config
-                        .getQueueCapacity()), new CallerBlocksPolicy());
-        pool.prestartCoreThread();
+        Constructor<? extends InputHandlerInterface> inputHandlerConstructor = initInputHandlerConstructor();
 
-        monitor = new Monitor(config, pool, Thread.currentThread());
+        monitor = new Monitor(config, Thread.currentThread());
 
-        try {
-            monitor.start();
-            runInputHandler();
-            pool.shutdown();
+        while (true) {
+            pool = new ThreadPoolExecutor(threadCount, threadCount,
+                    config.getKeepAliveSeconds(), TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<Runnable>(config
+                            .getQueueCapacity()),
+                    new CallerBlocksPolicy());
+            pool.prestartCoreThread();
 
-            while (monitor.isAlive()) {
+            try {
+                monitor.setPool(pool);
+                if (config.isFirstLoop()) {
+                    monitor.start();
+                }
+                runInputHandler(inputHandlerConstructor);
+                pool.shutdown();
+
+                while (!pool.isTerminated()) {
+                    Thread.yield();
+                    try {
+                        Thread.sleep(threadCount
+                                * Configuration.SLEEP_TIME);
+                    } catch (InterruptedException e) {
+                        // harmless
+                        logger.fine("interrupted while waiting on pool");
+                    }
+                }
+
                 try {
-                    monitor.join();
+                    pool.awaitTermination(60, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
-                    if (pool.isTerminated()) {
-                        logger.info("pool has terminated, exiting");
-                    } else {
-                        logger.logException("interrupted", e);
+                    if (null != monitor && monitor.isAlive()) {
+                        logger.logException(e);
+                    }
+                    // harmless - this means the monitor wants to exit
+                    // if anything went wrong, the monitor will log it
+                    logger
+                            .warning("interrupted while waiting for pool termination");
+                }
+            } finally {
+                if (null != pool) {
+                    pool.shutdownNow();
+                }
+                if (!config.isLoopForever()) {
+                    if (null != monitor && monitor.isAlive()) {
+                        monitor.halt();
                     }
                 }
             }
-
+            if (!config.isLoopForever()) {
+                break;
+            }
+            logger.log(config.isFirstLoop() ? Level.INFO : Level.FINE,
+                    "looping...");
+            config.setFirstLoop(false);
             try {
-                pool.awaitTermination(60, TimeUnit.SECONDS);
+                Thread.sleep(500);
             } catch (InterruptedException e) {
-                if (null != monitor && monitor.isAlive()) {
-                    logger.logException(e);
-                }
-                // harmless - this means the monitor wants to exit
-                // if anything went wrong, the monitor will log it
-                logger.warning("exiting due to interrupt");
-            }
-        } finally {
-            if (null != pool) {
-                pool.shutdownNow();
-            }
-            if (null != monitor && monitor.isAlive()) {
-                monitor.halt();
+                // ignore
+                logger.fine("interrupted while sleeping");
             }
         }
     }
 
     /**
+     * @param _handlerConstructor
      * @throws LoaderException
-     *
+     * 
      */
-    private synchronized void runInputHandler() throws LoaderException {
+    private synchronized void runInputHandler(
+            Constructor<? extends InputHandlerInterface> _handlerConstructor)
+            throws LoaderException {
         // this should only be called once, in a single-threaded context
         InputHandlerInterface inputHandler = null;
         try {
-            Constructor<? extends InputHandlerInterface> handlerConstructor;
-            String handlerClassName = config.getInputHandlerClassName();
-            logger.info("input handler = " + handlerClassName);
-            Class<? extends InputHandlerInterface> handlerClass = Class
-                    .forName(handlerClassName, true,
-                            ClassLoader.getSystemClassLoader())
-                    .asSubclass(InputHandlerInterface.class);
-            handlerConstructor = handlerClass
-                    .getConstructor(new Class[] {});
-            inputHandler = handlerConstructor.newInstance();
+            inputHandler = _handlerConstructor.newInstance();
             inputHandler.setLogger(logger);
             inputHandler.setConfiguration(config);
             inputHandler.setPool(pool);
             inputHandler.setMonitor(monitor);
-            logger.info("inputs.size = " + inputs.size());
+            logger.log(config.isFirstLoop() ? Level.INFO : Level.FINE,
+                    "inputs.size = " + inputs.size());
             inputHandler.setInputs(inputs.toArray(new String[0]));
-        } catch (Exception e) {
+        } catch (InvocationTargetException e) {
+            // if anything went wrong in setup, it was fatal
+            throw new FatalException(e);
+        } catch (IllegalArgumentException e) {
+            // if anything went wrong in setup, it was fatal
+            throw new FatalException(e);
+        } catch (InstantiationException e) {
+            // if anything went wrong in setup, it was fatal
+            throw new FatalException(e);
+        } catch (IllegalAccessException e) {
             // if anything went wrong in setup, it was fatal
             throw new FatalException(e);
         }
         inputHandler.run();
+    }
+
+    /**
+     * @return
+     * @throws ClassNotFoundException
+     * @throws NoSuchMethodException
+     */
+    private Constructor<? extends InputHandlerInterface> initInputHandlerConstructor()
+            throws ClassNotFoundException, NoSuchMethodException {
+        String handlerClassName = config.getInputHandlerClassName();
+        logger.info("input handler = " + handlerClassName);
+        Class<? extends InputHandlerInterface> handlerClass = Class
+                .forName(handlerClassName, true,
+                        ClassLoader.getSystemClassLoader()).asSubclass(
+                        InputHandlerInterface.class);
+        return handlerClass.getConstructor(new Class[] {});
     }
 
     /**

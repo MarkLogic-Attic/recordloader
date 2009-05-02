@@ -1,5 +1,20 @@
 /**
- * Copyright (c) 2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * The use of the Apache License does not indicate that this project is
+ * affiliated with the Apache Software Foundation.
  */
 package com.marklogic.recordloader.svn;
 
@@ -47,7 +62,7 @@ public class SvnInputHandler extends AbstractInputHandler {
                     + Arrays.deepToString(inputs));
         }
 
-        String url = configuration.getInputPath();
+        String url = config.getInputPath();
         if (null == url) {
             throw new FatalException("missing required property: "
                     + Configuration.INPUT_PATH_KEY
@@ -109,7 +124,7 @@ public class SvnInputHandler extends AbstractInputHandler {
                 // seems to be important to *not* use rootedPath
                 submit(repository, fullPath, rootedPath);
             } catch (SVNException e) {
-                if (configuration.isFatalErrors()) {
+                if (config.isFatalErrors()) {
                     throw e;
                 }
                 logger.logException(e);
@@ -127,7 +142,7 @@ public class SvnInputHandler extends AbstractInputHandler {
      */
     private void submit(SVNRepository repository, String path,
             String rootedPath) throws SVNException, LoaderException {
-        
+
         // hack to skip large mp3 files
         // TODO implement something configurable
         if (path.endsWith(".mp3")) {
@@ -148,18 +163,13 @@ public class SvnInputHandler extends AbstractInputHandler {
         loader.setRecordPath(rootedPath);
         // TODO implement path-based type lookup - move to a content factory?
         /*
-        if (path.matches("^.+\\.(xml|xsd)")) {
-            logger.finer(path + " is xml");
-            loader.setFormat(DocumentFormat.XML);
-        } else if (path
-                .matches("^.+\\.(css|html|incl|js|log|sh|tmpl|txt|xqy)$")) {
-            logger.finer(path + " is text");
-            loader.setFormat(DocumentFormat.TEXT);
-        } else {
-            logger.finer(path + " is binary");
-            loader.setFormat(DocumentFormat.BINARY);
-        }
-        */
+         * if (path.matches("^.+\\.(xml|xsd)")) { logger.finer(path +
+         * " is xml"); loader.setFormat(DocumentFormat.XML); } else if (path
+         * .matches("^.+\\.(css|html|incl|js|log|sh|tmpl|txt|xqy)$")) {
+         * logger.finer(path + " is text");
+         * loader.setFormat(DocumentFormat.TEXT); } else { logger.finer(path +
+         * " is binary"); loader.setFormat(DocumentFormat.BINARY); }
+         */
         pool.submit(loader);
     }
 

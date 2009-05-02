@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2006-2008 Mark Logic Corporation
+ * Copyright (c)2006-2009 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,10 @@ public class Monitor extends Thread {
 
     private Thread parent;
 
+    private int lastSkipped = 0;
+
+    private long lastCount = 0;
+
     @SuppressWarnings("unused")
     private Monitor() {
         // avoid no-argument constructors
@@ -64,12 +68,10 @@ public class Monitor extends Thread {
 
     /**
      * @param _c
-     * @param _e
      * @param _p
      */
-    public Monitor(Configuration _c, ThreadPoolExecutor _e, Thread _p) {
+    public Monitor(Configuration _c, Thread _p) {
         config = _c;
-        pool = _e;
         parent = _p;
         logger = config.getLogger();
     }
@@ -120,14 +122,19 @@ public class Monitor extends Thread {
         // if anything goes wrong, the futuretask knows how to stop us
         // hence, we do nothing with the pool in this loop
         logger.finest("looping every " + sleepMillis);
-        while (running && !isInterrupted() && !pool.isTerminated()) {
+        while (running && !isInterrupted()) {
             // try to avoid thread starvation
             yield();
 
             currentMillis = System.currentTimeMillis();
             if (lastUri != null
-                    && currentMillis - lastDisplayMillis > displayMillis) {
+                    && currentMillis - lastDisplayMillis > displayMillis
+                    && (lastSkipped < totalSkipped || lastCount < timer
+                            .getEventCount())) {
                 lastDisplayMillis = currentMillis;
+                lastSkipped = totalSkipped;
+                // events include errors
+                lastCount = timer.getEventCount();
                 logger.info("inserted record " + timer.getEventCount()
                         + " as " + lastUri + " ("
                         + timer.getProgressMessage() + "), with "
@@ -140,8 +147,7 @@ public class Monitor extends Thread {
             try {
                 Thread.sleep(sleepMillis);
             } catch (InterruptedException e) {
-                logger.logException("sleep was interrupted: continuing",
-                        e);
+                logger.fine("sleep was interrupted: continuing");
             }
         }
     }

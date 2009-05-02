@@ -1,5 +1,20 @@
 /**
- * Copyright (c) 2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * The use of the Apache License does not indicate that this project is
+ * affiliated with the Apache Software Foundation.
  */
 package com.marklogic.recordloader;
 
@@ -16,7 +31,7 @@ import java.util.zip.ZipException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class DefaultInputHandler extends AbstractInputHandler {
 
@@ -36,28 +51,32 @@ public class DefaultInputHandler extends AbstractInputHandler {
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see com.marklogic.recordloader.InputHandlerInterface#run()
      */
     public void run() throws LoaderException, FatalException {
-        sizeLimit = configuration.getFileSizeLimit();
+        sizeLimit = config.getFileSizeLimit();
 
         configureInputs();
 
         logger.fine("zipFiles.size = " + zipFiles.size());
         logger.fine("gzFiles.size = " + gzFiles.size());
-        logger.info("plainFiles.size = " + plainFiles.size());
+        logger.fine("plainFiles.size = " + plainFiles.size());
 
         if (zipFiles.size() > 0 || gzFiles.size() > 0
                 || plainFiles.size() > 0) {
             getFactory();
-            logger.info("populating queue");
+            if (config.isFirstLoop()) {
+                logger.info("populating queue");
+            }
             // queue any zip-entries first
             try {
                 handleZipFiles();
                 handleGzFiles();
                 handleFiles();
-                logger.info("queued " + inputCount + " loader(s)");
+                if (config.isFirstLoop()) {
+                    logger.info("queued " + inputCount + " loader(s)");
+                }
             } catch (ZipException e) {
                 throw new LoaderException(e);
             } catch (IOException e) {
@@ -69,19 +88,18 @@ public class DefaultInputHandler extends AbstractInputHandler {
             throw new FatalException(
                     "input files specified, but none found");
         } else {
-            if (configuration.getThreadCount() > 1) {
+            if (config.getThreadCount() > 1) {
                 logger.warning("Will not use multiple threads!");
                 // pointless, since there will only be one input anyway
                 pool.setCorePoolSize(1);
                 pool.setMaximumPoolSize(1);
             }
             // NOTE: cannot use file-based identifiers
-            if (configuration.isUseFilenameIds()) {
+            if (config.isUseFilenameIds()) {
                 logger.warning("Ignoring configured "
                         + Configuration.ID_NAME_KEY + "="
-                        + configuration.getIdNodeName()
-                        + " for standard input");
-                configuration.setUseAutomaticIds();
+                        + config.getIdNodeName() + " for standard input");
+                config.setUseAutomaticIds();
             }
             getFactory();
             handleStandardInput();
@@ -96,7 +114,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
     private void handleFiles() throws IOException, LoaderException {
         filter = new FileFilter() {
             public boolean accept(File _f) {
-                String inputPattern = configuration.getInputPattern();
+                String inputPattern = config.getInputPattern();
                 String name = _f.getName();
                 return _f.isDirectory()
                         || (_f.isFile() && (name.matches(inputPattern)) || name
@@ -232,7 +250,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
         File file;
         ZipReference zipFile;
         ZipEntry ze;
-        String inputPattern = configuration.getInputPattern();
+        String inputPattern = config.getInputPattern();
 
         fileIter = zipFiles.iterator();
         int size;
@@ -321,7 +339,7 @@ public class DefaultInputHandler extends AbstractInputHandler {
         File file;
 
         // handle input-path property, if any
-        String path = configuration.getInputPath();
+        String path = config.getInputPath();
         if (null != path) {
             hadInputs = true;
             file = new File(path);

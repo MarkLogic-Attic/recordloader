@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2009 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.nio.charset.CharsetDecoder;
 import java.util.logging.Logger;
 
 import com.marklogic.ps.SimpleLogger;
@@ -47,11 +46,8 @@ public class LoaderFactory {
 
     private Constructor<? extends LoaderInterface> loaderConstructor;
 
-    private CharsetDecoder decoder;
-
     /**
      * @param _monitor
-     * @param _inputDecoder
      * @param _config
      * @throws NoSuchMethodException
      * @throws SecurityException
@@ -60,20 +56,20 @@ public class LoaderFactory {
      * @throws IllegalAccessException
      * @throws IllegalArgumentException
      */
-    public LoaderFactory(Monitor _monitor, CharsetDecoder _inputDecoder,
-            Configuration _config) throws SecurityException,
-            NoSuchMethodException, ClassNotFoundException,
-            IllegalArgumentException, IllegalAccessException,
-            InvocationTargetException {
+    public LoaderFactory(Monitor _monitor, Configuration _config)
+            throws SecurityException, NoSuchMethodException,
+            ClassNotFoundException, IllegalArgumentException,
+            IllegalAccessException, InvocationTargetException {
         monitor = _monitor;
         config = _config;
-        decoder = _inputDecoder;
 
         logger = config.getLogger();
 
         // this should only be called once, in a single-threaded context
         String loaderClassName = config.getLoaderClassName();
-        logger.info("Loader is " + loaderClassName);
+        if (config.isFirstLoop()) {
+            logger.info("Loader is " + loaderClassName);
+        }
         Class<? extends LoaderInterface> loaderClass = Class
                 .forName(loaderClassName, true,
                         ClassLoader.getSystemClassLoader()).asSubclass(
@@ -85,9 +81,11 @@ public class LoaderFactory {
          * checkEnvironment(), and this is where we call it. If anything goes
          * wrong, it will throw a run-time exception.
          */
-        Method check = loaderClass.getMethod("checkEnvironment",
-                Logger.class);
-        check.invoke(null, logger);
+        if (config.isFirstLoop()) {
+            Method check = loaderClass.getMethod("checkEnvironment",
+                    Logger.class);
+            check.invoke(null, logger);
+        }
     }
 
     private LoaderInterface getLoader() throws LoaderException {
@@ -131,7 +129,8 @@ public class LoaderFactory {
             String _path) throws LoaderException {
         LoaderInterface loader = getLoader();
         BufferedInputStream br = new BufferedInputStream(_stream);
-        loader.setInput(br, decoder);
+        // decoders are not thread-safe - new one every time
+        loader.setInput(br, config.getDecoder());
         setup(loader, _name, _path);
         return loader;
     }
@@ -147,7 +146,8 @@ public class LoaderFactory {
         // some duplicate code: we want to defer opening the file,
         // to limit the number of open file descriptors
         LoaderInterface loader = getLoader();
-        loader.setInput(_file, decoder);
+        // decoder is not thread-safe - new one every time
+        loader.setInput(_file, config.getDecoder());
         setup(loader, _file.getName(), _file.getPath());
         return loader;
     }
