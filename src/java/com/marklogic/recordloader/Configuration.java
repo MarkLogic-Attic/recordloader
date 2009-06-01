@@ -45,9 +45,9 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 public class Configuration extends AbstractConfiguration {
 
     /**
-     *
-     */
-    public static final String THREADS_DEFAULT = "1";
+    *
+    */
+    public static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
 
     /**
      *
@@ -75,9 +75,11 @@ public class Configuration extends AbstractConfiguration {
     public static final String DOCUMENT_FORMAT_KEY = "DOCUMENT_FORMAT";
 
     /**
-     *
-     */
-    public static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
+    *
+    */
+    public static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
+
+    public static final String ERROR_EXISTING_DEFAULT = "false";
 
     /**
      *
@@ -127,13 +129,6 @@ public class Configuration extends AbstractConfiguration {
     public static final String OUTPUT_NAMESPACE_KEY = "DEFAULT_NAMESPACE";
 
     public static final String OUTPUT_NAMESPACE_DEFAULT = "";
-
-    /**
-     *
-     */
-    public static final String ERROR_EXISTING_KEY = "ERROR_EXISTING";
-
-    public static final String ERROR_EXISTING_DEFAULT = "false";
 
     public static final String ID_NAME_KEY = "ID_NAME";
 
@@ -226,6 +221,11 @@ public class Configuration extends AbstractConfiguration {
      *
      */
     public static final String THREADS_KEY = "THREADS";
+
+    /**
+    *
+    */
+    public static final String THREADS_DEFAULT = "1";
 
     public static final String THROTTLE_EVENTS_KEY = "THROTTLE_EVENTS_PER_SECOND";
 
@@ -477,6 +477,17 @@ public class Configuration extends AbstractConfiguration {
         inputNormalizePaths = Utilities.stringToBoolean(properties
                 .getProperty(INPUT_NORMALIZE_PATHS_KEY));
 
+        configureThrottling();
+    }
+
+    /**
+     * 
+     */
+    void configureThrottling() {
+        // do not throttle while skipExistingUntilFirstMiss is active
+        if (isSkipExistingUntilFirstMiss() && isSkipExisting()) {
+            return;
+        }
         throttledEventsPerSecond = Double.parseDouble(properties
                 .getProperty(THROTTLE_EVENTS_KEY));
 

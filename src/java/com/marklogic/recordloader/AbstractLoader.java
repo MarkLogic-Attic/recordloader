@@ -436,9 +436,14 @@ public abstract class AbstractLoader implements LoaderInterface {
                 monitor.incrementSkipped("existing uri " + uri);
                 return true;
             } else if (config.isSkipExistingUntilFirstMiss()) {
-                logger.info("resetting "
-                        + Configuration.SKIP_EXISTING_KEY);
-                config.setSkipExisting(false);
+                synchronized (monitor) {
+                    logger.info("resetting "
+                            + Configuration.SKIP_EXISTING_KEY + " at "
+                            + uri);
+                    config.setSkipExisting(false);
+                    config.configureThrottling();
+                    monitor.resetTimer("skipped");
+                }
             }
         }
         return false;

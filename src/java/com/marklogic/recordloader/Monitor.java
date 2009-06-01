@@ -298,4 +298,15 @@ public class Monitor extends Thread {
         openZipFiles.put(zipFileName, zipFile);
     }
 
+    /**
+     * @param _msg
+     */
+    public synchronized void resetTimer(String _msg) {
+        timer.stop();
+        logger.info(_msg + " " + timer.getSuccessfulEventCount()
+                + " records ok (" + timer.getProgressMessage(true)
+                + "), with " + timer.getErrorCount() + " error(s)");
+        timer = new Timer();
+    }
+
 }
