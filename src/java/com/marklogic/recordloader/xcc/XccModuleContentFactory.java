@@ -85,7 +85,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
                 readRoles, collectionsArray, language, namespace,
                 configuration.isSkipExisting(), configuration
-                        .isErrorExisting());
+                        .isErrorExisting(), configuration.getDecoder());
     }
 
     /*

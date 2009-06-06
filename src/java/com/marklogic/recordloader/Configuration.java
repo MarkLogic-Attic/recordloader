@@ -373,6 +373,10 @@ public class Configuration extends AbstractConfiguration {
 
     private boolean isFirstLoop = true;
 
+    protected CharsetDecoder inputDecoder = null;
+
+    protected Object inputDecoderMutex = new Object();
+
     public static final String ZIP_SUFFIX = ".zip";
 
     public static final String INPUT_HANDLER_CLASSNAME_KEY = "INPUT_HANDLER_CLASSNAME";
@@ -828,23 +832,33 @@ public class Configuration extends AbstractConfiguration {
     }
 
     public CharsetDecoder getDecoder() {
-        String inputEncoding = getInputEncoding();
-        String malformedInputAction = getMalformedInputAction();
-
-        CharsetDecoder inputDecoder;
-        // using an explicit decoder allows us to control the error reporting
-        inputDecoder = Charset.forName(inputEncoding).newDecoder();
-        if (malformedInputAction
-                .equals(Configuration.INPUT_MALFORMED_ACTION_IGNORE)) {
-            inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
-        } else if (malformedInputAction
-                .equals(Configuration.INPUT_MALFORMED_ACTION_REPLACE)) {
-            inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
-        } else {
-            inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
+        if (null != inputDecoder) {
+            return inputDecoder;
         }
-        inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-        return inputDecoder;
+
+        synchronized (inputDecoderMutex) {
+            // in case of races for the mutex, it might be done already
+            if (null != inputDecoder) {
+                return inputDecoder;
+            }
+            
+            // using an explicit decoder allows us to control the error
+            // reporting
+            inputDecoder = Charset.forName(getInputEncoding())
+                    .newDecoder();
+            String malformedInputAction = getMalformedInputAction();
+            if (malformedInputAction
+                    .equals(Configuration.INPUT_MALFORMED_ACTION_IGNORE)) {
+                inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
+            } else if (malformedInputAction
+                    .equals(Configuration.INPUT_MALFORMED_ACTION_REPLACE)) {
+                inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
+            } else {
+                inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
+            }
+            inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+            return inputDecoder;
+        }
     }
 
     /**

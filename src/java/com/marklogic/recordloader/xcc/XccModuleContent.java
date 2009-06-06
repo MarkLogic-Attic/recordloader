@@ -24,6 +24,9 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
 
 import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.ContentInterface;
@@ -58,9 +61,11 @@ public class XccModuleContent extends XccAbstractContent implements
 
     protected String namespace;
 
-    private boolean skipExisting;
+    protected boolean skipExisting;
 
-    private boolean errorExisting;
+    protected boolean errorExisting;
+
+    protected CharsetDecoder decoder;
 
     /**
      * @param _session
@@ -71,11 +76,12 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _namespace
      * @param _skipExisting
      * @param _errorExisting
+     * @param _decoder
      */
     public XccModuleContent(Session _session, String _uri,
             String _moduleUri, String[] _roles, String[] _collections,
             String _language, String _namespace, boolean _skipExisting,
-            boolean _errorExisting) {
+            boolean _errorExisting, CharsetDecoder _decoder) {
         session = _session;
         uri = _uri;
         if (null == _moduleUri) {
@@ -88,6 +94,7 @@ public class XccModuleContent extends XccAbstractContent implements
         namespace = _namespace;
         skipExisting = _skipExisting;
         errorExisting = _errorExisting;
+        decoder = _decoder;
     }
 
     /*
@@ -151,7 +158,8 @@ public class XccModuleContent extends XccAbstractContent implements
             throw new LoaderException("URI cannot be null");
         }
 
-        // by now, the producer is in the configured output encoding
+        // by now, the producer is in the configured output encoding,
+        // so no decoder is needed
         Reader reader = new InputStreamReader(_producer);
         Writer writer = new StringWriter();
         char[] buf = new char[32 * 1024];
@@ -175,11 +183,15 @@ public class XccModuleContent extends XccAbstractContent implements
      * 
      * @see com.marklogic.recordloader.ContentInterface#setXml(java.lang.String)
      */
-    @SuppressWarnings("unused")
     public void setBytes(byte[] _xml) throws LoaderException {
         // ModuleContent only works with strings
         // TODO support text? binary?
-        xml = new String(_xml);
+        try {
+            // use the correct decoder
+            xml = decoder.decode(ByteBuffer.wrap(_xml)).toString();
+        } catch (CharacterCodingException e) {
+            throw new LoaderException(uri, e);
+        }
     }
 
     @SuppressWarnings("unused")

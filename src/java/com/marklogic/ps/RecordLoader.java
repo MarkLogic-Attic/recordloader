@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2009-05-30.1";
+    public static final String VERSION = "2009-06-05.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -157,7 +157,8 @@ public class RecordLoader {
     protected static String getVersionMessage() {
         return SIMPLE_NAME + " starting, version " + VERSION + " on "
                 + System.getProperty("java.version") + " ("
-                + System.getProperty("java.runtime.name") + ")";
+                + System.getProperty("java.runtime.name") + ")"
+                + " " + System.getProperty("file.encoding");
     }
 
     private void run() throws LoaderException, SecurityException,
