@@ -20,7 +20,15 @@ package com.marklogic.recordloader.xcc;
 
 import java.math.BigInteger;
 import java.net.URI;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Map;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
@@ -30,6 +38,7 @@ import com.marklogic.xcc.ContentSourceFactory;
 import com.marklogic.xcc.ContentbaseMetaData;
 import com.marklogic.xcc.DocumentFormat;
 import com.marklogic.xcc.DocumentRepairLevel;
+import com.marklogic.xcc.SecurityOptions;
 import com.marklogic.xcc.Session;
 import com.marklogic.xcc.exceptions.XccConfigException;
 import com.marklogic.xcc.exceptions.XccException;
@@ -81,6 +90,10 @@ public class XccConfiguration extends Configuration {
 
     DocumentFormat format = DocumentFormat.XML;
 
+    protected SecurityOptions securityOptions = null;
+
+    Object securityOptionsMutex = new Object();
+
     /**
      * @return
      */
@@ -130,8 +143,11 @@ public class XccConfiguration extends Configuration {
      * @return
      * @return
      * @throws XccConfigException
+     * @throws NoSuchAlgorithmException
+     * @throws KeyManagementException
      */
-    public ContentbaseMetaData getMetaData() throws XccConfigException {
+    public ContentbaseMetaData getMetaData() throws XccConfigException,
+            KeyManagementException, NoSuchAlgorithmException {
         if (null != metadata) {
             return metadata;
         }
@@ -141,7 +157,10 @@ public class XccConfiguration extends Configuration {
                 return metadata;
             }
             URI uri = getConnectionStrings()[0];
-            ContentSource cs = ContentSourceFactory.newContentSource(uri);
+            // support SSL or plain-text
+            ContentSource cs = isSecure(uri) ? ContentSourceFactory
+                    .newContentSource(uri, getSecurityOptions())
+                    : ContentSourceFactory.newContentSource(uri);
             // be sure to use the default db
             Session session = cs.newSession();
             metadata = session.getContentbaseMetaData();
@@ -239,9 +258,72 @@ public class XccConfiguration extends Configuration {
                     }
                 } catch (XccException e) {
                     throw new FatalException(e);
+                } catch (KeyManagementException e) {
+                    throw new FatalException(e);
+                } catch (NoSuchAlgorithmException e) {
+                    throw new FatalException(e);
                 }
             }
         }
+
     }
 
+    protected static SecurityOptions newTrustAnyoneOptions()
+            throws KeyManagementException, NoSuchAlgorithmException {
+        TrustManager[] trust = new TrustManager[] { new X509TrustManager() {
+            public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                return new X509Certificate[0];
+            }
+
+            /**
+             * @throws CertificateException
+             */
+            public void checkClientTrusted(
+                    java.security.cert.X509Certificate[] certs,
+                    String authType) throws CertificateException {
+                // no exception means it's okay
+            }
+
+            /**
+             * @throws CertificateException
+             */
+            public void checkServerTrusted(
+                    java.security.cert.X509Certificate[] certs,
+                    String authType) throws CertificateException {
+                // no exception means it's okay
+            }
+        } };
+
+        SSLContext sslContext = SSLContext.getInstance("SSLv3");
+        sslContext.init(null, trust, null);
+        return new SecurityOptions(sslContext);
+    }
+
+    /**
+     * @return
+     * @throws NoSuchAlgorithmException
+     * @throws KeyManagementException
+     */
+    public SecurityOptions getSecurityOptions()
+            throws KeyManagementException, NoSuchAlgorithmException {
+        if (null != securityOptions) {
+            return securityOptions;
+        }
+        synchronized (securityOptionsMutex) {
+            if (null != securityOptions) {
+                return securityOptions;
+            }
+            securityOptions = newTrustAnyoneOptions();
+            return securityOptions;
+        }
+    }
+
+    /**
+     * @param _uri
+     * @return
+     */
+    public boolean isSecure(URI _uri) {
+        // TODO would be nice if XCC exposed this string
+        return _uri.getScheme().equals("xccs");
+    }
 }

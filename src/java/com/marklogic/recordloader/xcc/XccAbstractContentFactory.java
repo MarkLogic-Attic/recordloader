@@ -19,6 +19,8 @@
 package com.marklogic.recordloader.xcc;
 
 import java.net.URI;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -68,6 +70,10 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
                     + ", server = " + meta.getServerVersionString();
         } catch (XccException e) {
             throw new FatalException(e);
+        } catch (KeyManagementException e) {
+            throw new FatalException(e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new FatalException(e);
         }
 
     }
@@ -75,7 +81,8 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentFactory#newContent(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.ContentFactory#newContent(java.lang.String)
      */
     public abstract ContentInterface newContent(String _uri)
             throws LoaderException;
@@ -83,7 +90,9 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentFactory#setProperties(java.util.Properties)
+     * @see
+     * com.marklogic.recordloader.ContentFactory#setProperties(java.util.Properties
+     * )
      */
     public void setConfiguration(Configuration _configuration)
             throws LoaderException {
@@ -111,8 +120,16 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
         // this is sort of redundant, but the Loader doesn't know which
         // round-robin index to use.
         try {
-            cs = ContentSourceFactory.newContentSource(_uri);
+            // support SSL or plain-text
+            cs = configuration.isSecure(_uri) ? ContentSourceFactory
+                    .newContentSource(_uri, configuration
+                            .getSecurityOptions()) : ContentSourceFactory
+                    .newContentSource(_uri);
         } catch (XccConfigException e) {
+            throw new LoaderException(e);
+        } catch (KeyManagementException e) {
+            throw new LoaderException(e);
+        } catch (NoSuchAlgorithmException e) {
             throw new LoaderException(e);
         }
     }
@@ -120,7 +137,9 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String
+     * )
      */
     public void setFileBasename(String _name) throws LoaderException {
         // ensure that doc options exist
