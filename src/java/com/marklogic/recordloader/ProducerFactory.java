@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2009 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,12 @@
  */
 package com.marklogic.recordloader;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+
 import org.xmlpull.v1.XmlPullParser;
+
+import com.marklogic.ps.SimpleLogger;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -30,20 +35,60 @@ public class ProducerFactory {
 
     private XmlPullParser xpp;
 
+    private SimpleLogger logger;
+
+    private Constructor<? extends Producer> producerConstructor;
+
     /**
      * @param _config
-     * @param _xpp 
+     * @param _xpp
+     * @throws LoaderException
      */
-    public ProducerFactory(Configuration _config, XmlPullParser _xpp) {
+    public ProducerFactory(Configuration _config, XmlPullParser _xpp)
+            throws LoaderException {
         config = _config;
         xpp = _xpp;
+
+        logger = config.getLogger();
+
+        // this should only be called once, in a single-threaded context
+        String producerClassName = config.getProducerClassName();
+        if (config.isFirstLoop()) {
+            logger.info("Producer is " + producerClassName);
+        }
+        Class<? extends Producer> producerClass;
+        try {
+            producerClass = Class.forName(producerClassName, true,
+                    ClassLoader.getSystemClassLoader()).asSubclass(
+                    Producer.class);
+            producerConstructor = producerClass
+                    .getConstructor(new Class[] { Configuration.class,
+                            XmlPullParser.class });
+        } catch (ClassNotFoundException e) {
+            throw new LoaderException(e);
+        } catch (SecurityException e) {
+            throw new LoaderException(e);
+        } catch (NoSuchMethodException e) {
+            throw new LoaderException(e);
+        }
     }
 
     /**
      * @return
+     * @throws LoaderException
      */
-    public Producer newProducer() {
-        return new Producer(config, xpp);
+    public Producer newProducer() throws LoaderException {
+        try {
+            return producerConstructor.newInstance(config, xpp);
+        } catch (IllegalArgumentException e) {
+            throw new LoaderException(e);
+        } catch (InstantiationException e) {
+            throw new LoaderException(e);
+        } catch (IllegalAccessException e) {
+            throw new LoaderException(e);
+        } catch (InvocationTargetException e) {
+            throw new LoaderException(e);
+        }
     }
 
 }

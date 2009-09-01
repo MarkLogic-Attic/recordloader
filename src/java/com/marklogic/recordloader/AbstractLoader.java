@@ -179,6 +179,14 @@ public abstract class AbstractLoader implements LoaderInterface {
     }
 
     /**
+     * @throws LoaderException
+     * 
+     */
+    protected void cleanupInput() throws LoaderException {
+        cleanupInput(false);
+    }
+    
+    /**
      * @param _isError
      * @throws LoaderException
      * 
@@ -279,7 +287,8 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
 
         // this form of URI() does escaping nicely
-        if (config.isUseFilenameIds()) {
+        // TODO looks like we escape in two place - here and in composeURI
+        if (config.isEscapeUri()) {
             URI uri;
             try {
                 // URI(schema, ssp, fragment) constructor cannot handle

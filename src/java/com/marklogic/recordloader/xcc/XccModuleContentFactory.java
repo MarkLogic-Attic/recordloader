@@ -18,6 +18,8 @@
  */
 package com.marklogic.recordloader.xcc;
 
+import java.math.BigInteger;
+
 import com.marklogic.recordloader.ContentFactory;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
@@ -25,7 +27,7 @@ import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class XccModuleContentFactory extends XccAbstractContentFactory
         implements ContentFactory {
@@ -40,9 +42,11 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
 
     protected String namespace;
 
+    protected BigInteger[] placeKeys;
+
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#close()
      */
     @Override
@@ -52,11 +56,10 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
      */
-    @SuppressWarnings("unused")
     @Override
     protected void initOptions() throws XccException, LoaderException {
         moduleUri = configuration.getContentModuleUri();
@@ -68,11 +71,12 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
         collectionsArray = configuration.getBaseCollections();
         language = configuration.getLanguage();
         namespace = configuration.getOutputNamespace();
+        placeKeys = configuration.getPlaceKeys();
     }
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.xcc.XccAbstractContentFactory#newContent(java
      * .lang.String)
@@ -85,12 +89,14 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
                 readRoles, collectionsArray, language, namespace,
                 configuration.isSkipExisting(), configuration
-                        .isErrorExisting(), configuration.getDecoder());
+                        .isErrorExisting(),
+                                    placeKeys,
+                                    configuration.getDecoder());
     }
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String
      * )

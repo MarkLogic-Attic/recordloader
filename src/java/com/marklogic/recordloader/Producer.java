@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2008 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2009 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,9 +35,9 @@ public class Producer extends InputStream {
 
     private String outputEncoding = Configuration.OUTPUT_ENCODING_DEFAULT;
 
-    private SimpleLogger logger;
+    protected SimpleLogger logger;
 
-    private XmlPullParser xpp;
+    protected XmlPullParser xpp;
 
     private String recordName;
 
@@ -57,7 +57,7 @@ public class Producer extends InputStream {
 
     private long bytesRead = 0;
 
-    private String currentId = null;
+    protected String currentId = null;
 
     private int byteIndex = 0;
 
@@ -65,7 +65,7 @@ public class Producer extends InputStream {
 
     private boolean copyNamespaceDeclarations = true;
 
-    private boolean startOfRecord = true;
+    protected boolean startOfRecord = true;
 
     /**
      * @param _config
@@ -148,7 +148,7 @@ public class Producer extends InputStream {
         setCurrentId(newId);
     }
 
-    private void processStartElement() throws IOException,
+    protected void processStartElement() throws IOException,
             XmlPullParserException {
         String name = xpp.getName();
         String namespace = xpp.getNamespace();
@@ -179,6 +179,7 @@ public class Producer extends InputStream {
             text += (isEmpty ? "/>" : ">");
         }
 
+        // TODO use startOfRecord field?
         boolean isRecordRoot = false;
 
         if (name.equals(recordName) && namespace.equals(recordNamespace)) {
@@ -283,7 +284,7 @@ public class Producer extends InputStream {
         return;
     }
 
-    private boolean processEndElement() throws XmlPullParserException {
+    protected boolean processEndElement() throws XmlPullParserException {
         // NOTE: must return false when the record end-element is found
 
         String name = xpp.getName();
@@ -296,8 +297,8 @@ public class Producer extends InputStream {
         }
 
         if (!(recordName.equals(name)
-                && recordNamespace.equals(namespace) && recordDepth == xpp
-                .getDepth())) {
+                && recordNamespace.equals(namespace)
+                && recordDepth == xpp.getDepth())) {
             // not the end of the record: go look for more nodes
             return true;
         }
@@ -343,13 +344,16 @@ public class Producer extends InputStream {
         buffer.append(string);
     }
 
-    /**
-     * @return
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#getBytesRead()
      */
     public long getBytesRead() {
         return bytesRead;
     }
 
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#getCurrentId()
+     */
     public String getCurrentId() throws XmlPullParserException,
             IOException {
         // buffer up content until we find the id node
@@ -364,10 +368,16 @@ public class Producer extends InputStream {
         return currentId;
     }
 
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#setCurrentId(java.lang.String)
+     */
     public void setCurrentId(String _id) {
         currentId = _id;
     }
 
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#isSkippingRecord()
+     */
     public boolean isSkippingRecord() {
         return skippingRecord;
     }
@@ -420,6 +430,9 @@ public class Producer extends InputStream {
      * 
      * @see java.io.InputStream#read()
      */
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#read()
+     */
     @Override
     public int read() throws IOException {
         // read and return the next byte
@@ -433,6 +446,9 @@ public class Producer extends InputStream {
         return byteBuffer[byteIndex++];
     }
 
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#read(byte[], int, int)
+     */
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
         if (len < 1) {
@@ -564,10 +580,8 @@ public class Producer extends InputStream {
         }
     }
 
-    /**
-     * @param b
-     * @throws IOException
-     * @throws XmlPullParserException
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#setSkippingRecord(boolean)
      */
     public void setSkippingRecord(boolean b)
             throws XmlPullParserException, IOException {
@@ -580,6 +594,9 @@ public class Producer extends InputStream {
         }
     }
 
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#getByteBufferDescription()
+     */
     public String getByteBufferDescription() {
         if (byteBuffer == null) {
             return "" + byteIndex + " in empty byteBuffer";
@@ -588,8 +605,8 @@ public class Producer extends InputStream {
                 + new String(byteBuffer);
     }
 
-    /**
-     * @return
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.ProducerInterface#getBuffer()
      */
     public String getBuffer() {
         return (null != buffer) ? buffer.toString() : null;

@@ -40,7 +40,6 @@ import com.marklogic.ps.timing.TimedEvent;
  * 
  */
 
-// Callable<Object> is ok: we really don't return anything
 public class Loader extends AbstractLoader {
     /**
      * 

@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
@@ -39,12 +40,12 @@ import com.marklogic.xcc.types.ValueType;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  *         This implementation passes the XML source to a defined module. As
  *         such, it cannot handle documents larger than available memory.
- * 
+ *
  *         Also, this class can only handle XML, and possibly text: no binaries!
- * 
+ *
  */
 public class XccModuleContent extends XccAbstractContent implements
         ContentInterface {
@@ -56,6 +57,8 @@ public class XccModuleContent extends XccAbstractContent implements
     protected String[] roles;
 
     protected String[] collections;
+
+    protected String[] placeKeys;
 
     protected String language;
 
@@ -76,12 +79,14 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _namespace
      * @param _skipExisting
      * @param _errorExisting
+     * @param _placeKeys
      * @param _decoder
      */
     public XccModuleContent(Session _session, String _uri,
             String _moduleUri, String[] _roles, String[] _collections,
             String _language, String _namespace, boolean _skipExisting,
-            boolean _errorExisting, CharsetDecoder _decoder) {
+                            boolean _errorExisting, BigInteger[] _placeKeys,
+                            CharsetDecoder _decoder) {
         session = _session;
         uri = _uri;
         if (null == _moduleUri) {
@@ -95,11 +100,19 @@ public class XccModuleContent extends XccAbstractContent implements
         skipExisting = _skipExisting;
         errorExisting = _errorExisting;
         decoder = _decoder;
+        if (null == _placeKeys) {
+            placeKeys = new String[0];
+        } else {
+            placeKeys = new String[_placeKeys.length];
+            for (int i = 0; i < _placeKeys.length; i++) {
+                placeKeys[i] = "" + _placeKeys[i];
+            }
+        }
     }
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.ContentInterface#insert()
      */
     public void insert() throws LoaderException {
@@ -113,8 +126,6 @@ public class XccModuleContent extends XccAbstractContent implements
             throw new NullPointerException("Request cannot be null");
         }
         try {
-            // always four variables: URI, XML-STRING, ROLES, COLLECTIONS
-            // TODO add output forests?
             request.setNewStringVariable("URI", uri);
             request.setNewStringVariable("XML-STRING", xml);
             request.setNewStringVariable("NAMESPACE", namespace);
@@ -127,6 +138,8 @@ public class XccModuleContent extends XccAbstractContent implements
                     skipExisting);
             request.setNewVariable("ERROR-EXISTING",
                     ValueType.XS_BOOLEAN, errorExisting);
+            // apparently it is ok if OUTPUT_FORESTS are empty (tested 4.1-1)
+            request.setNewStringVariable("FORESTS", joinCsv(placeKeys));
             // ignore results
             session.submitRequest(request);
         } catch (RequestException e) {
@@ -147,7 +160,7 @@ public class XccModuleContent extends XccAbstractContent implements
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.ContentInterface#setProducer(com.marklogic
      * .recordloader.Producer)
@@ -180,7 +193,7 @@ public class XccModuleContent extends XccAbstractContent implements
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.ContentInterface#setXml(java.lang.String)
      */
     public void setBytes(byte[] _xml) throws LoaderException {

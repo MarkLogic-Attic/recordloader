@@ -311,6 +311,11 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String LOOP_FOREVER_KEY = "LOOP_FOREVER";
 
+    public static final String PRODUCER_CLASSNAME_KEY = "PRODUCER_CLASSNAME";
+
+    public static final String PRODUCER_CLASSNAME_DEFAULT = Producer.class
+            .getName();
+
     public static final String USE_FILENAME_COLLECTION_KEY = "USE_FILENAME_COLLECTION";
 
     public static final String USE_FILENAME_COLLECTION_DEFAULT = "true";
@@ -688,7 +693,11 @@ public class Configuration extends AbstractConfiguration {
         properties.setProperty(LOADER_CLASSNAME_KEY, FileLoader.class
                 .getName());
         // better to escape ids by default
-        defaults.put(INPUT_ESCAPE_IDS_KEY, "true");
+        // we haven't applied defaults yet, so we can still make changes
+        if (null == properties.get(INPUT_ESCAPE_IDS_KEY)) {
+            logger.info("automatically escaping ids");
+            defaults.put(INPUT_ESCAPE_IDS_KEY, "true");
+        }
     }
 
     /**
@@ -804,6 +813,13 @@ public class Configuration extends AbstractConfiguration {
     /**
      * @return
      */
+    public String getProducerClassName() {
+        return properties.getProperty(PRODUCER_CLASSNAME_KEY);
+    }
+
+    /**
+     * @return
+     */
     public boolean isUseFilenameCollection() {
         // When using filename ids, never add filename collections.
         // Otherwise, honor the property.
@@ -841,7 +857,7 @@ public class Configuration extends AbstractConfiguration {
             if (null != inputDecoder) {
                 return inputDecoder;
             }
-            
+
             // using an explicit decoder allows us to control the error
             // reporting
             inputDecoder = Charset.forName(getInputEncoding())
@@ -948,6 +964,21 @@ public class Configuration extends AbstractConfiguration {
      */
     public void setFirstLoop(boolean _bool) {
         isFirstLoop = _bool;
+    }
+
+    /**
+     * @param _prefix
+     */
+    public void setUriPrefix(String _prefix) {
+        uriPrefix = _prefix;
+    }
+
+    /**
+     * @param _className
+     */
+    public void setProducerClass(String _className) {
+        logger.info(_className);
+        properties.setProperty(PRODUCER_CLASSNAME_KEY, _className);
     }
 
 }

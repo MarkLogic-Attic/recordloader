@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2004-2008 Mark Logic Corporation
+ * Copyright (c)2004-2009 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.CharsetDecoder;
-import java.util.List;
+import java.util.Collection;
 
 /**
  * @author mike.blakeley@marklogic.com
@@ -32,8 +32,8 @@ import java.util.List;
  */
 public class Utilities {
 
-    public static String join(List<String> _items, String _delim) {
-        return join(_items.toArray(new String[0]), _delim);
+    public static String join(Collection<String> thisPath, String _delim) {
+        return join(thisPath.toArray(new String[0]), _delim);
     }
 
     /**

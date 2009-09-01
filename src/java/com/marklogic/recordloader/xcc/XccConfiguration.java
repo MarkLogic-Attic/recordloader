@@ -45,17 +45,17 @@ import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class XccConfiguration extends Configuration {
 
     /**
-     * 
+     *
      */
     public static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
     /**
-     * 
+     *
      */
     public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
             .toString();
@@ -65,18 +65,16 @@ public class XccConfiguration extends Configuration {
     public static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
 
     /**
-     * 
+     *
      */
     public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
 
     /**
-     * 
+     *
      */
     public static final String CONTENT_MODULE_KEY = "CONTENT_MODULE_URI";
 
     public static final String LANGUAGE_KEY = "LANGUAGE";
-
-    Object placeKeysMutex = new Object();
 
     Object metadataMutex = new Object();
 
