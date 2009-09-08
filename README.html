@@ -119,7 +119,8 @@ features are desired, the module must implement each itself (see below).
   (comma-separated values, using <code>READ_ROLES</code>)
 </li>
 <li><code>$COLLECTIONS</code>&nbsp;
-  (comma-separated values, using <code>OUTPUT_COLLECTIONS</code>)
+  (comma-separated values, using any base collections
+  plus <code>OUTPUT_COLLECTIONS</code>)
 </li>
 <li><code>$SKIP-EXISTING</code>&nbsp;
   (using <code>SKIP_EXISTING</code>)
@@ -431,7 +432,14 @@ The default value matches all filenames ending with <code>.xml</code></td>
 
 <tr><td>OUTPUT_COLLECTIONS</td><td>null</td>
 <td>One or more collections to apply to every new document.
-Use whitespace to separate multiple collection uris.</td>
+Use whitespace to separate multiple collection uris.
+Note that the actual document collections will also include
+so-called "base collections". One of these is a batch marker,
+<code>com.marklogic.ps.RecordLoader.{ system milliseconds }</code>.
+This base collection can be useful for tracking how and when
+documents were ingested. Another base collection is derived from
+the input filename (see <code>USE_FILENAME_COLLECTIONS</code>).
+</td>
 </tr>
 
 <tr><td>OUTPUT_FORESTS</td><td>null</td>
