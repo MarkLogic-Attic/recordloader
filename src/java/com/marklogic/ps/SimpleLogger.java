@@ -32,7 +32,7 @@ import java.util.logging.SimpleFormatter;
 /**
  * @author Michael Blakeley michael.blakeley@marklogic.com
  * 
- * wrapper for java logging
+ *         wrapper for java logging
  */
 public class SimpleLogger extends Logger implements
         PropertyClientInterface {
@@ -238,14 +238,16 @@ public class SimpleLogger extends Logger implements
     }
 
     public void logException(String message, Throwable exception) {
-        super.log(Level.SEVERE, (null != message) ? message : "",
-                exception);
+        super.log(Level.SEVERE,
+                (null != message) ? message : "EXCEPTION", exception);
     }
-    
+
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.ps.PropertyClientInterface#setProperties(java.util.Properties)
+     * @see
+     * com.marklogic.ps.PropertyClientInterface#setProperties(java.util.Properties
+     * )
      */
     public void setProperties(Properties _properties) {
         configureLogger(_properties);

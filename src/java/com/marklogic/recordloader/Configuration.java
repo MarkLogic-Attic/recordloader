@@ -217,14 +217,8 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String START_ID_MULTITHREADED_DEFAULT = "false";
 
-    /**
-     *
-     */
     public static final String THREADS_KEY = "THREADS";
 
-    /**
-    *
-    */
     public static final String THREADS_DEFAULT = "1";
 
     public static final String THROTTLE_EVENTS_KEY = "THROTTLE_EVENTS_PER_SECOND";
@@ -395,10 +389,6 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String IGNORE_FILE_BASENAME_DEFAULT = "false";
 
-    /**
-     * @throws URISyntaxException
-     * 
-     */
     public void configure() {
         // set up the logger early, for verbose configuration output
         logger.configureLogger(properties);
@@ -469,7 +459,7 @@ public class Configuration extends AbstractConfiguration {
 
         inputEncoding = properties.getProperty(INPUT_ENCODING_KEY);
         malformedInputAction = properties
-                .getProperty(INPUT_MALFORMED_ACTION_KEY);
+                .getProperty(INPUT_MALFORMED_ACTION_KEY).toUpperCase();
         logger.info("using input encoding " + inputEncoding);
         logger.info("using malformed input action "
                 + malformedInputAction);
@@ -705,6 +695,8 @@ public class Configuration extends AbstractConfiguration {
      */
     public void setUseAutomaticIds() {
         logger.info("generating automatic ids");
+        properties.setProperty(LOADER_CLASSNAME_KEY, Loader.class
+                .getName());
         useAutomaticIds = true;
         useFilenameIds = false;
     }

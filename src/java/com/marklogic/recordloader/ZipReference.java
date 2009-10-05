@@ -33,7 +33,9 @@ public class ZipReference extends ZipFile {
 
     protected volatile int references = 0;
 
-    private SimpleLogger logger;
+    protected SimpleLogger logger;
+
+    protected Object mutex = new Object();
 
     /**
      * @param _file
@@ -51,35 +53,35 @@ public class ZipReference extends ZipFile {
      * 
      */
     public void addReference() {
-        // TODO synchronized? mutex?
-        references++;
-        //logger.fine(getName() + ": " + references);
+        synchronized (mutex) {
+            references++;
+        }
     }
 
     /**
      * 
      */
     public void closeReference() {
-        // TODO synchronized? mutex?
-        references--;
-        //logger.fine(getName() + ": " + references);
+        synchronized (mutex) {
+            references--;
 
-        if (0 > references) {
-            throw new FatalException("refcount error: " + references
-                    + " for " + getName());
-        }
+            if (0 > references) {
+                throw new FatalException("refcount error: " + references
+                        + " for " + getName());
+            }
 
-        if (0 != references) {
-            return;
-        }
+            if (0 != references) {
+                return;
+            }
 
-        // free the resources for the input zip package
-        try {
-            logger.info("closing " + getName());
-            close();
-        } catch (IOException e) {
-            // should not happen - tell the user and proceed
-            e.printStackTrace();
+            // free the resources for the input zip package
+            try {
+                logger.info("closing " + getName());
+                close();
+            } catch (IOException e) {
+                // should not happen - tell the user and proceed
+                e.printStackTrace();
+            }
         }
     }
 

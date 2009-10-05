@@ -65,15 +65,16 @@ public class LoaderFactory {
 
         logger = config.getLogger();
 
+        // *after* config init, figure out which loader to use:
         // this should only be called once, in a single-threaded context
         String loaderClassName = config.getLoaderClassName();
         if (config.isFirstLoop()) {
             logger.info("Loader is " + loaderClassName);
         }
-        Class<? extends LoaderInterface> loaderClass = Class
-                .forName(loaderClassName, true,
-                        ClassLoader.getSystemClassLoader()).asSubclass(
-                        LoaderInterface.class);
+        Class<? extends LoaderInterface> loaderClass;
+        loaderClass = Class.forName(loaderClassName, true,
+                ClassLoader.getSystemClassLoader()).asSubclass(
+                LoaderInterface.class);
         loaderConstructor = loaderClass.getConstructor(new Class[] {});
 
         /*

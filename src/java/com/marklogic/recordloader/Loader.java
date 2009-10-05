@@ -22,11 +22,13 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.nio.charset.MalformedInputException;
 import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.Logger;
+import java.util.zip.ZipException;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -374,10 +376,13 @@ public class Loader extends AbstractLoader {
         if (!"jar".equals(proto)) {
             throw new FatalException("xppUrl protocol: " + proto);
         }
+        String file = null;
+        String jarPath = null;
         try {
             // the file portion should look something like...
             // file:/foo/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
-            String file = xppUrl.getFile();
+            // file=/C:/Program%20Files/MarkLogic/Demo/lib/xpp3-1.1.4c.jar!/META-INF/services/org.xmlpull.v1.XmlPullParserFactory
+            file = xppUrl.getFile();
             URL fileUrl = new URL(file);
             proto = fileUrl.getProtocol();
             if (!"file".equals(proto)) {
@@ -385,13 +390,16 @@ public class Loader extends AbstractLoader {
             }
             file = fileUrl.getFile();
             // allow for "!/"
-            String jarPath = file.substring(0, file.length()
-                    - XPP3_RESOURCE_NAME.length() - 2);
+            jarPath = URLDecoder.decode(file.substring(0, file.length()
+                    - XPP3_RESOURCE_NAME.length() - 2), "UTF-8");
             return getXppVersion(_logger, new JarFile(jarPath));
         } catch (LoaderException e) {
             throw new FatalException(e);
+        } catch (ZipException e) {
+            throw new FatalException("file=" + file + "; jar=" + jarPath,
+                    e);
         } catch (IOException e) {
-            throw new FatalException(e);
+            throw new FatalException(file, e);
         }
     }
 

@@ -213,7 +213,7 @@ public class XccConfiguration extends Configuration {
         logger.info("configuring XCC-specific options");
 
         String repairString = properties.getProperty(REPAIR_LEVEL_KEY);
-        if (repairString.equals("FULL")) {
+        if (repairString.equalsIgnoreCase("FULL")) {
             repairLevel = DocumentRepairLevel.FULL;
         }
 

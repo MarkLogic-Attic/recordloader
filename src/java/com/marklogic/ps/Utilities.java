@@ -25,12 +25,28 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.CharsetDecoder;
 import java.util.Collection;
+import java.util.regex.Pattern;
 
 /**
  * @author mike.blakeley@marklogic.com
  * 
  */
 public class Utilities {
+
+    protected static final int BUFFER_SIZE = 8 * 1024;
+
+    protected static Pattern[] patterns = new Pattern[] {
+            Pattern.compile("&"), Pattern.compile("<"),
+            Pattern.compile(">") };
+
+    public static String escapeXml(String _in) {
+        if (null == _in)
+            return "";
+        return patterns[2].matcher(
+                patterns[1].matcher(
+                        patterns[0].matcher(_in).replaceAll("&amp;"))
+                        .replaceAll("&lt;")).replaceAll("&gt;");
+    }
 
     public static String join(Collection<String> thisPath, String _delim) {
         return join(thisPath.toArray(new String[0]), _delim);
@@ -68,13 +84,6 @@ public class Utilities {
             }
         }
         return rval.toString();
-    }
-
-    public static String escapeXml(String _in) {
-        if (_in == null)
-            return "";
-        return _in.replaceAll("&", "&amp;").replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;");
     }
 
     public static final boolean stringToBoolean(String str) {
@@ -118,10 +127,12 @@ public class Utilities {
             throws IOException {
         // uses a reader, so charset translation should be ok
         int size;
-        char[] buf = new char[32 * 1024];
+        char[] buf = new char[BUFFER_SIZE];
         while ((size = input.read(buf)) > -1) {
             sb.append(buf, 0, size);
         }
+        // mark for gc
+        buf = null;
     }
 
     /**
@@ -149,11 +160,13 @@ public class Utilities {
         }
         ByteArrayOutputStream os = new ByteArrayOutputStream(_is
                 .available());
-        byte[] buf = new byte[32 * 1024];
+        byte[] buf = new byte[BUFFER_SIZE];
         int len = 0;
         while ((len = _is.read(buf)) != -1) {
             os.write(buf, 0, len);
         }
+        // mark for gc
+        buf = null;
         os.flush();
         return os.toByteArray();
     }
