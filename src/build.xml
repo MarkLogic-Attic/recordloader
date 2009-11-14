@@ -40,11 +40,11 @@
         </fileset>
         <pathelement path="${build.dir}"/>
     </path>
-	
-	<target name="build" 
+
+	<target name="build"
 			description="Compile main source tree java files">
 	  <mkdir dir="${build.dir}"/>
-	  <javac destdir="${build.dir}" target="1.5">
+	  <javac destdir="${build.dir}" debug="on" target="1.5">
       <compilerarg value="-Xlint"/>
       <src path="${src.dir}"/>
       <classpath refid="master-classpath"/>

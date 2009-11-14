@@ -103,7 +103,7 @@ public abstract class AbstractLoader implements LoaderInterface {
             return null;
         } catch (Exception e) {
             logger.warning("Exception "
-                    + e.getMessage()
+                    + e.toString()
                     + " while processing "
                     + (null != currentUri ? currentUri
                             : currentRecordPath));
@@ -185,7 +185,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     protected void cleanupInput() throws LoaderException {
         cleanupInput(false);
     }
-    
+
     /**
      * @param _isError
      * @throws LoaderException
@@ -287,7 +287,6 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
 
         // this form of URI() does escaping nicely
-        // TODO looks like we escape in two place - here and in composeURI
         if (config.isEscapeUri()) {
             URI uri;
             try {

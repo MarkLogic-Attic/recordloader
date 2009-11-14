@@ -170,7 +170,8 @@ public class Loader extends AbstractLoader {
                     logger.warning("current URI = " + currentUri);
                 }
                 if (producer != null) {
-                    logger.warning(producer.getByteBufferDescription());
+                    logger.warning("producer = "
+                            + producer.getByteBufferDescription());
                     logger.warning("buffer = " + producer.getBuffer());
                 }
                 if (xpp != null) {
@@ -273,7 +274,7 @@ public class Loader extends AbstractLoader {
             String id = producer.getCurrentId();
             logger.fine("found id " + id);
 
-            if (id == null) {
+            if (null == id) {
                 throw new LoaderException(
                         "producer exited without currentId");
             }

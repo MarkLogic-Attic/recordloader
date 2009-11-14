@@ -407,8 +407,13 @@ public class Configuration extends AbstractConfiguration {
         configureOptions();
         configureCollections();
 
-        String[] connectionStrings = properties.getProperty(
-                CONNECTION_STRING_KEY).split("[,\\s]+");
+        String rawConnectionString = properties
+                .getProperty(CONNECTION_STRING_KEY);
+        if (null == rawConnectionString) {
+            throw new FatalException("missing required property: "
+                    + CONNECTION_STRING_KEY);
+        }
+        String[] connectionStrings = rawConnectionString.split("[,\\s]+");
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
         uris = new URI[connectionStrings.length];
@@ -458,8 +463,8 @@ public class Configuration extends AbstractConfiguration {
                 .getProperty(COPY_NAMESPACES_KEY));
 
         inputEncoding = properties.getProperty(INPUT_ENCODING_KEY);
-        malformedInputAction = properties
-                .getProperty(INPUT_MALFORMED_ACTION_KEY).toUpperCase();
+        malformedInputAction = properties.getProperty(
+                INPUT_MALFORMED_ACTION_KEY).toUpperCase();
         logger.info("using input encoding " + inputEncoding);
         logger.info("using malformed input action "
                 + malformedInputAction);
@@ -840,33 +845,23 @@ public class Configuration extends AbstractConfiguration {
     }
 
     public CharsetDecoder getDecoder() {
-        if (null != inputDecoder) {
-            return inputDecoder;
-        }
+        // decoders are not thread-safe - build a new one every time
 
-        synchronized (inputDecoderMutex) {
-            // in case of races for the mutex, it might be done already
-            if (null != inputDecoder) {
-                return inputDecoder;
-            }
-
-            // using an explicit decoder allows us to control the error
-            // reporting
-            inputDecoder = Charset.forName(getInputEncoding())
-                    .newDecoder();
-            String malformedInputAction = getMalformedInputAction();
-            if (malformedInputAction
-                    .equals(Configuration.INPUT_MALFORMED_ACTION_IGNORE)) {
-                inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
-            } else if (malformedInputAction
-                    .equals(Configuration.INPUT_MALFORMED_ACTION_REPLACE)) {
-                inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
-            } else {
-                inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
-            }
-            inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
-            return inputDecoder;
+        // using an explicit decoder allows us to control the error
+        // reporting
+        inputDecoder = Charset.forName(getInputEncoding()).newDecoder();
+        String malformedInputAction = getMalformedInputAction();
+        if (malformedInputAction
+                .equals(Configuration.INPUT_MALFORMED_ACTION_IGNORE)) {
+            inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
+        } else if (malformedInputAction
+                .equals(Configuration.INPUT_MALFORMED_ACTION_REPLACE)) {
+            inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
+        } else {
+            inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
         }
+        inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+        return inputDecoder;
     }
 
     /**
