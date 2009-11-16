@@ -141,37 +141,37 @@ features are desired, the module must implement each itself (see below).
 </p>
 
 <pre>
-xquery version "0.9-ml"
+xquery version "1.0-ml";
 
-define variable $URI as xs:string external
-define variable $XML-STRING as xs:string external
-define variable $NAMESPACE as xs:string external
-define variable $LANGUAGE as xs:string external
-define variable $ROLES as xs:string external
-define variable $COLLECTIONS as xs:string external
-define variable $SKIP-EXISTING as xs:boolean external
-define variable $ERROR-EXISTING as xs:boolean external
-define variable $FORESTS as xs:string external
+declare variable $URI as xs:string external;
+declare variable $XML-STRING as xs:string external;
+declare variable $NAMESPACE as xs:string external;
+declare variable $LANGUAGE as xs:string external;
+declare variable $ROLES as xs:string external;
+declare variable $COLLECTIONS as xs:string external;
+declare variable $SKIP-EXISTING as xs:boolean external;
+declare variable $ERROR-EXISTING as xs:boolean external;
+declare variable $FORESTS as xs:string external;
 
-define function do($list as node()*)
+declare function local:do($list as node()*)
  as node()*
 {
   for $n in $list return typeswitch($n)
   (: lower-case element localnames :)
   case element() return element {
-    expanded-QName(namespace-uri($n), lower-case(local-name($n)))
+    QName(namespace-uri($n), lower-case(local-name($n)))
   } {
-    $n/@*, do($n/node())
+    $n/@*, local:do($n/node())
   }
-  case document-node() return document { do($n/node()) }
+  case document-node() return document { local:do($n/node()) }
   default return $n
-}
+};
 
 if ($SKIP-EXISTING and doc($URI)) then ()
-else if ($ERROR-EXISTING and doc($URI)) then error('DUPLICATE-URI', $URI)
+else if ($ERROR-EXISTING and doc($URI)) then error((), 'DUPLICATE-URI', $URI)
 else xdmp:document-insert(
   $URI,
-  do(xdmp:unquote(
+  local:do(xdmp:unquote(
     $XML-STRING,
     $NAMESPACE,
     if ($LANGUAGE) then concat('default-language=', $LANGUAGE) else ()
@@ -184,6 +184,59 @@ else xdmp:document-insert(
   return xs:unsignedLong($id)
 )
 </pre>
+
+<p>Another included factory is
+  <code>com.marklogic.recordloader.http.HttpContentFactory</code>.
+  This is similar to the XCC version above,
+  except that the implementation must use
+  <code>xdmp:get-request-field()</code> rather than
+  declaring <code>external</code> to populate the module variables.
+  Note that some variables take <code>xs:string*</code>
+  rather than <code>xs:string</code>: these are
+  <code>COLLECTIONS</code>,
+  <code>FORESTS</code>, and
+  <code>ROLES</code>.
+  The <code>xs:boolean</code> variables are <code>xs:string</code> instead.
+  Also, <code>FORESTS</code> will be passed in as forest names,
+  so the module must be prepared to translate these into forest ids.
+</p>
+
+<pre>
+declare variable $URI as xs:string := xdmp:get-request-field(
+  'URI');
+declare variable $XML-STRING as xs:string := xdmp:get-request-field(
+  'XML-STRING');
+declare variable $NAMESPACE as xs:string := xdmp:get-request-field(
+  'NAMESPACE');
+declare variable $LANGUAGE as xs:string := xdmp:get-request-field(
+  'LANGUAGE');
+declare variable $ROLES as xs:string* := xdmp:get-request-field(
+  'ROLES');
+declare variable $COLLECTIONS as xs:string* := xdmp:get-request-field(
+  'COLLECTIONS');
+declare variable $SKIP-EXISTING as xs:boolean := xs:boolean(
+  xdmp:get-request-field('SKIP-EXISTING'));
+declare variable $ERROR-EXISTING as xs:boolean := xs:boolean(
+  xdmp:get-request-field('ERROR-EXISTING'));
+declare variable $FORESTS as xs:string* := xdmp:get-request-field(
+  'FORESTS');
+
+if ($SKIP-EXISTING and doc($URI)) then ()
+else if ($ERROR-EXISTING and doc($URI)) then error((), 'DUPLICATE-URI', $URI)
+else xdmp:document-insert(
+  $URI,
+  xdmp:unquote(
+    $XML-STRING,
+    $NAMESPACE,
+    if ($LANGUAGE) then concat('default-language=', $LANGUAGE) else ()
+  ),
+  for $r in $ROLES return xdmp:permission('read', $r),
+  $COLLECTIONS,
+  0,
+  for $fn in $FORESTS return xdmp:forest($fn)
+)
+</pre>
+
 </td>
 </tr>
 

@@ -39,7 +39,7 @@ import com.marklogic.recordloader.xcc.XccConfiguration;
 import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
- * @author Michael Blakeley, michael.blakeley@marklogic.com
+ * @author Michael Blakeley, Mark Logic
  * 
  */
 public class Configuration extends AbstractConfiguration {
@@ -372,9 +372,9 @@ public class Configuration extends AbstractConfiguration {
 
     private boolean isFirstLoop = true;
 
-    protected CharsetDecoder inputDecoder = null;
-
     protected Object inputDecoderMutex = new Object();
+
+    int quality = 0;
 
     public static final String ZIP_SUFFIX = ".zip";
 
@@ -382,6 +382,14 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String INPUT_HANDLER_CLASSNAME_DEFAULT = DefaultInputHandler.class
             .getCanonicalName();
+
+    /**
+     */
+    public static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
+
+    public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
+
+    public static final String LANGUAGE_KEY = "LANGUAGE";
 
     public static final String INPUT_ENCODING_DEFAULT = OUTPUT_ENCODING_DEFAULT;
 
@@ -849,18 +857,20 @@ public class Configuration extends AbstractConfiguration {
 
         // using an explicit decoder allows us to control the error
         // reporting
-        inputDecoder = Charset.forName(getInputEncoding()).newDecoder();
+        CharsetDecoder inputDecoder = Charset.forName(getInputEncoding())
+                .newDecoder();
         String malformedInputAction = getMalformedInputAction();
+        inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
+        inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
         if (malformedInputAction
                 .equals(Configuration.INPUT_MALFORMED_ACTION_IGNORE)) {
             inputDecoder.onMalformedInput(CodingErrorAction.IGNORE);
+            inputDecoder.onUnmappableCharacter(CodingErrorAction.IGNORE);
         } else if (malformedInputAction
                 .equals(Configuration.INPUT_MALFORMED_ACTION_REPLACE)) {
             inputDecoder.onMalformedInput(CodingErrorAction.REPLACE);
-        } else {
-            inputDecoder.onMalformedInput(CodingErrorAction.REPORT);
+            inputDecoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
         }
-        inputDecoder.onUnmappableCharacter(CodingErrorAction.REPORT);
         return inputDecoder;
     }
 
@@ -966,6 +976,58 @@ public class Configuration extends AbstractConfiguration {
     public void setProducerClass(String _className) {
         logger.info(_className);
         properties.setProperty(PRODUCER_CLASSNAME_KEY, _className);
+    }
+
+    /**
+     * @return
+     */
+    public String getOutputNamespace() {
+        return properties.getProperty(OUTPUT_NAMESPACE_KEY,
+                OUTPUT_NAMESPACE_DEFAULT);
+    }
+
+    /**
+     * @return
+     */
+    public String[] getReadRoles() {
+        String readRolesString = properties
+                .getProperty(OUTPUT_READ_ROLES_KEY);
+        if (null == readRolesString || readRolesString.length() < 1) {
+            return null;
+        }
+        return readRolesString.trim().split("\\s+");
+    }
+
+    /**
+     * @return
+     */
+    public int getQuality() {
+        return quality;
+    }
+
+    /**
+     * @return
+     */
+    public String getLanguage() {
+        return properties.getProperty(LANGUAGE_KEY);
+    }
+
+    /**
+     * @return
+     */
+    public String[] getOutputForests() {
+        String forestNames = properties.getProperty(OUTPUT_FORESTS_KEY);
+        if (null == forestNames) {
+            return null;
+        }
+        forestNames = forestNames.trim();
+        if (forestNames.equals("")) {
+            return null;
+        }
+        logger.info("sending output to forests: " + forestNames);
+        logger.fine("querying for Forest ids");
+        String[] placeNames = forestNames.split("\\s+");
+        return placeNames;
     }
 
 }

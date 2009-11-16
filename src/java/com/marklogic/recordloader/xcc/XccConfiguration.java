@@ -45,36 +45,16 @@ import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class XccConfiguration extends Configuration {
 
-    /**
-     *
-     */
     public static final String CONNECTION_STRING_DEFAULT = "xcc://admin:admin@localhost:9000/";
 
-    /**
-     *
-     */
-    public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
-            .toString();
-
-    /**
-     */
-    public static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
-
-    /**
-     *
-     */
-    public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
-
-    /**
-     *
-     */
     public static final String CONTENT_MODULE_KEY = "CONTENT_MODULE_URI";
 
-    public static final String LANGUAGE_KEY = "LANGUAGE";
+    public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
+            .toString();
 
     Object metadataMutex = new Object();
 
@@ -82,58 +62,19 @@ public class XccConfiguration extends Configuration {
 
     volatile ContentbaseMetaData metadata;
 
-    int quality = 0;
-
-    protected DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
-
-    DocumentFormat format = DocumentFormat.XML;
-
     protected SecurityOptions securityOptions = null;
 
     Object securityOptionsMutex = new Object();
 
-    /**
-     * @return
-     */
-    public String getOutputNamespace() {
-        return properties.getProperty(OUTPUT_NAMESPACE_KEY,
-                OUTPUT_NAMESPACE_DEFAULT);
-    }
+    protected DocumentRepairLevel repairLevel = DocumentRepairLevel.NONE;
 
-    /**
-     * @return
-     */
-    public ContentPermission[] getPermissions() {
-        ContentPermission[] permissions = null;
-        String[] readRoles = getReadRoles();
-        if (readRoles != null && readRoles.length > 0) {
-            permissions = new ContentPermission[readRoles.length];
-            for (int i = 0; i < readRoles.length; i++) {
-                if (readRoles[i] != null && !readRoles[i].equals(""))
-                    permissions[i] = new ContentPermission(
-                            ContentPermission.READ, readRoles[i]);
-            }
-        }
-        return permissions;
-    }
-
-    /**
-     * @return
-     */
-    public String[] getReadRoles() {
-        String readRolesString = properties
-                .getProperty(OUTPUT_READ_ROLES_KEY);
-        if (null == readRolesString || readRolesString.length() < 1) {
-            return null;
-        }
-        return readRolesString.trim().split("\\s+");
-    }
+    protected DocumentFormat format = DocumentFormat.XML;
 
     /**
      * @return
      * @throws XccException
      */
-    public BigInteger[] getPlaceKeys() throws XccException {
+    public BigInteger[] getPlaceKeys() {
         return placeKeys;
     }
 
@@ -166,45 +107,6 @@ public class XccConfiguration extends Configuration {
         return metadata;
     }
 
-    /**
-     * @return
-     */
-    public int getQuality() {
-        return quality;
-    }
-
-    /**
-     * @return
-     */
-    public String getContentModuleUri() {
-        return properties.getProperty(CONTENT_MODULE_KEY);
-    }
-
-    /**
-     * @return
-     */
-    public DocumentFormat getFormat() {
-        return format;
-    }
-
-    /**
-     * @return
-     */
-    public String getLanguage() {
-        return properties.getProperty(LANGUAGE_KEY);
-    }
-
-    public DocumentRepairLevel getRepairLevel() {
-        return repairLevel;
-    }
-
-    /**
-     * @return
-     */
-    public boolean isFullRepair() {
-        return DocumentRepairLevel.FULL == repairLevel;
-    }
-
     @Override
     public void configure() {
         super.configure();
@@ -232,35 +134,29 @@ public class XccConfiguration extends Configuration {
             format = DocumentFormat.XML;
         }
 
-        String forestNames = properties.getProperty(OUTPUT_FORESTS_KEY);
-        if (null != forestNames) {
-            forestNames = forestNames.trim();
-            if (!forestNames.equals("")) {
-                logger.info("sending output to forests: " + forestNames);
-                logger.fine("querying for Forest ids");
-                String[] placeNames = forestNames.split("\\s+");
-                try {
-                    ContentbaseMetaData meta = getMetaData();
-                    Map<?, ?> forestMap = meta.getForestMap();
-                    placeKeys = new BigInteger[placeNames.length];
-                    for (int i = 0; i < placeNames.length; i++) {
-                        logger.finest("looking up " + placeNames[i]);
-                        placeKeys[i] = (BigInteger) forestMap
-                                .get(placeNames[i]);
-                        if (null == placeKeys[i]) {
-                            throw new FatalException("no forest named "
-                                    + placeNames[i]);
-                        }
-                        logger.fine("mapping " + placeNames[i] + " to "
-                                + placeKeys[i]);
+        String[] placeNames = getOutputForests();
+        if (null != placeNames) {
+            try {
+                ContentbaseMetaData meta = getMetaData();
+                Map<?, ?> forestMap = meta.getForestMap();
+                placeKeys = new BigInteger[placeNames.length];
+                for (int i = 0; i < placeNames.length; i++) {
+                    logger.finest("looking up " + placeNames[i]);
+                    placeKeys[i] = (BigInteger) forestMap
+                            .get(placeNames[i]);
+                    if (null == placeKeys[i]) {
+                        throw new FatalException("no forest named "
+                                + placeNames[i]);
                     }
-                } catch (XccException e) {
-                    throw new FatalException(e);
-                } catch (KeyManagementException e) {
-                    throw new FatalException(e);
-                } catch (NoSuchAlgorithmException e) {
-                    throw new FatalException(e);
+                    logger.fine("mapping " + placeNames[i] + " to "
+                            + placeKeys[i]);
                 }
+            } catch (XccException e) {
+                throw new FatalException(e);
+            } catch (KeyManagementException e) {
+                throw new FatalException(e);
+            } catch (NoSuchAlgorithmException e) {
+                throw new FatalException(e);
             }
         }
 
@@ -324,4 +220,47 @@ public class XccConfiguration extends Configuration {
         // TODO would be nice if XCC exposed this string
         return _uri.getScheme().equals("xccs");
     }
+
+    public DocumentRepairLevel getRepairLevel() {
+        return repairLevel;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isFullRepair() {
+        return DocumentRepairLevel.FULL == repairLevel;
+    }
+
+    /**
+     * @return
+     */
+    public DocumentFormat getFormat() {
+        return format;
+    }
+
+    /**
+     * @return
+     */
+    public ContentPermission[] getPermissions() {
+        ContentPermission[] permissions = null;
+        String[] readRoles = getReadRoles();
+        if (readRoles != null && readRoles.length > 0) {
+            permissions = new ContentPermission[readRoles.length];
+            for (int i = 0; i < readRoles.length; i++) {
+                if (readRoles[i] != null && !readRoles[i].equals(""))
+                    permissions[i] = new ContentPermission(
+                            ContentPermission.READ, readRoles[i]);
+            }
+        }
+        return permissions;
+    }
+
+    /**
+     * @return
+     */
+    public String getContentModuleUri() {
+        return properties.getProperty(CONTENT_MODULE_KEY);
+    }
+
 }

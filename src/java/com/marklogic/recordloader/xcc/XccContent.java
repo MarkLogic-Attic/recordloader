@@ -25,8 +25,13 @@ import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.Content;
 import com.marklogic.xcc.ContentCreateOptions;
 import com.marklogic.xcc.ContentFactory;
+import com.marklogic.xcc.Request;
+import com.marklogic.xcc.ResultItem;
+import com.marklogic.xcc.ResultSequence;
 import com.marklogic.xcc.Session;
+import com.marklogic.xcc.exceptions.RequestException;
 import com.marklogic.xcc.exceptions.XccException;
+import com.marklogic.xcc.types.XSBoolean;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -34,6 +39,11 @@ import com.marklogic.xcc.exceptions.XccException;
  */
 public class XccContent extends XccAbstractContent implements
         ContentInterface {
+
+    /**
+     * 
+     */
+    protected static final String XQUERY_VERSION_0_9_ML = "xquery version \"0.9-ml\"\n";
 
     Content content = null;
 
@@ -94,7 +104,8 @@ public class XccContent extends XccAbstractContent implements
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentInterface#setInput(com.marklogic.recordloader.Producer)
+     * @seecom.marklogic.recordloader.ContentInterface#setInput(com.marklogic.
+     * recordloader.Producer)
      */
     public void setInputStream(InputStream _producer)
             throws LoaderException {
@@ -103,6 +114,43 @@ public class XccContent extends XccAbstractContent implements
         }
         content = ContentFactory.newUnBufferedContent(uri, _producer,
                 options);
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see
+     * com.marklogic.recordloader.ContentInterface#checkDocumentUri(java.lang
+     * .String)
+     */
+    public boolean checkDocumentUri(String _uri) throws LoaderException {
+        // boolean doc is actually cheaper than xdmp:exists doc
+        String query = XQUERY_VERSION_0_9_ML
+                + "define variable $URI as xs:string external\n"
+                + "boolean(doc($URI))\n";
+        ResultSequence result = null;
+        boolean exists = false;
+        try {
+            Request request = session.newAdhocQuery(query);
+            request.setNewStringVariable("URI", _uri);
+
+            result = session.submitRequest(request);
+
+            if (!result.hasNext()) {
+                throw new RequestException("unexpected null result",
+                        request);
+            }
+
+            ResultItem item = result.next();
+
+            exists = ((XSBoolean) item.getItem()).asPrimitiveBoolean();
+        } catch (XccException e) {
+            throw new LoaderException(e);
+        } finally {
+            if (result != null && !result.isClosed())
+                result.close();
+        }
+        return exists;
     }
 
 }

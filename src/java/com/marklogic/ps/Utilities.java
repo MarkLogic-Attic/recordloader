@@ -188,4 +188,15 @@ public class Utilities {
         return name.substring(0, i);
     }
 
+    /**
+     * @param rolesCsv
+     * @return
+     */
+    public static String joinCsv(String[] values) {
+        if (null == values) {
+            return "";
+        }
+        return join(values, ",");
+    }
+
 }

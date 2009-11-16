@@ -23,7 +23,6 @@ import java.math.BigInteger;
 import com.marklogic.recordloader.ContentFactory;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
-import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -49,7 +48,6 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
      *
      * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#close()
      */
-    @Override
     public void close() {
         // nothing to do
     }
@@ -60,8 +58,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
      * @see
      * com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
      */
-    @Override
-    protected void initOptions() throws XccException, LoaderException {
+    protected void initOptions() throws LoaderException {
         moduleUri = configuration.getContentModuleUri();
         if (null == moduleUri) {
             throw new LoaderException("missing required property "
@@ -82,7 +79,6 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
      * .lang.String)
      */
     @SuppressWarnings("unused")
-    @Override
     public ContentInterface newContent(String _uri)
             throws LoaderException {
         // TODO add isSkipExistingUntilFirstMiss

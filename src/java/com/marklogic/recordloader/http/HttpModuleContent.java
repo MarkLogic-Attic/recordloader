@@ -16,27 +16,28 @@
  * The use of the Apache License does not indicate that this project is
  * affiliated with the Apache Software Foundation.
  */
-package com.marklogic.recordloader.xcc;
+package com.marklogic.recordloader.http;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.io.Writer;
-import java.math.BigInteger;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
+import java.util.Arrays;
 
-import com.marklogic.ps.Utilities;
+import com.marklogic.recordloader.AbstractContent;
 import com.marklogic.recordloader.ContentInterface;
-import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
-import com.marklogic.xcc.Request;
-import com.marklogic.xcc.Session;
-import com.marklogic.xcc.exceptions.RequestException;
-import com.marklogic.xcc.types.ValueType;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -47,12 +48,10 @@ import com.marklogic.xcc.types.ValueType;
  *         Also, this class can only handle XML, and possibly text: no binaries!
  * 
  */
-public class XccModuleContent extends XccAbstractContent implements
+public class HttpModuleContent extends AbstractContent implements
         ContentInterface {
 
     protected String xml = null;
-
-    protected Request request = null;
 
     protected String[] roles;
 
@@ -70,10 +69,12 @@ public class XccModuleContent extends XccAbstractContent implements
 
     protected CharsetDecoder decoder;
 
+    protected String uri;
+
+    private URL connectionUrl;
+
     /**
-     * @param _session
      * @param _uri
-     * @param _moduleUri
      * @param _collections
      * @param _language
      * @param _namespace
@@ -82,17 +83,12 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _placeKeys
      * @param _decoder
      */
-    public XccModuleContent(Session _session, String _uri,
-            String _moduleUri, String[] _roles, String[] _collections,
-            String _language, String _namespace, boolean _skipExisting,
-            boolean _errorExisting, BigInteger[] _placeKeys,
-            CharsetDecoder _decoder) {
-        session = _session;
+    public HttpModuleContent(URL _connectionUrl, String _uri, String[] _roles,
+            String[] _collections, String _language, String _namespace,
+            boolean _skipExisting, boolean _errorExisting,
+            String[] _placeKeys, CharsetDecoder _decoder) {
+        connectionUrl = _connectionUrl;
         uri = _uri;
-        if (null == _moduleUri) {
-            throw new FatalException("module URI cannot be null");
-        }
-        request = session.newModuleInvoke(_moduleUri);
         roles = _roles;
         collections = _collections;
         language = _language;
@@ -103,10 +99,7 @@ public class XccModuleContent extends XccAbstractContent implements
         if (null == _placeKeys) {
             placeKeys = new String[0];
         } else {
-            placeKeys = new String[_placeKeys.length];
-            for (int i = 0; i < _placeKeys.length; i++) {
-                placeKeys[i] = "" + _placeKeys[i];
-            }
+            placeKeys = Arrays.copyOf(_placeKeys, _placeKeys.length);
         }
     }
 
@@ -119,33 +112,76 @@ public class XccModuleContent extends XccAbstractContent implements
         if (null == uri) {
             throw new NullPointerException("URI cannot be null");
         }
-        if (null == session) {
-            throw new NullPointerException("Session cannot be null");
-        }
-        if (null == request) {
-            throw new NullPointerException("Request cannot be null");
-        }
+
+        StringBuilder body = new StringBuilder();
         try {
-            request.setNewStringVariable("URI", uri);
-            request.setNewStringVariable("XML-STRING", xml);
-            request.setNewStringVariable("NAMESPACE", namespace);
-            request.setNewStringVariable("LANGUAGE",
-                    (null == language) ? "" : language);
-            request.setNewStringVariable("ROLES", Utilities
-                    .joinCsv(roles));
-            request.setNewStringVariable("COLLECTIONS", Utilities
-                    .joinCsv(collections));
-            request.setNewVariable("SKIP-EXISTING", ValueType.XS_BOOLEAN,
-                    skipExisting);
-            request.setNewVariable("ERROR-EXISTING",
-                    ValueType.XS_BOOLEAN, errorExisting);
-            // apparently it is ok if OUTPUT_FORESTS are empty (tested 4.1-1)
-            request.setNewStringVariable("FORESTS", Utilities
-                    .joinCsv(placeKeys));
-            // ignore results
-            session.submitRequest(request);
-        } catch (RequestException e) {
+            append(body, "URI", uri);
+            append(body, "XML-STRING", xml);
+            append(body, "NAMESPACE", namespace);
+            append(body, "LANGUAGE", (null == language) ? "" : language);
+            append(body, "ROLES", roles);
+            append(body, "COLLECTIONS", collections);
+            append(body, "SKIP-EXISTING", Boolean.toString(skipExisting));
+            append(body, "ERROR-EXISTING", Boolean
+                    .toString(errorExisting));
+            append(body, "FORESTS", placeKeys);
+
+            HttpURLConnection conn = (HttpURLConnection) connectionUrl
+                    .openConnection();
+            conn.setUseCaches(false);
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type",
+                    "application/x-www-form-urlencoded");
+            // use keep-alive to reduce open sockets
+            conn.setRequestProperty("Connection", "keep-alive");
+            conn.setDoOutput(true);
+            OutputStreamWriter osw = new OutputStreamWriter(conn
+                    .getOutputStream());
+            osw.write(body.toString());
+            osw.flush();
+
+            BufferedReader in = new BufferedReader(new InputStreamReader(
+                    conn.getInputStream()));
+            String line;
+            while ((line = in.readLine()) != null) {
+                System.out.println(line);
+            }
+            in.close();
+
+            return;
+        } catch (IOException e) {
             throw new LoaderException(e);
+        }
+    }
+
+    /**
+     * @param _query
+     * @param _key
+     * @param _value
+     * @throws UnsupportedEncodingException
+     */
+    private void append(StringBuilder _query, String _key, String _value)
+            throws UnsupportedEncodingException {
+        append(_query, _key, new String[] { _value });
+    }
+
+    /**
+     * @param _query
+     * @param _key
+     * @param _value
+     * @throws UnsupportedEncodingException
+     */
+    private void append(StringBuilder _query, String _key, String[] _value)
+            throws UnsupportedEncodingException {
+        if (null == _value || 1 > _value.length) {
+            return;
+        }
+        for (int i = 0; i < _value.length; i++) {
+            if (_query.length() > 0) {
+                _query.append("&");
+            }
+            _query.append(_key).append("=").append(
+                    URLEncoder.encode(_value[i], "UTF-8"));
         }
     }
 
@@ -200,8 +236,9 @@ public class XccModuleContent extends XccAbstractContent implements
 
     @SuppressWarnings("unused")
     public boolean checkDocumentUri(String _uri) throws LoaderException {
-        // override super(), so that we don't check the database.
         // checking the database does not work, as modules can rewrite uris.
+        // instead, we provide the value of SKIP_EXISTING to the module.
+        // given the information, it can do as it likes.
         return false;
     }
 

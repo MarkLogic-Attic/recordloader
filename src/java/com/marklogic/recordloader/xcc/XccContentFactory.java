@@ -22,7 +22,6 @@ import com.marklogic.recordloader.ContentFactory;
 import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.ContentCreateOptions;
-import com.marklogic.xcc.exceptions.XccException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
@@ -33,7 +32,10 @@ public class XccContentFactory extends XccAbstractContentFactory
 
     protected ContentCreateOptions options = null;
 
-    protected void initOptions() throws XccException {
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
+     */
+    protected void initOptions() {
         // only initialize docOpts once
         if (null != options) {
             return;

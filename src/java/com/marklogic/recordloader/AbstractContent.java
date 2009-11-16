@@ -16,37 +16,23 @@
  * The use of the Apache License does not indicate that this project is
  * affiliated with the Apache Software Foundation.
  */
-package com.marklogic.recordloader.xcc;
 
-import com.marklogic.recordloader.AbstractContent;
-import com.marklogic.recordloader.ContentInterface;
-import com.marklogic.xcc.Session;
+package com.marklogic.recordloader;
 
 /**
- * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ * @author Michael Blakeley, Mark Logic Corporation
+ *
  */
-public abstract class XccAbstractContent extends AbstractContent
-        implements ContentInterface {
+public abstract class AbstractContent implements ContentInterface {
 
-    Session session = null;
+    protected String uri = null;
 
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.marklogic.recordloader.ContentInterface#close()
-     */
-    public void close() {
-        if (null != session) {
-            session.close();
-        }
+    public void setUri(String _uri) {
+        uri = _uri;
     }
 
-    /**
-     * @return
-     */
-    public Session getSession() {
-        return session;
+    public void close() {
+        // nothing to do
     }
 
 }

@@ -28,7 +28,6 @@ import java.util.List;
 import com.marklogic.ps.SimpleLogger;
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.ContentFactory;
-import com.marklogic.recordloader.ContentInterface;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.ContentSource;
@@ -43,20 +42,13 @@ import com.marklogic.xcc.exceptions.XccException;
  */
 public abstract class XccAbstractContentFactory implements ContentFactory {
 
-    protected XccConfiguration configuration;
-
     protected ContentSource cs;
+
+    protected XccConfiguration configuration;
 
     protected List<String> collections;
 
     protected SimpleLogger logger;
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see com.marklogic.recordloader.ContentFactory#close()
-     */
-    public abstract void close();
 
     /*
      * (non-Javadoc)
@@ -82,15 +74,6 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
      * (non-Javadoc)
      * 
      * @see
-     * com.marklogic.recordloader.ContentFactory#newContent(java.lang.String)
-     */
-    public abstract ContentInterface newContent(String _uri)
-            throws LoaderException;
-
-    /*
-     * (non-Javadoc)
-     * 
-     * @see
      * com.marklogic.recordloader.ContentFactory#setProperties(java.util.Properties
      * )
      */
@@ -98,19 +81,14 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
             throws LoaderException {
         configuration = (XccConfiguration) _configuration;
         logger = configuration.getLogger();
-        try {
-            initOptions();
-        } catch (XccException e) {
-            throw new LoaderException(e);
-        }
+        initOptions();
     }
 
     /**
      * @throws LoaderException
      * 
      */
-    protected abstract void initOptions() throws XccException,
-            LoaderException;
+    protected abstract void initOptions() throws LoaderException;
 
     /**
      * @param _uri
@@ -143,11 +121,7 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
      */
     public void setFileBasename(String _name) throws LoaderException {
         // ensure that doc options exist
-        try {
-            initOptions();
-        } catch (XccException e) {
-            throw new LoaderException(e);
-        }
+        initOptions();
 
         collections = new ArrayList<String>(Arrays.asList(configuration
                 .getBaseCollections()));
