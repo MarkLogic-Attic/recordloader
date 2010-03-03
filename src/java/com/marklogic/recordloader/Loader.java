@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2006-2009 Mark Logic Corporation
+ * Copyright (c)2006-2010 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,12 +39,12 @@ import com.marklogic.ps.timing.TimedEvent;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 
 public class Loader extends AbstractLoader {
     /**
-     * 
+     *
      */
     private static final String XPP3_RESOURCE_NAME = "META-INF/services/org.xmlpull.v1.XmlPullParserFactory";
 
@@ -69,7 +69,7 @@ public class Loader extends AbstractLoader {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.AbstractLoader#process()
      */
     public void process() throws LoaderException {
@@ -340,18 +340,13 @@ public class Loader extends AbstractLoader {
 
     /**
      * @param _logger
-     * 
+     *
      */
     public static void checkEnvironment(Logger _logger) {
         // check the XPP3 version
-        ClassLoader loader = RecordLoader.class.getClassLoader();
+        ClassLoader loader = RecordLoader.getClassLoader();
         if (null == loader) {
-            _logger
-                    .warning("RecordLoader class loader is null - trying system class loader");
-            loader = ClassLoader.getSystemClassLoader();
-            if (null == loader) {
-                throw new NullPointerException("null class loader");
-            }
+          throw new NullPointerException("null class loader");
         }
 
         // the xppUrl should look something like...

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
  * @author Michael Blakeley, Mark Logic
- * 
+ *
  */
 public class Configuration extends AbstractConfiguration {
 
@@ -482,7 +482,7 @@ public class Configuration extends AbstractConfiguration {
         capacity = Integer.parseInt(properties.getProperty(
                 QUEUE_CAPACITY_KEY, "" + DEFAULT_CAPACITY * threadCount));
 
-        inputPath = properties.getProperty(INPUT_PATH_KEY);
+        inputPath = properties.getProperty(INPUT_PATH_KEY).trim();
 
         inputPattern = properties.getProperty(INPUT_PATTERN_KEY);
         inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX_KEY);
@@ -493,7 +493,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     * 
+     *
      */
     void configureThrottling() {
         // do not throttle while skipExistingUntilFirstMiss is active
@@ -614,7 +614,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     * 
+     *
      * @throws XmlPullParserException
      * @return
      */
@@ -780,7 +780,7 @@ public class Configuration extends AbstractConfiguration {
                 try {
                     Class<? extends ContentFactory> contentFactoryClass = Class
                             .forName(className, true,
-                                    ClassLoader.getSystemClassLoader())
+                                RecordLoader.getClassLoader())
                             .asSubclass(ContentFactory.class);
                     contentFactoryConstructor = contentFactoryClass
                             .getConstructor(new Class[] {});

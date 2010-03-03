@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2006-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2006-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,12 @@ import java.lang.reflect.InvocationTargetException;
 
 import org.xmlpull.v1.XmlPullParser;
 
+import com.marklogic.ps.RecordLoader;
 import com.marklogic.ps.SimpleLogger;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class ProducerFactory {
 
@@ -59,7 +60,7 @@ public class ProducerFactory {
         Class<? extends Producer> producerClass;
         try {
             producerClass = Class.forName(producerClassName, true,
-                    ClassLoader.getSystemClassLoader()).asSubclass(
+                RecordLoader.getClassLoader()).asSubclass(
                     Producer.class);
             producerConstructor = producerClass
                     .getConstructor(new Class[] { Configuration.class,

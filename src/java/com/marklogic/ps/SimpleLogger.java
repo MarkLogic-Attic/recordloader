@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2008 Mark Logic Corporation
+ * Copyright (c)2005-2010 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,53 +31,53 @@ import java.util.logging.SimpleFormatter;
 
 /**
  * @author Michael Blakeley michael.blakeley@marklogic.com
- * 
+ *
  *         wrapper for java logging
  */
 public class SimpleLogger extends Logger implements
         PropertyClientInterface {
     /**
-     * 
+     *
      */
     static public final String LOG_FILEHANDLER_LIMIT = "LOG_FILEHANDLER_LIMIT";
 
     /**
-     * 
+     *
      */
     static public final String LOG_FILEHANDLER_COUNT = "LOG_FILEHANDLER_COUNT";
 
     /**
-     * 
+     *
      */
     static public final String LOG_FILEHANDLER_APPEND = "LOG_FILEHANDLER_APPEND";
 
     /**
-     * 
+     *
      */
     static public final String LOG_FILEHANDLER_PATH = "LOG_FILEHANDLER_PATH";
 
     /**
-     * 
+     *
      */
     static public final String DEFAULT_LOG_HANDLER = "CONSOLE,FILE";
 
     /**
-     * 
+     *
      */
     static public final String DEFAULT_LOG_LEVEL = "INFO";
 
     /**
-     * 
+     *
      */
     static public final String LOG_HANDLER = "LOG_HANDLER";
 
     /**
-     * 
+     *
      */
     static public final String LOG_LEVEL = "LOG_LEVEL";
 
     /**
-     * 
+     *
      */
     static public final String DEFAULT_FILEHANDLER_PATH = "simplelogger-%u-%g.log";
 
@@ -193,7 +193,7 @@ public class SimpleLogger extends Logger implements
                     try {
                         Class<? extends Handler> lhc = Class.forName(
                                 logHandler[i], true,
-                                ClassLoader.getSystemClassLoader())
+                                RecordLoader.getClassLoader())
                                 .asSubclass(Handler.class);
                         System.err.println("logging to class "
                                 + logHandler[i]);
@@ -244,7 +244,7 @@ public class SimpleLogger extends Logger implements
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.ps.PropertyClientInterface#setProperties(java.util.Properties
      * )

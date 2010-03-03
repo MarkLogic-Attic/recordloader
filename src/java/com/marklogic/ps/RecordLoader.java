@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2009 Mark Logic Corporation
+ * Copyright (c)2005-2010 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ import com.marklogic.recordloader.Monitor;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
- * 
+ *
  */
 
 public class RecordLoader {
@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2009-11-15.1";
+    public static final String VERSION = "2010-03-03.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -67,7 +67,7 @@ public class RecordLoader {
 
         /*
          * (non-Javadoc)
-         * 
+         *
          * @see
          * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
          * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
@@ -106,9 +106,17 @@ public class RecordLoader {
         logger.info(getVersionMessage());
     }
 
+    public RecordLoader(Configuration configuration) throws URISyntaxException, IOException {
+      this.config = configuration;
+      initConfiguration();
+      logger.info("client hostname = "
+                + InetAddress.getLocalHost().getHostName());
+        logger.info(getVersionMessage());
+    }
+
     /**
      * @throws URISyntaxException
-     * 
+     *
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
@@ -127,7 +135,7 @@ public class RecordLoader {
             logger.info("Configuration is " + configClassName);
             Class<? extends Configuration> configurationClass = Class
                     .forName(configClassName, true,
-                            ClassLoader.getSystemClassLoader())
+                        getClassLoader())
                     .asSubclass(Configuration.class);
             Constructor<? extends Configuration> configurationConstructor = configurationClass
                     .getConstructor(new Class[] {});
@@ -143,6 +151,23 @@ public class RecordLoader {
         // now the configuration is final
         config.configure();
     }
+
+  public static ClassLoader getClassLoader() {
+    ClassLoader cl = null;
+    try {
+      cl = Thread.currentThread().getContextClassLoader();
+    }
+    catch (Throwable ex) {
+    }
+    if (cl == null) {
+      // No thread context ClassLoader, use ClassLoader of this class
+      cl = RecordLoader.class.getClassLoader();
+    }
+    if (cl == null) {
+      cl = ClassLoader.getSystemClassLoader();
+    }
+    return cl;
+  }
 
     public static void main(String[] args) throws Exception {
         System.err.println(getVersionMessage());
@@ -161,7 +186,7 @@ public class RecordLoader {
                 + " " + System.getProperty("file.encoding");
     }
 
-    private void run() throws LoaderException, SecurityException,
+    public void run() throws LoaderException, SecurityException,
             IllegalArgumentException, ClassNotFoundException,
             NoSuchMethodException {
         // if START_ID was supplied, run single-threaded until found
@@ -252,7 +277,7 @@ public class RecordLoader {
     /**
      * @param _handlerConstructor
      * @throws LoaderException
-     * 
+     *
      */
     private synchronized void runInputHandler(
             Constructor<? extends InputHandlerInterface> _handlerConstructor)
@@ -295,7 +320,7 @@ public class RecordLoader {
         logger.info("input handler = " + handlerClassName);
         Class<? extends InputHandlerInterface> handlerClass = Class
                 .forName(handlerClassName, true,
-                        ClassLoader.getSystemClassLoader()).asSubclass(
+                        getClassLoader()).asSubclass(
                         InputHandlerInterface.class);
         return handlerClass.getConstructor(new Class[] {});
     }
