@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,12 +48,22 @@ import com.marklogic.recordloader.LoaderException;
  *         Also, this class can only handle XML, and possibly text: no binaries!
  * 
  */
+/**
+ * @author Michael Blakeley, Mark Logic Corporation
+ * 
+ */
 public class HttpModuleContent extends AbstractContent implements
         ContentInterface {
 
     protected String xml = null;
 
-    protected String[] roles;
+    protected String[] executeRoles;
+
+    protected String[] insertRoles;
+
+    protected String[] readRoles;
+
+    protected String[] updateRoles;
 
     protected String[] collections;
 
@@ -74,7 +84,12 @@ public class HttpModuleContent extends AbstractContent implements
     private URL connectionUrl;
 
     /**
+     * @param _connectionUrl
      * @param _uri
+     * @param _executeRoles
+     * @param _insertRoles
+     * @param _readRoles
+     * @param _updateRoles
      * @param _collections
      * @param _language
      * @param _namespace
@@ -83,13 +98,18 @@ public class HttpModuleContent extends AbstractContent implements
      * @param _placeKeys
      * @param _decoder
      */
-    public HttpModuleContent(URL _connectionUrl, String _uri, String[] _roles,
+    public HttpModuleContent(URL _connectionUrl, String _uri,
+            String[] _executeRoles, String[] _insertRoles,
+            String[] _readRoles, String[] _updateRoles,
             String[] _collections, String _language, String _namespace,
             boolean _skipExisting, boolean _errorExisting,
             String[] _placeKeys, CharsetDecoder _decoder) {
         connectionUrl = _connectionUrl;
         uri = _uri;
-        roles = _roles;
+        executeRoles = _executeRoles;
+        insertRoles = _insertRoles;
+        readRoles = _readRoles;
+        updateRoles = _updateRoles;
         collections = _collections;
         language = _language;
         namespace = _namespace;
@@ -119,8 +139,12 @@ public class HttpModuleContent extends AbstractContent implements
             append(body, "XML-STRING", xml);
             append(body, "NAMESPACE", namespace);
             append(body, "LANGUAGE", (null == language) ? "" : language);
-            append(body, "ROLES", roles);
+            append(body, "ROLES-EXECUTE", executeRoles);
+            append(body, "ROLES-INSERT", insertRoles);
+            append(body, "ROLES-READ", readRoles);
+            append(body, "ROLES-UPDATE", updateRoles);
             append(body, "COLLECTIONS", collections);
+            // TODO skip existing until first miss
             append(body, "SKIP-EXISTING", Boolean.toString(skipExisting));
             append(body, "ERROR-EXISTING", Boolean
                     .toString(errorExisting));

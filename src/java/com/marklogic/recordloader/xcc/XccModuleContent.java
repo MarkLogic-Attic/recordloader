@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,7 +54,13 @@ public class XccModuleContent extends XccAbstractContent implements
 
     protected Request request = null;
 
-    protected String[] roles;
+    protected String[] executeRoles;
+
+    protected String[] insertRoles;
+
+    protected String[] readRoles;
+
+    protected String[] updateRoles;
 
     protected String[] collections;
 
@@ -74,6 +80,10 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _session
      * @param _uri
      * @param _moduleUri
+     * @param _executeRoles
+     * @param _insertRoles
+     * @param _readRoles
+     * @param _updateRoles
      * @param _collections
      * @param _language
      * @param _namespace
@@ -83,7 +93,9 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _decoder
      */
     public XccModuleContent(Session _session, String _uri,
-            String _moduleUri, String[] _roles, String[] _collections,
+            String _moduleUri, String[] _executeRoles,
+            String[] _insertRoles, String[] _readRoles,
+            String[] _updateRoles, String[] _collections,
             String _language, String _namespace, boolean _skipExisting,
             boolean _errorExisting, BigInteger[] _placeKeys,
             CharsetDecoder _decoder) {
@@ -93,7 +105,10 @@ public class XccModuleContent extends XccAbstractContent implements
             throw new FatalException("module URI cannot be null");
         }
         request = session.newModuleInvoke(_moduleUri);
-        roles = _roles;
+        executeRoles = _executeRoles;
+        insertRoles = _insertRoles;
+        readRoles = _readRoles;
+        updateRoles = _updateRoles;
         collections = _collections;
         language = _language;
         namespace = _namespace;
@@ -131,8 +146,14 @@ public class XccModuleContent extends XccAbstractContent implements
             request.setNewStringVariable("NAMESPACE", namespace);
             request.setNewStringVariable("LANGUAGE",
                     (null == language) ? "" : language);
-            request.setNewStringVariable("ROLES", Utilities
-                    .joinCsv(roles));
+            request.setNewStringVariable("ROLES-EXECUTE", Utilities
+                    .joinSsv(executeRoles));
+            request.setNewStringVariable("ROLES-INSERT", Utilities
+                    .joinSsv(insertRoles));
+            request.setNewStringVariable("ROLES-READ", Utilities
+                    .joinSsv(readRoles));
+            request.setNewStringVariable("ROLES-UPDATE", Utilities
+                    .joinSsv(updateRoles));
             request.setNewStringVariable("COLLECTIONS", Utilities
                     .joinCsv(collections));
             request.setNewVariable("SKIP-EXISTING", ValueType.XS_BOOLEAN,

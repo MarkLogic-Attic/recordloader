@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,13 @@ public class HttpModuleContentFactory implements ContentFactory {
 
     protected SimpleLogger logger;
 
+    protected String[] executeRoles;
+
+    protected String[] insertRoles;
+
     protected String[] readRoles;
+
+    protected String[] updateRoles;
 
     protected String[] collectionsArray;
 
@@ -63,7 +69,10 @@ public class HttpModuleContentFactory implements ContentFactory {
      * @throws LoaderException
      */
     protected void initOptions() throws LoaderException {
+        executeRoles = configuration.getExecuteRoles();
+        insertRoles = configuration.getInsertRoles();
         readRoles = configuration.getReadRoles();
+        updateRoles = configuration.getUpdateRoles();
         collectionsArray = configuration.getBaseCollections();
         language = configuration.getLanguage();
         namespace = configuration.getOutputNamespace();
@@ -82,10 +91,10 @@ public class HttpModuleContentFactory implements ContentFactory {
     public ContentInterface newContent(String _uri)
             throws LoaderException {
         // TODO add isSkipExistingUntilFirstMiss
-        return new HttpModuleContent(connectionUrl, _uri, readRoles,
-                collectionsArray, language, namespace, configuration
-                        .isSkipExisting(), configuration
-                        .isErrorExisting(), placeKeys, configuration
+        return new HttpModuleContent(connectionUrl, _uri, executeRoles,
+                insertRoles, readRoles, updateRoles, collectionsArray,
+                language, namespace, configuration.isSkipExisting(),
+                configuration.isErrorExisting(), placeKeys, configuration
                         .getDecoder());
     }
 
@@ -140,8 +149,8 @@ public class HttpModuleContentFactory implements ContentFactory {
         // round-robin index to use.
         if (null == connectionUrl || !authorityIsInitialized) {
             try {
-                final String[] auth = _uri.toURL().getAuthority().split("@")[0]
-                        .split(":");
+                final String[] auth = _uri.toURL().getAuthority().split(
+                        "@")[0].split(":");
                 Authenticator.setDefault(new Authenticator() {
                     protected PasswordAuthentication getPasswordAuthentication() {
                         return new PasswordAuthentication(auth[0],

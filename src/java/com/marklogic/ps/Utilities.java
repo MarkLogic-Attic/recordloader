@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2004-2009 Mark Logic Corporation
+ * Copyright (c)2004-2010 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -197,6 +197,17 @@ public class Utilities {
             return "";
         }
         return join(values, ",");
+    }
+
+    /**
+     * @param rolesCsv
+     * @return
+     */
+    public static String joinSsv(String[] values) {
+        if (null == values) {
+            return "";
+        }
+        return join(values, " ");
     }
 
 }

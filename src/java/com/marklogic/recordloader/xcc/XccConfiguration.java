@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import javax.net.ssl.SSLContext;
@@ -32,6 +34,7 @@ import javax.net.ssl.X509TrustManager;
 
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
+import com.marklogic.xcc.ContentCapability;
 import com.marklogic.xcc.ContentPermission;
 import com.marklogic.xcc.ContentSource;
 import com.marklogic.xcc.ContentSourceFactory;
@@ -243,17 +246,48 @@ public class XccConfiguration extends Configuration {
      * @return
      */
     public ContentPermission[] getPermissions() {
-        ContentPermission[] permissions = null;
-        String[] readRoles = getReadRoles();
-        if (readRoles != null && readRoles.length > 0) {
-            permissions = new ContentPermission[readRoles.length];
-            for (int i = 0; i < readRoles.length; i++) {
-                if (readRoles[i] != null && !readRoles[i].equals(""))
-                    permissions[i] = new ContentPermission(
-                            ContentPermission.READ, readRoles[i]);
-            }
+        List<ContentPermission> permissions = new LinkedList<ContentPermission>();
+        buildPermissions(permissions, ContentPermission.EXECUTE,
+                getExecuteRoles());
+        buildPermissions(permissions, ContentPermission.INSERT,
+                getInsertRoles());
+        buildPermissions(permissions, ContentPermission.READ,
+                getReadRoles());
+        buildPermissions(permissions, ContentPermission.UPDATE,
+                getUpdateRoles());
+
+        logger.fine("returning " + permissions.size());
+        if (0 == permissions.size()) {
+            return null;
         }
-        return permissions;
+        return permissions.toArray(new ContentPermission[0]);
+    }
+
+    /**
+     * @param permissions
+     * @param capability
+     * @param roles
+     */
+    private void buildPermissions(List<ContentPermission> permissions,
+            ContentCapability capability, String[] roles) {
+        logger.fine("processing "
+                + (null == roles ? roles : roles.length));
+        if (roles == null || roles.length < 1) {
+            return;
+        }
+        String name;
+        for (int i = 0; i < roles.length; i++) {
+            name = roles[i];
+            if (null == name) {
+                continue;
+            }
+            name = name.trim();
+            if ("".equals(name)) {
+                continue;
+            }
+            logger.finer("adding " + capability + " for " + name);
+            permissions.add(new ContentPermission(capability, name));
+        }
     }
 
     /**

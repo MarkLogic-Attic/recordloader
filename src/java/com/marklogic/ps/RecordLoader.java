@@ -47,7 +47,7 @@ import com.marklogic.recordloader.Monitor;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
- *
+ * 
  */
 
 public class RecordLoader {
@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2010-03-03.1";
+    public static final String VERSION = "2010-03-10.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -67,7 +67,7 @@ public class RecordLoader {
 
         /*
          * (non-Javadoc)
-         *
+         * 
          * @see
          * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
          * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
@@ -106,17 +106,18 @@ public class RecordLoader {
         logger.info(getVersionMessage());
     }
 
-    public RecordLoader(Configuration configuration) throws URISyntaxException, IOException {
-      this.config = configuration;
-      initConfiguration();
-      logger.info("client hostname = "
+    public RecordLoader(Configuration configuration)
+            throws URISyntaxException, IOException {
+        this.config = configuration;
+        initConfiguration();
+        logger.info("client hostname = "
                 + InetAddress.getLocalHost().getHostName());
         logger.info(getVersionMessage());
     }
 
     /**
      * @throws URISyntaxException
-     *
+     * 
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
@@ -134,8 +135,7 @@ public class RecordLoader {
             String configClassName = config.getConfigurationClassName();
             logger.info("Configuration is " + configClassName);
             Class<? extends Configuration> configurationClass = Class
-                    .forName(configClassName, true,
-                        getClassLoader())
+                    .forName(configClassName, true, getClassLoader())
                     .asSubclass(Configuration.class);
             Constructor<? extends Configuration> configurationConstructor = configurationClass
                     .getConstructor(new Class[] {});
@@ -152,22 +152,22 @@ public class RecordLoader {
         config.configure();
     }
 
-  public static ClassLoader getClassLoader() {
-    ClassLoader cl = null;
-    try {
-      cl = Thread.currentThread().getContextClassLoader();
+    public static ClassLoader getClassLoader() {
+        ClassLoader cl = null;
+        try {
+            cl = Thread.currentThread().getContextClassLoader();
+        } catch (Throwable ex) {
+            // the next test for null will take care of any errors
+        }
+        if (cl == null) {
+            // No thread context ClassLoader, use ClassLoader of this class
+            cl = RecordLoader.class.getClassLoader();
+        }
+        if (cl == null) {
+            cl = ClassLoader.getSystemClassLoader();
+        }
+        return cl;
     }
-    catch (Throwable ex) {
-    }
-    if (cl == null) {
-      // No thread context ClassLoader, use ClassLoader of this class
-      cl = RecordLoader.class.getClassLoader();
-    }
-    if (cl == null) {
-      cl = ClassLoader.getSystemClassLoader();
-    }
-    return cl;
-  }
 
     public static void main(String[] args) throws Exception {
         System.err.println(getVersionMessage());
@@ -182,8 +182,8 @@ public class RecordLoader {
     protected static String getVersionMessage() {
         return SIMPLE_NAME + " starting, version " + VERSION + " on "
                 + System.getProperty("java.version") + " ("
-                + System.getProperty("java.runtime.name") + ")"
-                + " " + System.getProperty("file.encoding");
+                + System.getProperty("java.runtime.name") + ")" + " "
+                + System.getProperty("file.encoding");
     }
 
     public void run() throws LoaderException, SecurityException,
@@ -277,7 +277,7 @@ public class RecordLoader {
     /**
      * @param _handlerConstructor
      * @throws LoaderException
-     *
+     * 
      */
     private synchronized void runInputHandler(
             Constructor<? extends InputHandlerInterface> _handlerConstructor)
@@ -319,9 +319,8 @@ public class RecordLoader {
         String handlerClassName = config.getInputHandlerClassName();
         logger.info("input handler = " + handlerClassName);
         Class<? extends InputHandlerInterface> handlerClass = Class
-                .forName(handlerClassName, true,
-                        getClassLoader()).asSubclass(
-                        InputHandlerInterface.class);
+                .forName(handlerClassName, true, getClassLoader())
+                .asSubclass(InputHandlerInterface.class);
         return handlerClass.getConstructor(new Class[] {});
     }
 

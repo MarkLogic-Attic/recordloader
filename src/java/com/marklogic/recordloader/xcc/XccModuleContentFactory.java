@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,14 +26,20 @@ import com.marklogic.recordloader.LoaderException;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class XccModuleContentFactory extends XccAbstractContentFactory
         implements ContentFactory {
 
     protected String moduleUri;
 
+    protected String[] executeRoles;
+
+    protected String[] insertRoles;
+
     protected String[] readRoles;
+
+    protected String[] updateRoles;
 
     protected String[] collectionsArray;
 
@@ -45,7 +51,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#close()
      */
     public void close() {
@@ -54,7 +60,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see
      * com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
      */
@@ -64,7 +70,10 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
             throw new LoaderException("missing required property "
                     + XccConfiguration.CONTENT_MODULE_KEY);
         }
+        executeRoles = configuration.getExecuteRoles();
+        insertRoles = configuration.getInsertRoles();
         readRoles = configuration.getReadRoles();
+        updateRoles = configuration.getUpdateRoles();
         collectionsArray = configuration.getBaseCollections();
         language = configuration.getLanguage();
         namespace = configuration.getOutputNamespace();
@@ -73,7 +82,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see
      * com.marklogic.recordloader.xcc.XccAbstractContentFactory#newContent(java
      * .lang.String)
@@ -83,16 +92,16 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
             throws LoaderException {
         // TODO add isSkipExistingUntilFirstMiss
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
-                readRoles, collectionsArray, language, namespace,
-                configuration.isSkipExisting(), configuration
-                        .isErrorExisting(),
-                                    placeKeys,
-                                    configuration.getDecoder());
+                executeRoles, insertRoles, readRoles, updateRoles,
+                collectionsArray, language, namespace, configuration
+                        .isSkipExisting(), configuration
+                        .isErrorExisting(), placeKeys, configuration
+                        .getDecoder());
     }
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see
      * com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String
      * )

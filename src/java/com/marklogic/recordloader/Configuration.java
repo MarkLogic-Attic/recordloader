@@ -40,7 +40,7 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
  * @author Michael Blakeley, Mark Logic
- *
+ * 
  */
 public class Configuration extends AbstractConfiguration {
 
@@ -354,7 +354,7 @@ public class Configuration extends AbstractConfiguration {
 
     private boolean useFilenameIds = false;
 
-    private AtomicInteger autoid = new AtomicInteger(1);
+    private AtomicInteger autoid = new AtomicInteger(0);
 
     private boolean copyNamespaceDeclarations = true;
 
@@ -387,7 +387,13 @@ public class Configuration extends AbstractConfiguration {
      */
     public static final String OUTPUT_FORESTS_KEY = "OUTPUT_FORESTS";
 
-    public static final String OUTPUT_READ_ROLES_KEY = "READ_ROLES";
+    public static final String ROLES_EXECUTE_KEY = "ROLES_EXECUTE";
+
+    public static final String ROLES_INSERT_KEY = "ROLES_INSERT";
+
+    public static final String ROLES_READ_KEY = "ROLES_READ";
+
+    public static final String ROLES_UPDATE_KEY = "ROLES_UPDATE";
 
     public static final String LANGUAGE_KEY = "LANGUAGE";
 
@@ -482,7 +488,10 @@ public class Configuration extends AbstractConfiguration {
         capacity = Integer.parseInt(properties.getProperty(
                 QUEUE_CAPACITY_KEY, "" + DEFAULT_CAPACITY * threadCount));
 
-        inputPath = properties.getProperty(INPUT_PATH_KEY).trim();
+        inputPath = properties.getProperty(INPUT_PATH_KEY);
+        if (null != inputPath) {
+            inputPath = inputPath.trim();
+        }
 
         inputPattern = properties.getProperty(INPUT_PATTERN_KEY);
         inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX_KEY);
@@ -614,7 +623,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     *
+     * 
      * @throws XmlPullParserException
      * @return
      */
@@ -780,7 +789,7 @@ public class Configuration extends AbstractConfiguration {
                 try {
                     Class<? extends ContentFactory> contentFactoryClass = Class
                             .forName(className, true,
-                                RecordLoader.getClassLoader())
+                                    RecordLoader.getClassLoader())
                             .asSubclass(ContentFactory.class);
                     contentFactoryConstructor = contentFactoryClass
                             .getConstructor(new Class[] {});
@@ -987,15 +996,48 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
+     * @param key
+     * @return
+     */
+    protected String[] getRoles(String key) {
+        String rolesString = properties.getProperty(key);
+        logger.fine(key + " = " + rolesString);
+        if (null == rolesString) {
+            return null;
+        }
+        rolesString = rolesString.trim();
+        if (rolesString.length() < 1) {
+            return null;
+        }
+        return rolesString.split("\\s+");
+    }
+
+    /**
+     * @return
+     */
+    public String[] getExecuteRoles() {
+        return getRoles(ROLES_EXECUTE_KEY);
+    }
+
+    /**
+     * @return
+     */
+    public String[] getInsertRoles() {
+        return getRoles(ROLES_INSERT_KEY);
+    }
+
+    /**
      * @return
      */
     public String[] getReadRoles() {
-        String readRolesString = properties
-                .getProperty(OUTPUT_READ_ROLES_KEY);
-        if (null == readRolesString || readRolesString.length() < 1) {
-            return null;
-        }
-        return readRolesString.trim().split("\\s+");
+        return getRoles(ROLES_READ_KEY);
+    }
+
+    /**
+     * @return
+     */
+    public String[] getUpdateRoles() {
+        return getRoles(ROLES_UPDATE_KEY);
     }
 
     /**
