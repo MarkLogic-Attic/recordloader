@@ -688,10 +688,15 @@ public class Configuration extends AbstractConfiguration {
 
         logger.fine(ID_NAME_KEY + "=" + idNodeName);
 
-        if (ID_NAME_AUTO.equals(idNodeName)) {
-            setUseAutomaticIds();
-        } else if (ID_NAME_FILENAME.equals(idNodeName)) {
-            setUseFilenameIds();
+        if (idNodeName.startsWith("#")) {
+            if (ID_NAME_AUTO.equals(idNodeName)) {
+                setUseAutomaticIds();
+            } else if (ID_NAME_FILENAME.equals(idNodeName)) {
+                setUseFilenameIds();
+            }
+        } else {
+            logger.warning("Unrecognized special value! " + ID_NAME_KEY
+                    + "=" + idNodeName);
         }
     }
 

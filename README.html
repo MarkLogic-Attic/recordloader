@@ -115,8 +115,17 @@ features are desired, the module must implement each itself (see below).
 <li><code>$LANGUAGE</code>&nbsp;
   (using <code>LANGUAGE</code>)
 </li>
-<li><code>$ROLES</code>&nbsp;
-  (comma-separated values, using <code>READ_ROLES</code>)
+<li><code>$ROLES-EXECUTE</code>&nbsp;
+  (comma-separated values, using <code>ROLES_EXECUTE</code>)
+</li>
+<li><code>$ROLES-INSERT</code>&nbsp;
+  (comma-separated values, using <code>ROLES_INSERT</code>)
+</li>
+<li><code>$ROLES-READ</code>&nbsp;
+  (comma-separated values, using <code>ROLES_READ</code>)
+</li>
+<li><code>$ROLES-UPDATE</code>&nbsp;
+  (comma-separated values, using <code>ROLES_UPDATE</code>)
 </li>
 <li><code>$COLLECTIONS</code>&nbsp;
   (comma-separated values, using any base collections
@@ -147,7 +156,10 @@ declare variable $URI as xs:string external;
 declare variable $XML-STRING as xs:string external;
 declare variable $NAMESPACE as xs:string external;
 declare variable $LANGUAGE as xs:string external;
-declare variable $ROLES as xs:string external;
+declare variable $ROLES-EXECUTE as xs:string external;
+declare variable $ROLES-INSERT as xs:string external;
+declare variable $ROLES-READ as xs:string external;
+declare variable $ROLES-UPDATE as xs:string external;
 declare variable $COLLECTIONS as xs:string external;
 declare variable $SKIP-EXISTING as xs:boolean external;
 declare variable $ERROR-EXISTING as xs:boolean external;
@@ -176,8 +188,16 @@ else xdmp:document-insert(
     $NAMESPACE,
     if ($LANGUAGE) then concat('default-language=', $LANGUAGE) else ()
   )),
-  for $r in tokenize($ROLES, ',')[. ne '']
-  return xdmp:permission('read', $r),
+  (
+    for $r in tokenize($ROLES-EXECUTE, ',')[. ne '']
+    return xdmp:permission('execute', $r),
+    for $r in tokenize($ROLES-INSERT, ',')[. ne '']
+    return xdmp:permission('insert', $r),
+    for $r in tokenize($ROLES-READ, ',')[. ne '']
+    return xdmp:permission('read', $r),
+    for $r in tokenize($ROLES-UPDATE, ',')[. ne '']
+    return xdmp:permission('update', $r)
+  ),
   tokenize($COLLECTIONS, ',')[. ne ''],
   0,
   for $id in tokenize($FORESTS, ',')[. ne '']
@@ -194,8 +214,11 @@ else xdmp:document-insert(
   Note that some variables take <code>xs:string*</code>
   rather than <code>xs:string</code>: these are
   <code>COLLECTIONS</code>,
-  <code>FORESTS</code>, and
-  <code>ROLES</code>.
+  <code>FORESTS</code>,
+  <code>ROLES-EXECUTE</code>.
+  <code>ROLES-INSERT</code>.
+  <code>ROLES-READ</code>.
+  and <code>ROLES-UPDATE</code>.
   The <code>xs:boolean</code> variables are <code>xs:string</code> instead.
   Also, <code>FORESTS</code> will be passed in as forest names,
   so the module must be prepared to translate these into forest ids.
@@ -210,8 +233,14 @@ declare variable $NAMESPACE as xs:string := xdmp:get-request-field(
   'NAMESPACE');
 declare variable $LANGUAGE as xs:string := xdmp:get-request-field(
   'LANGUAGE');
-declare variable $ROLES as xs:string* := xdmp:get-request-field(
-  'ROLES');
+declare variable $ROLES-EXECUTE as xs:string* := xdmp:get-request-field(
+  'ROLES-EXECUTE);
+declare variable $ROLES-INSERT as xs:string* := xdmp:get-request-field(
+  'ROLES-INSERT);
+declare variable $ROLES-READ as xs:string* := xdmp:get-request-field(
+  'ROLES-READ');
+declare variable $ROLES-UPDATE as xs:string* := xdmp:get-request-field(
+  'ROLES-UPDATE);
 declare variable $COLLECTIONS as xs:string* := xdmp:get-request-field(
   'COLLECTIONS');
 declare variable $SKIP-EXISTING as xs:boolean := xs:boolean(
@@ -230,7 +259,16 @@ else xdmp:document-insert(
     $NAMESPACE,
     if ($LANGUAGE) then concat('default-language=', $LANGUAGE) else ()
   ),
-  for $r in $ROLES return xdmp:permission('read', $r),
+  (
+    for $r in tokenize($ROLES-EXECUTE, ',')[. ne '']
+    return xdmp:permission('execute', $r),
+    for $r in tokenize($ROLES-INSERT, ',')[. ne '']
+    return xdmp:permission('insert', $r),
+    for $r in tokenize($ROLES-READ, ',')[. ne '']
+    return xdmp:permission('read', $r),
+    for $r in tokenize($ROLES-UPDATE, ',')[. ne '']
+    return xdmp:permission('update', $r)
+  ),
   $COLLECTIONS,
   0,
   for $fn in $FORESTS return xdmp:forest($fn)
@@ -500,10 +538,36 @@ the input filename (see <code>USE_FILENAME_COLLECTIONS</code>).
 Use whitespace or the characters <code>,:;</code> to separate values.</td>
 </tr>
 
-<tr><td>READ_ROLES</td><td>null</td>
+<tr><td>ROLES_EXECUTE</td><td>null</td>
+<td>One or more existing role name, separated by whitespace.
+If set, every document inserted by RecordLoader
+will have execute permission for these roles.
+If any of the supplied role-names do not exist,
+the first document insert will throw a fatal error.</td>
+</tr>
+
+<tr><td>ROLES_INSERT</td><td>null</td>
+<td>One or more existing role name, separated by whitespace.
+If set, every document inserted by RecordLoader
+will have insert permission for these roles.
+If any of the supplied role-names do not exist,
+the first document insert will throw a fatal error.</td>
+</tr>
+
+<tr><td>ROLES_READ</td><td>null</td>
 <td>One or more existing role name, separated by whitespace.
 If set, every document inserted by RecordLoader
 will have read permission for these roles.
+If any of the supplied role-names do not exist,
+the first document insert will throw a fatal error.
+<b>NOTE</b> in previous releases this property was <code>ROLES_READ</code>.
+</td>
+</tr>
+
+<tr><td>ROLES_UPDATE</td><td>null</td>
+<td>One or more existing role name, separated by whitespace.
+If set, every document inserted by RecordLoader
+will have update permission for these roles.
 If any of the supplied role-names do not exist,
 the first document insert will throw a fatal error.</td>
 </tr>
