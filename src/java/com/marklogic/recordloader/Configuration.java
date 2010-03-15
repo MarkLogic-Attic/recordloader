@@ -693,10 +693,10 @@ public class Configuration extends AbstractConfiguration {
                 setUseAutomaticIds();
             } else if (ID_NAME_FILENAME.equals(idNodeName)) {
                 setUseFilenameIds();
+            } else {
+                logger.warning("Unrecognized special value! "
+                        + ID_NAME_KEY + "=" + idNodeName);
             }
-        } else {
-            logger.warning("Unrecognized special value! " + ID_NAME_KEY
-                    + "=" + idNodeName);
         }
     }
 
