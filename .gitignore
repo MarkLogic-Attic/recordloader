@@ -1,5 +1,7 @@
 *~
 *.class
+*.lck
+*.log
 lib/
 publish.sh
 src/*.sh
