@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,16 +24,16 @@ import java.io.InputStreamReader;
 
 import com.marklogic.ps.Utilities;
 import com.marklogic.ps.timing.TimedEvent;
-import com.marklogic.recordloader.AbstractLoader;
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
+import com.marklogic.recordloader.TranscodingLoader;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  * 
  */
-public class DelimitedDataLoader extends AbstractLoader {
+public class DelimitedDataLoader extends TranscodingLoader {
 
     DelimitedDataConfiguration config;
 

@@ -21,10 +21,10 @@ package com.marklogic.recordloader;
 import com.marklogic.ps.Utilities;
 
 /**
- * @author Michael Blakeley, michael.blakeley@marklogic.com
+ * @author Michael Blakeley, Mark Logic Corporation
  * 
  */
-public class FileLoader extends AbstractLoader {
+public class TranscodingFileLoader extends AbstractLoader {
 
     /*
      * (non-Javadoc)
@@ -45,9 +45,9 @@ public class FileLoader extends AbstractLoader {
             content = contentFactory.newContent(currentUri);
             boolean skippingRecord = checkIdAndUri(currentRecordPath);
 
-            // grab the entire document, as bytes to support binaries
-            // do not pass the stream directly, so that content can retry
-            byte[] bytes = Utilities.read(input);
+            // grab the entire document in the desired encoding
+            byte[] bytes = Utilities.read(input, decoder).getBytes(
+                    config.getOutputEncoding());
             if (null == bytes) {
                 throw new LoaderException("null document: "
                         + currentRecordPath);

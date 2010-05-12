@@ -187,15 +187,11 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String RECORD_NAME_DOCUMENT_ROOT = "#DOCUMENT";
 
-    /**
-     *
-     */
-    public static final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
+    public static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
 
-    /**
-     *
-     */
-    public static final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
+    public static final String RECORD_NAME_KEY = "RECORD_NAME";
+
+    public static final String SERVER_ENCODING = "UTF-8";
 
     /**
      *
@@ -229,15 +225,9 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String THROTTLE_BYTES_DEFAULT = "0";
 
-    /**
-     *
-     */
-    public static final String RECORD_NAMESPACE_KEY = "RECORD_NAMESPACE";
+    public static final String UNRESOLVED_ENTITY_REPLACEMENT_PREFIX = "<!-- UNRESOLVED-ENTITY ";
 
-    /**
-     *
-     */
-    public static final String RECORD_NAME_KEY = "RECORD_NAME";
+    public static final String UNRESOLVED_ENTITY_REPLACEMENT_SUFFIX = " -->";
 
     /**
      *
@@ -278,7 +268,7 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String OUTPUT_ENCODING_KEY = "OUTPUT_ENCODING";
 
-    public static final String OUTPUT_ENCODING_DEFAULT = "UTF-8";
+    public static final String OUTPUT_ENCODING_DEFAULT = SERVER_ENCODING;
 
     public static final String COPY_NAMESPACES_KEY = "COPY_NAMESPACES";
 
@@ -362,15 +352,17 @@ public class Configuration extends AbstractConfiguration {
 
     private double throttledEventsPerSecond;
 
-    private int throttledBytesPerSecond;
+    protected int throttledBytesPerSecond;
 
-    private volatile Constructor<? extends ContentFactory> contentFactoryConstructor;
+    protected volatile Constructor<? extends ContentFactory> contentFactoryConstructor;
 
-    private Object contentFactoryMutex = new Object();
+    protected Object contentFactoryMutex = new Object();
 
-    private boolean useDocumentRoot = false;
+    protected boolean useDocumentRoot = false;
 
-    private boolean isFirstLoop = true;
+    protected boolean isFirstLoop = true;
+
+    protected boolean isLoaderTranscoding = false;
 
     protected Object inputDecoderMutex = new Object();
 
@@ -397,7 +389,7 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String LANGUAGE_KEY = "LANGUAGE";
 
-    public static final String INPUT_ENCODING_DEFAULT = OUTPUT_ENCODING_DEFAULT;
+    public static final String INPUT_ENCODING_DEFAULT = SERVER_ENCODING;
 
     public static final String IGNORE_FILE_BASENAME_KEY = "IGNORE_FILE_BASENAME";
 
@@ -707,8 +699,13 @@ public class Configuration extends AbstractConfiguration {
         logger.info("generating ids from file names");
         useAutomaticIds = false;
         useFilenameIds = true;
-        properties.setProperty(LOADER_CLASSNAME_KEY, FileLoader.class
-                .getName());
+        if (INPUT_ENCODING_DEFAULT.equals(getInputEncoding())) {
+            properties.setProperty(LOADER_CLASSNAME_KEY, FileLoader.class
+                    .getName());
+        } else {
+            properties.setProperty(LOADER_CLASSNAME_KEY,
+                    TranscodingFileLoader.class.getName());
+        }
         // better to escape ids by default
         // we haven't applied defaults yet, so we can still make changes
         if (null == properties.get(INPUT_ESCAPE_IDS_KEY)) {
@@ -1075,6 +1072,30 @@ public class Configuration extends AbstractConfiguration {
         logger.fine("querying for Forest ids");
         String[] placeNames = forestNames.split("\\s+");
         return placeNames;
+    }
+
+    /**
+     * @return
+     */
+    public boolean isLoaderTranscoding() {
+        // does the loader do its own encoding?
+        return isLoaderTranscoding;
+    }
+
+    /**
+     * @param _bool
+     * @return
+     */
+    public boolean setLoaderTranscoding(boolean _bool) {
+        // does the loader do its own encoding?
+        return isLoaderTranscoding = _bool;
+    }
+
+    /**
+     * @return
+     */
+    public String getOutputEncoding() {
+        return properties.getProperty(OUTPUT_ENCODING_KEY);
     }
 
 }

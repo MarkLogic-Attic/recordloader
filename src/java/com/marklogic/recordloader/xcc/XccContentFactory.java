@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,32 +32,52 @@ public class XccContentFactory extends XccAbstractContentFactory
 
     protected ContentCreateOptions options = null;
 
-    /* (non-Javadoc)
-     * @see com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
+    protected static Object optionsMutex = new Object();
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see
+     * com.marklogic.recordloader.xcc.XccAbstractContentFactory#initOptions()
      */
     protected void initOptions() {
         // only initialize docOpts once
         if (null != options) {
             return;
         }
-        boolean resolveEntities = false;
-        options = new ContentCreateOptions();
-        options.setResolveEntities(resolveEntities);
-        options.setPermissions(configuration.getPermissions());
-        options.setCollections(configuration.getBaseCollections());
-        options.setQuality(configuration.getQuality());
-        options.setNamespace(configuration.getOutputNamespace());
-        options.setRepairLevel(configuration.getRepairLevel());
-        options.setPlaceKeys(configuration.getPlaceKeys());
-        options.setFormat(configuration.getFormat());
-        options.setLanguage(configuration.getLanguage());
-        options.setEncoding(configuration.getInputEncoding());
+        synchronized (optionsMutex) {
+            if (null != options) {
+                return;
+            }
+            boolean resolveEntities = false;
+            options = new ContentCreateOptions();
+            options.setResolveEntities(resolveEntities);
+            options.setPermissions(configuration.getPermissions());
+            options.setCollections(configuration.getBaseCollections());
+            options.setQuality(configuration.getQuality());
+            options.setNamespace(configuration.getOutputNamespace());
+            options.setRepairLevel(configuration.getRepairLevel());
+            options.setPlaceKeys(configuration.getPlaceKeys());
+            options.setFormat(configuration.getFormat());
+            options.setLanguage(configuration.getLanguage());
+
+            // are we handling the encoding, or is the server doing it?
+            if (!configuration.isLoaderTranscoding()) {
+                logger.fine("server encoding "
+                        + configuration.getInputEncoding());
+                options.setEncoding(configuration.getInputEncoding());
+            } else {
+                logger.fine("transcoding loader - will not set encoding");
+            }
+        }
     }
 
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.ContentFactory#setFileBasename(java.lang.String
+     * )
      */
     public void setFileBasename(String _name) throws LoaderException {
         super.setFileBasename(_name);
@@ -68,7 +88,8 @@ public class XccContentFactory extends XccAbstractContentFactory
     /*
      * (non-Javadoc)
      * 
-     * @see com.marklogic.recordloader.ContentFactory#newContent(java.lang.String)
+     * @see
+     * com.marklogic.recordloader.ContentFactory#newContent(java.lang.String)
      */
     public ContentInterface newContent(String _uri) {
         return new XccContent(cs.newSession(), _uri, options);

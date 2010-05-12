@@ -39,10 +39,10 @@ import com.marklogic.ps.timing.TimedEvent;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 
-public class Loader extends AbstractLoader {
+public class Loader extends TranscodingLoader {
     /**
      *
      */
@@ -69,7 +69,7 @@ public class Loader extends AbstractLoader {
 
     /*
      * (non-Javadoc)
-     *
+     * 
      * @see com.marklogic.recordloader.AbstractLoader#process()
      */
     public void process() throws LoaderException {
@@ -177,7 +177,12 @@ public class Loader extends AbstractLoader {
                 if (xpp != null) {
                     logger.warning("pos = "
                             + xpp.getPositionDescription());
-                    logger.warning("text = " + xpp.getText());
+                    // this can throw StringIndexOutOfBoundsException
+                    try {
+                        logger.warning("text = " + xpp.getText());
+                    } catch (StringIndexOutOfBoundsException se) {
+                        logger.warning("text is unavailable");
+                    }
                 }
                 // get to the init cause, if there is one
                 logger.logException("exception", Utilities.getCause(e));
@@ -340,13 +345,13 @@ public class Loader extends AbstractLoader {
 
     /**
      * @param _logger
-     *
+     * 
      */
     public static void checkEnvironment(Logger _logger) {
         // check the XPP3 version
         ClassLoader loader = RecordLoader.getClassLoader();
         if (null == loader) {
-          throw new NullPointerException("null class loader");
+            throw new NullPointerException("null class loader");
         }
 
         // the xppUrl should look something like...

@@ -28,12 +28,14 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.logging.Logger;
 
+import org.xmlpull.v1.XmlPullParserException;
+
 import com.marklogic.ps.RecordLoader;
 import com.marklogic.ps.SimpleLogger;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class LoaderFactory {
 
@@ -74,7 +76,7 @@ public class LoaderFactory {
         }
         Class<? extends LoaderInterface> loaderClass;
         loaderClass = Class.forName(loaderClassName, true,
-            RecordLoader.getClassLoader()).asSubclass(
+                RecordLoader.getClassLoader()).asSubclass(
                 LoaderInterface.class);
         loaderConstructor = loaderClass.getConstructor(new Class[] {});
 
@@ -87,6 +89,10 @@ public class LoaderFactory {
             Method check = loaderClass.getMethod("checkEnvironment",
                     Logger.class);
             check.invoke(null, logger);
+            if (TranscodingLoader.class.isAssignableFrom(loaderClass)) {
+                logger.info("transcoding loader");
+                config.setLoaderTranscoding(true);
+            }
         }
     }
 
