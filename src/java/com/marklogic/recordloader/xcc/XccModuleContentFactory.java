@@ -48,6 +48,8 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     protected String namespace;
 
     protected BigInteger[] placeKeys;
+    
+    protected int quality;
 
     /*
      * (non-Javadoc)
@@ -78,6 +80,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
         language = configuration.getLanguage();
         namespace = configuration.getOutputNamespace();
         placeKeys = configuration.getPlaceKeys();
+        quality = configuration.getQuality();
     }
 
     /*
@@ -90,13 +93,13 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     @SuppressWarnings("unused")
     public ContentInterface newContent(String _uri)
             throws LoaderException {
-        // TODO add isSkipExistingUntilFirstMiss
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
                 executeRoles, insertRoles, readRoles, updateRoles,
                 collectionsArray, language, namespace, configuration
                         .isSkipExisting(), configuration
+                        .isSkipExistingUntilFirstMiss(), configuration
                         .isErrorExisting(), placeKeys, configuration
-                        .getDecoder());
+                        .getDecoder(), quality);
     }
 
     /*

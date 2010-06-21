@@ -28,7 +28,7 @@ import com.marklogic.ps.SimpleLogger;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 public class ProducerFactory {
 
@@ -39,6 +39,10 @@ public class ProducerFactory {
     private SimpleLogger logger;
 
     private Constructor<? extends Producer> producerConstructor;
+
+    protected static boolean isFirstInit = true;
+
+    protected static Object staticMutex = new Object();
 
     /**
      * @param _config
@@ -54,13 +58,18 @@ public class ProducerFactory {
 
         // this should only be called once, in a single-threaded context
         String producerClassName = config.getProducerClassName();
-        if (config.isFirstLoop()) {
-            logger.info("Producer is " + producerClassName);
+        if (isFirstInit) {
+            synchronized (staticMutex) {
+                if (isFirstInit) {
+                    logger.info("Producer is " + producerClassName);
+                    isFirstInit = false;
+                }
+            }
         }
         Class<? extends Producer> producerClass;
         try {
             producerClass = Class.forName(producerClassName, true,
-                RecordLoader.getClassLoader()).asSubclass(
+                    RecordLoader.getClassLoader()).asSubclass(
                     Producer.class);
             producerConstructor = producerClass
                     .getConstructor(new Class[] { Configuration.class,

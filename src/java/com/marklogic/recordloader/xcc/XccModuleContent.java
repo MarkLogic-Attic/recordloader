@@ -72,9 +72,13 @@ public class XccModuleContent extends XccAbstractContent implements
 
     protected boolean skipExisting;
 
+    protected boolean skipExistingUntilFirstMiss;
+
     protected boolean errorExisting;
 
     protected CharsetDecoder decoder;
+
+    protected long quality;
 
     /**
      * @param _session
@@ -91,14 +95,16 @@ public class XccModuleContent extends XccAbstractContent implements
      * @param _errorExisting
      * @param _placeKeys
      * @param _decoder
+     * @param _quality
      */
     public XccModuleContent(Session _session, String _uri,
             String _moduleUri, String[] _executeRoles,
             String[] _insertRoles, String[] _readRoles,
             String[] _updateRoles, String[] _collections,
             String _language, String _namespace, boolean _skipExisting,
-            boolean _errorExisting, BigInteger[] _placeKeys,
-            CharsetDecoder _decoder) {
+            boolean _skipExistingUntilFirstMiss, boolean _errorExisting,
+            BigInteger[] _placeKeys, CharsetDecoder _decoder,
+            long _quality) {
         session = _session;
         uri = _uri;
         if (null == _moduleUri) {
@@ -111,8 +117,10 @@ public class XccModuleContent extends XccAbstractContent implements
         updateRoles = _updateRoles;
         collections = _collections;
         language = _language;
+        quality = _quality;
         namespace = _namespace;
         skipExisting = _skipExisting;
+        skipExistingUntilFirstMiss = _skipExistingUntilFirstMiss;
         errorExisting = _errorExisting;
         decoder = _decoder;
         if (null == _placeKeys) {
@@ -158,13 +166,26 @@ public class XccModuleContent extends XccAbstractContent implements
                     .joinCsv(collections));
             request.setNewVariable("SKIP-EXISTING", ValueType.XS_BOOLEAN,
                     skipExisting);
+            request.setNewVariable("SKIP-EXISTING-UNTIL-FIRST-MISS",
+                    ValueType.XS_BOOLEAN, skipExisting);
             request.setNewVariable("ERROR-EXISTING",
                     ValueType.XS_BOOLEAN, errorExisting);
             // apparently it is ok if OUTPUT_FORESTS are empty (tested 4.1-1)
             request.setNewStringVariable("FORESTS", Utilities
                     .joinCsv(placeKeys));
+            request.setNewIntegerVariable("QUALITY", quality);
             // ignore results
+            // TODO use results to handle skipExistingUntilFirstMiss - how to
+            // feed back to config?
             session.submitRequest(request);
+//                synchronized (monitor) {
+//                    logger.info("resetting "
+//                            + Configuration.SKIP_EXISTING_KEY + " at "
+//                            + uri);
+//                    config.setSkipExisting(false);
+//                    config.configureThrottling();
+//                    monitor.resetTimer("skipped");
+//                }
         } catch (RequestException e) {
             throw new LoaderException(e);
         }

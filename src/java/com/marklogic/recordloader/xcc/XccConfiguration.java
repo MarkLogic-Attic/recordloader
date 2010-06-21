@@ -59,6 +59,10 @@ public class XccConfiguration extends Configuration {
     public static final String DOCUMENT_FORMAT_DEFAULT = DocumentFormat.XML
             .toString();
 
+    public static final String QUALITY_KEY = "OUTPUT_QUALITY";
+
+    public static final String QUALITY_DEFAULT = "0";
+
     Object metadataMutex = new Object();
 
     volatile BigInteger[] placeKeys;
@@ -226,6 +230,16 @@ public class XccConfiguration extends Configuration {
 
     public DocumentRepairLevel getRepairLevel() {
         return repairLevel;
+    }
+
+    /**
+     * @return
+     * 
+     *         TODO - used only by XccContent. For XccModuleContent, we must
+     *         break module API again.
+     */
+    public int getQuality() {
+        return Integer.parseInt(properties.getProperty(QUALITY_KEY));
     }
 
     /**

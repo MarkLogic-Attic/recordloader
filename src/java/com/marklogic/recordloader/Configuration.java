@@ -304,6 +304,10 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String USE_FILENAME_COLLECTION_DEFAULT = "true";
 
+    public static final String USE_TIMESTAMP_COLLECTION_KEY = "USE_TIMESTAMP_COLLECTION";
+
+    public static final String USE_TIMESTAMP_COLLECTION_DEFAULT = "true";
+
     public static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
 
     private String[] baseCollections;
@@ -365,8 +369,6 @@ public class Configuration extends AbstractConfiguration {
     protected boolean isLoaderTranscoding = false;
 
     protected Object inputDecoderMutex = new Object();
-
-    int quality = 0;
 
     public static final String ZIP_SUFFIX = ".zip";
 
@@ -511,9 +513,11 @@ public class Configuration extends AbstractConfiguration {
     private void configureCollections() {
         // initialize collections
         List<String> collections = new ArrayList<String>();
-        collections.add(RecordLoader.NAME + "."
-                + System.currentTimeMillis());
-        logger.info("adding extra collection: " + collections.get(0));
+        if (useTimestampCollection()) {
+            collections.add(RecordLoader.NAME + "."
+                    + System.currentTimeMillis());
+            logger.info("adding extra collection: " + collections.get(0));
+        }
         String collectionsString = properties
                 .getProperty(OUTPUT_COLLECTIONS_KEY);
         if (collectionsString != null && !collectionsString.equals("")) {
@@ -903,6 +907,14 @@ public class Configuration extends AbstractConfiguration {
     /**
      * @return
      */
+    public boolean useTimestampCollection() {
+        return Utilities.stringToBoolean(properties
+                .getProperty(USE_TIMESTAMP_COLLECTION_KEY));
+    }
+
+    /**
+     * @return
+     */
     public long getFileSizeLimit() {
         return Long.parseLong(properties
                 .getProperty(INPUT_FILE_SIZE_LIMIT_KEY));
@@ -1040,13 +1052,6 @@ public class Configuration extends AbstractConfiguration {
      */
     public String[] getUpdateRoles() {
         return getRoles(ROLES_UPDATE_KEY);
-    }
-
-    /**
-     * @return
-     */
-    public int getQuality() {
-        return quality;
     }
 
     /**
