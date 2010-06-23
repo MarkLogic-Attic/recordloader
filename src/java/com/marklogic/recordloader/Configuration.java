@@ -310,51 +310,51 @@ public class Configuration extends AbstractConfiguration {
 
     public static final String QUEUE_CAPACITY_KEY = "QUEUE_CAPACITY";
 
-    private String[] baseCollections;
+    protected String[] baseCollections;
 
-    private URI[] uris;
+    protected URI[] uris;
 
-    private XmlPullParserFactory factory = null;
+    protected XmlPullParserFactory factory = null;
 
-    private boolean ignoreUnknown;
+    protected boolean ignoreUnknown;
 
-    private String idNodeName;
+    protected String idNodeName;
 
-    private String inputEncoding;
+    protected String inputEncoding;
 
-    private String inputPath;
+    protected String inputPath;
 
-    private String inputStripPrefix;
+    protected String inputStripPrefix;
 
-    private boolean inputNormalizePaths;
+    protected boolean inputNormalizePaths;
 
     protected String inputPattern;
 
-    private String malformedInputAction;
+    protected String malformedInputAction;
 
-    private volatile String recordName;
+    protected volatile String recordName;
 
-    private volatile String recordNamespace;
+    protected volatile String recordNamespace;
 
-    private String startId = null;
+    protected String startId = null;
 
-    private int threadCount;
+    protected int threadCount;
 
-    private String uriPrefix = OUTPUT_URI_PREFIX_DEFAULT;
+    protected String uriPrefix = OUTPUT_URI_PREFIX_DEFAULT;
 
-    private String uriSuffix = OUTPUT_URI_SUFFIX_DEFAULT;
+    protected String uriSuffix = OUTPUT_URI_SUFFIX_DEFAULT;
 
-    private boolean useAutomaticIds = false;
+    protected boolean useAutomaticIds = false;
 
-    private boolean useFilenameIds = false;
+    protected boolean useFilenameIds = false;
 
-    private AtomicInteger autoid = new AtomicInteger(0);
+    protected AtomicInteger autoid = new AtomicInteger(0);
 
-    private boolean copyNamespaceDeclarations = true;
+    protected boolean copyNamespaceDeclarations = true;
 
-    private int capacity = DEFAULT_CAPACITY;
+    protected int capacity = DEFAULT_CAPACITY;
 
-    private double throttledEventsPerSecond;
+    protected double throttledEventsPerSecond;
 
     protected int throttledBytesPerSecond;
 
@@ -434,7 +434,7 @@ public class Configuration extends AbstractConfiguration {
         }
     }
 
-    private void configureOptions() {
+    protected void configureOptions() {
         recordName = properties.getProperty(RECORD_NAME_KEY);
         if (RECORD_NAME_DOCUMENT_ROOT.equals(recordName)) {
             // whatever the document root is, we will use it
@@ -510,7 +510,7 @@ public class Configuration extends AbstractConfiguration {
                 .getProperty(THROTTLE_BYTES_KEY));
     }
 
-    private void configureCollections() {
+    protected void configureCollections() {
         // initialize collections
         List<String> collections = new ArrayList<String>();
         if (useTimestampCollection()) {
@@ -699,7 +699,7 @@ public class Configuration extends AbstractConfiguration {
     /**
      *
      */
-    private void setUseFilenameIds() {
+    protected void setUseFilenameIds() {
         logger.info("generating ids from file names");
         useAutomaticIds = false;
         useFilenameIds = true;
@@ -750,6 +750,16 @@ public class Configuration extends AbstractConfiguration {
         return (throttledEventsPerSecond > 0 || throttledBytesPerSecond > 0);
     }
 
+    /**
+     * @return
+     */
+    public int getThrottledBytesPerSecond() {
+        return throttledBytesPerSecond;
+    }
+
+    /**
+     * @return
+     */
     public double getThrottledEventsPerSecond() {
         return throttledEventsPerSecond;
     }
@@ -887,13 +897,6 @@ public class Configuration extends AbstractConfiguration {
             inputDecoder.onUnmappableCharacter(CodingErrorAction.REPLACE);
         }
         return inputDecoder;
-    }
-
-    /**
-     * @return
-     */
-    public int getThrottledBytesPerSecond() {
-        return throttledBytesPerSecond;
     }
 
     /**
