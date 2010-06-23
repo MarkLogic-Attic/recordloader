@@ -528,14 +528,22 @@ Note that the actual document collections will also include
 so-called "base collections". One of these is a batch marker,
 <code>com.marklogic.ps.RecordLoader.{ system milliseconds }</code>.
 This base collection can be useful for tracking how and when
-documents were ingested. Another base collection is derived from
-the input filename (see <code>USE_FILENAME_COLLECTIONS</code>).
+documents were ingested.
+Another base collection is derived from
+the input filename (see <code>USE_FILENAME_COLLECTION</code>).
+Another base collection is derived from
+the current wall-clock time (see <code>USE_TIMESTAMP_COLLECTION</code>).
 </td>
 </tr>
 
 <tr><td>OUTPUT_FORESTS</td><td>null</td>
 <td>If set, all documents will be explicitly placed into the named forests.
 Use whitespace or the characters <code>,:;</code> to separate values.</td>
+</tr>
+
+<tr><td>OUTPUT_QUALITY</td><td>0</td>
+<td>When using XccContentFactory for inserts,
+this value will be used to set document quality.
 </tr>
 
 <tr><td>ROLES_EXECUTE</td><td>null</td>
@@ -701,6 +709,15 @@ If the prefix does not end in '/', RecordLoader will add a '/' to it.
   RecordLoader will add an extra collection to each record,
   built from the filename of the current input file.
   This can be useful when splitting superfiles.
+</td>
+</tr>
+
+<tr><td>USE_TIMESTAMP_COLLECTION</td><td>true</td>
+<td>If this property is true,
+  RecordLoader will add an extra collection to each record,
+  built from the timestamp at which RecordLoader started running.
+  This can be useful when tracking down problems with content
+  loaded at different times.
 </td>
 </tr>
 
