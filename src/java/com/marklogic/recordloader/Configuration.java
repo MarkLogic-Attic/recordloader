@@ -40,7 +40,7 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
  * @author Michael Blakeley, Mark Logic
- * 
+ *
  */
 public class Configuration extends AbstractConfiguration {
 
@@ -436,15 +436,19 @@ public class Configuration extends AbstractConfiguration {
 
     protected void configureOptions() {
         recordName = properties.getProperty(RECORD_NAME_KEY);
-        if (RECORD_NAME_DOCUMENT_ROOT.equals(recordName)) {
-            // whatever the document root is, we will use it
-            logger.fine("using document root as record name");
-            useDocumentRoot = true;
-            recordName = null;
-        }
         if (null != recordName) {
+            recordName = recordName.trim();
+            if (RECORD_NAME_DOCUMENT_ROOT.equals(recordName)) {
+                // whatever the document root is, we will use it
+                logger.fine("using document root as record name");
+                useDocumentRoot = true;
+                recordName = null;
+            }
             recordNamespace = properties
                     .getProperty(RECORD_NAMESPACE_KEY);
+            if (null != recordNamespace) {
+                recordNamespace = recordNamespace.trim();
+            }
         }
 
         ignoreUnknown = Utilities.stringToBoolean(properties
@@ -619,7 +623,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     * 
+     *
      * @throws XmlPullParserException
      * @return
      */

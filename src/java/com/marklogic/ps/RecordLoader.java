@@ -47,7 +47,7 @@ import com.marklogic.recordloader.Monitor;
 
 /**
  * @author Michael Blakeley, <michael.blakeley@marklogic.com>
- * 
+ *
  */
 
 public class RecordLoader {
@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2010-06-20.1";
+    public static final String VERSION = "2010-07-26.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -67,7 +67,7 @@ public class RecordLoader {
 
         /*
          * (non-Javadoc)
-         * 
+         *
          * @see
          * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
          * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
@@ -117,7 +117,7 @@ public class RecordLoader {
 
     /**
      * @throws URISyntaxException
-     * 
+     *
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
@@ -277,7 +277,7 @@ public class RecordLoader {
     /**
      * @param _handlerConstructor
      * @throws LoaderException
-     * 
+     *
      */
     private synchronized void runInputHandler(
             Constructor<? extends InputHandlerInterface> _handlerConstructor)
