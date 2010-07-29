@@ -31,7 +31,7 @@ import com.marklogic.recordloader.TranscodingLoader;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class DelimitedDataLoader extends TranscodingLoader {
 
@@ -57,7 +57,7 @@ public class DelimitedDataLoader extends TranscodingLoader {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.AbstractLoader#process()
      */
     @SuppressWarnings("unused")
@@ -110,6 +110,7 @@ public class DelimitedDataLoader extends TranscodingLoader {
                     // do not exit loop - must downcase remaining labels
                 }
             }
+            logger.info("found labels " + labels.length);
 
             while (null != (line = br.readLine())) {
                 String xml = null;
@@ -162,12 +163,15 @@ public class DelimitedDataLoader extends TranscodingLoader {
 
         // sanity check
         if (fields.length != labels.length) {
-            String msg = "document mismatch at " + currentRecordPath
-                    + ":" + lineNumber + ": " + line;
-            if (isFatalErrors) {
-                throw new LoaderException(msg);
-            }
-            logger.warning(msg);
+            String msg = "document mismatch:"
+                + " fields=" + fields.length
+                + ", labels=" + labels.length
+                + " at "
+                + ((null == currentRecordPath)
+                   ? "stdin" : currentRecordPath)
+                + ":" + lineNumber + ": " + line;
+            // caller will decide if this is fatal or not
+            throw new LoaderException(msg);
         }
 
         id = fields[labelIndex];
@@ -177,7 +181,7 @@ public class DelimitedDataLoader extends TranscodingLoader {
 
         xml = getXml(labels, fields);
 
-        if (!skippingRecord) {
+        if (null != xml && !skippingRecord) {
             // write the xml
             // NB - getBytes will return the default-encoding bytes
             content.setBytes(null == decoder ? xml.getBytes() : xml

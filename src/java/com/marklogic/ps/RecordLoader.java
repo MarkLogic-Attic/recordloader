@@ -46,7 +46,7 @@ import com.marklogic.recordloader.LoaderException;
 import com.marklogic.recordloader.Monitor;
 
 /**
- * @author Michael Blakeley, <michael.blakeley@marklogic.com>
+ * @author Michael Blakeley, michael.blakeley@marklogic.com
  *
  */
 
@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2010-07-26.1";
+    public static final String VERSION = "2010-07-29.1";
 
     public static final String NAME = RecordLoader.class.getName();
 

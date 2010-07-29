@@ -23,7 +23,7 @@ import com.marklogic.recordloader.xcc.XccConfiguration;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class DelimitedDataConfiguration extends XccConfiguration {
 
@@ -51,4 +51,14 @@ public class DelimitedDataConfiguration extends XccConfiguration {
                 DOWNCASE_LABELS_KEY, DOWNCASE_LABELS_DEFAULT));
     }
 
+    /**
+     * @return
+     */
+    public String getLoaderClassName() {
+        return DelimitedDataLoader.class.getCanonicalName();
+    }
+
+    public String getRecordName() {
+        return (null == recordName) ? "document-root" : recordName;
+    }
 }

@@ -33,7 +33,7 @@ import com.marklogic.ps.timing.TimedEvent;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public abstract class AbstractLoader implements LoaderInterface {
 
@@ -71,7 +71,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /**
      * @param _logger
-     * 
+     *
      *            The abstract implementation does nothing. Subclasses may
      *            overload as needed. If problems are encountered, the subclass
      *            should throw a FatalException or another run-time exception.
@@ -82,7 +82,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.AbstractLoader#call()
      */
     public Object call() throws Exception {
@@ -143,9 +143,9 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.LoaderInterface#process()
-     * 
+     *
      * subclasses should override this method to extend it
      */
     @SuppressWarnings("unused")
@@ -161,7 +161,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.LoaderInterface#setInput(java.io.InputStream)
      */
@@ -180,7 +180,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /**
      * @throws LoaderException
-     * 
+     *
      */
     protected void cleanupInput() throws LoaderException {
         cleanupInput(false);
@@ -189,7 +189,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     /**
      * @param _isError
      * @throws LoaderException
-     * 
+     *
      */
     protected void cleanupInput(boolean _isError) throws LoaderException {
         cleanupRecord();
@@ -228,7 +228,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see com.marklogic.recordloader.LoaderInterface#setInput(java.io.File)
      */
     public void setInput(File _file, CharsetDecoder _decoder)
@@ -251,7 +251,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.LoaderInterface#setFileBasename(java.lang.
      * String)
@@ -272,7 +272,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.LoaderInterface#setRecordPath(java.lang.String
      * )
@@ -309,7 +309,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /**
      * @param len
-     * 
+     *
      */
     protected void updateMonitor(long len) {
         // handle monitor accounting
@@ -327,7 +327,7 @@ public abstract class AbstractLoader implements LoaderInterface {
     }
 
     /**
-     * 
+     *
      */
     protected void cleanupRecord() {
         // clean up
@@ -399,7 +399,8 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
 
         if (null != baseName && baseName.length() > 0
-                && '/' != baseName.charAt(baseName.length() - 1)) {
+            && ! cleanId.startsWith("/")
+            && '/' != baseName.charAt(baseName.length() - 1)) {
             baseName.append("/");
         }
         baseName.append(cleanId);
@@ -459,7 +460,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.LoaderInterface#setConfiguration(com.marklogic
      * .recordloader.Configuration)
@@ -473,7 +474,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @see
      * com.marklogic.recordloader.LoaderInterface#setConnectionUri(java.net.URI)
      */
@@ -497,7 +498,7 @@ public abstract class AbstractLoader implements LoaderInterface {
 
     /*
      * (non-Javadoc)
-     * 
+     *
      * @seecom.marklogic.recordloader.LoaderInterface#setMonitor(com.marklogic.
      * recordloader.Monitor)
      */

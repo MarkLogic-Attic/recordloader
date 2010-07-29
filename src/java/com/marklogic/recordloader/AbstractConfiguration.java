@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2008-2009 Mark Logic Corporation. All rights reserved.
+ * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,16 +31,16 @@ import com.marklogic.ps.SimpleLogger;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- * 
+ *
  */
 public class AbstractConfiguration {
     /**
-     * 
+     *
      */
     private static final String DEFAULT_SUFFIX = "_DEFAULT";
 
     /**
-     * 
+     *
      */
     private static final String KEY_SUFFIX = "_KEY";
 
@@ -102,7 +102,8 @@ public class AbstractConfiguration {
         Properties validated = new Properties();
         Enumeration<?> keys = properties.propertyNames();
         // ignore known patterns from System properties
-        String ignorePatterns = "^(file|java|line|os|path|sun|user)\\..+";
+        String ignorePatterns =
+            "^(awt|file|ftp|http|java|line|mrj|os|path|sun|user)\\..+";
         String key, value;
         while (keys.hasMoreElements()) {
             key = (String) keys.nextElement();
