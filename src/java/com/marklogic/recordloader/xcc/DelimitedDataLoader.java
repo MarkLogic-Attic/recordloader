@@ -159,7 +159,8 @@ public class DelimitedDataLoader extends TranscodingLoader {
         event = new TimedEvent();
         lineNumber++;
         // TODO this is too simplistic for CSV with quoted values
-        fields = line.split(fieldDelimiter);
+        // by default, split() discards empty strings
+        fields = line.split(fieldDelimiter, labels.length);
 
         // sanity check
         if (fields.length != labels.length) {
