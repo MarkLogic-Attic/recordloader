@@ -93,6 +93,7 @@ public class XccModuleContentFactory extends XccAbstractContentFactory
     @SuppressWarnings("unused")
     public ContentInterface newContent(String _uri)
             throws LoaderException {
+        // NB - this is closed in XccAbstractContent.close()
         return new XccModuleContent(cs.newSession(), _uri, moduleUri,
                 executeRoles, insertRoles, readRoles, updateRoles,
                 collectionsArray, language, namespace, configuration

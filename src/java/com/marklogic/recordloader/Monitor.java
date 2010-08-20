@@ -103,12 +103,18 @@ public class Monitor extends Thread {
         try {
             pool.awaitTermination(30, TimeUnit.SECONDS);
         } catch (InterruptedException e1) {
-            // do nothing
+            // interrupt status will be reset below,
+            // in case parent re-interrupts us
         }
 
         // NB - we used to call System.exit(0) here - necessary?
         // sometimes the main RecordLoader thread will hit CallerBlocksPolicy
         parent.interrupt();
+
+        if (isInterrupted()) {
+            logger.info("resetting interrupt status");
+            interrupted();
+        }
     }
 
     /**
@@ -147,8 +153,11 @@ public class Monitor extends Thread {
             try {
                 Thread.sleep(sleepMillis);
             } catch (InterruptedException e) {
-                logger.fine("sleep was interrupted: continuing");
+                // interrupt status will be reset below
             }
+        }
+        if (isInterrupted()) {
+            interrupted();
         }
     }
 
@@ -156,12 +165,14 @@ public class Monitor extends Thread {
      * 
      */
     public void halt() {
-        if (running) {
-            logger.info("halting");
-            running = false;
-            pool.shutdownNow();
-            interrupt();
+        if (!running) {
+            return;
         }
+        logger.info("halting");
+        running = false;
+        pool.shutdownNow();
+        // for quicker shutdown
+        interrupt();
     }
 
     /**
@@ -232,7 +243,7 @@ public class Monitor extends Thread {
             try {
                 Thread.sleep(sleepMillis);
             } catch (InterruptedException e) {
-                logger.logException("interrupted", e);
+                // caller will reset interrupted status
             }
         }
         logger.fine("throttled to "
@@ -313,6 +324,10 @@ public class Monitor extends Thread {
                 + " records ok (" + timer.getProgressMessage(true)
                 + "), with " + timer.getErrorCount() + " error(s)");
         timer = new Timer();
+    }
+
+    public void instanceInterrupted() {
+        interrupted();
     }
 
 }

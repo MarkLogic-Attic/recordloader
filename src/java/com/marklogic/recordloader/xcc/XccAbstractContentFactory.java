@@ -32,7 +32,6 @@ import com.marklogic.recordloader.FatalException;
 import com.marklogic.recordloader.LoaderException;
 import com.marklogic.xcc.ContentSource;
 import com.marklogic.xcc.ContentSourceFactory;
-import com.marklogic.xcc.ContentbaseMetaData;
 import com.marklogic.xcc.exceptions.XccConfigException;
 import com.marklogic.xcc.exceptions.XccException;
 
@@ -57,9 +56,9 @@ public abstract class XccAbstractContentFactory implements ContentFactory {
      */
     public String getVersionString() {
         try {
-            ContentbaseMetaData meta = configuration.getMetaData();
-            return "client = " + meta.getDriverVersionString()
-                    + ", server = " + meta.getServerVersionString();
+            return "client = " + configuration.getDriverVersionString()
+                    + ", server = "
+                    + configuration.getServerVersionString();
         } catch (XccException e) {
             throw new FatalException(e);
         } catch (KeyManagementException e) {

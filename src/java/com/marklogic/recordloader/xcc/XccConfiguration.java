@@ -92,15 +92,15 @@ public class XccConfiguration extends Configuration {
      * @throws NoSuchAlgorithmException
      * @throws KeyManagementException
      */
-    public ContentbaseMetaData getMetaData() throws XccConfigException,
+    public void initMetaData() throws XccConfigException,
             KeyManagementException, NoSuchAlgorithmException {
         if (null != metadata) {
-            return metadata;
+            return;
         }
         synchronized (metadataMutex) {
             // check again, to prevent races
             if (null != metadata) {
-                return metadata;
+                return;
             }
             URI uri = getConnectionStrings()[0];
             // support SSL or plain-text
@@ -110,8 +110,8 @@ public class XccConfiguration extends Configuration {
             // be sure to use the default db
             Session session = cs.newSession();
             metadata = session.getContentbaseMetaData();
+            // NB - this session is closed in the close() method
         }
-        return metadata;
     }
 
     @Override
@@ -144,8 +144,8 @@ public class XccConfiguration extends Configuration {
         String[] placeNames = getOutputForests();
         if (null != placeNames) {
             try {
-                ContentbaseMetaData meta = getMetaData();
-                Map<?, ?> forestMap = meta.getForestMap();
+                initMetaData();
+                Map<?, ?> forestMap = metadata.getForestMap();
                 placeKeys = new BigInteger[placeNames.length];
                 for (int i = 0; i < placeNames.length; i++) {
                     logger.finest("looking up " + placeNames[i]);
@@ -309,6 +309,42 @@ public class XccConfiguration extends Configuration {
      */
     public String getContentModuleUri() {
         return properties.getProperty(CONTENT_MODULE_KEY);
+    }
+
+    /**
+     * @return
+     * @throws NoSuchAlgorithmException
+     * @throws XccConfigException
+     * @throws KeyManagementException
+     */
+    public String getDriverVersionString() throws KeyManagementException,
+            XccConfigException, NoSuchAlgorithmException {
+        initMetaData();
+        return metadata.getDriverVersionString();
+    }
+
+    /**
+     * @return
+     * @throws XccException
+     * @throws NoSuchAlgorithmException
+     * @throws KeyManagementException
+     */
+    public String getServerVersionString() throws XccException,
+            KeyManagementException, NoSuchAlgorithmException {
+        initMetaData();
+        return metadata.getServerVersionString();
+    }
+
+    /*
+     * (non-Javadoc)
+     * 
+     * @see com.marklogic.recordloader.AbstractConfiguration#close()
+     */
+    @Override
+    public void close() {
+        if (null != metadata) {
+            metadata.getSession().close();
+        }
     }
 
 }

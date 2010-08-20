@@ -33,7 +33,7 @@ import com.marklogic.ps.SimpleLogger;
  * @author Michael Blakeley, michael.blakeley@marklogic.com
  *
  */
-public class AbstractConfiguration {
+public abstract class AbstractConfiguration {
     /**
      *
      */
@@ -170,5 +170,7 @@ public class AbstractConfiguration {
     public void setLogger(SimpleLogger _logger) {
         logger = _logger;
     }
+    
+    public abstract void close();
 
 }

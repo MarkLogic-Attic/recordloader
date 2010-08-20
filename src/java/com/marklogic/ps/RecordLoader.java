@@ -47,7 +47,7 @@ import com.marklogic.recordloader.Monitor;
 
 /**
  * @author Michael Blakeley, michael.blakeley@marklogic.com
- *
+ * 
  */
 
 public class RecordLoader {
@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2010-07-29.2";
+    public static final String VERSION = "2010-08-20.2";
 
     public static final String NAME = RecordLoader.class.getName();
 
@@ -67,7 +67,7 @@ public class RecordLoader {
 
         /*
          * (non-Javadoc)
-         *
+         * 
          * @see
          * java.util.concurrent.RejectedExecutionHandler#rejectedExecution(java
          * .lang.Runnable, java.util.concurrent.ThreadPoolExecutor)
@@ -81,6 +81,8 @@ public class RecordLoader {
                 // block until space becomes available
                 queue.put(r);
             } catch (InterruptedException e) {
+                // reset interrupt status
+                Thread.interrupted();
                 // someone is trying to interrupt us
                 throw new RejectedExecutionException(e);
             }
@@ -117,7 +119,7 @@ public class RecordLoader {
 
     /**
      * @throws URISyntaxException
-     *
+     * 
      */
     private void initConfiguration() throws URISyntaxException {
         config.setLogger(logger);
@@ -172,8 +174,13 @@ public class RecordLoader {
     public static void main(String[] args) throws Exception {
         System.err.println(getVersionMessage());
 
-        RecordLoader rl = new RecordLoader(args);
-        rl.run();
+        RecordLoader rl = null;
+        try {
+            rl = new RecordLoader(args);
+            rl.run();
+        } finally {
+            rl.close();
+        }
     }
 
     /**
@@ -219,46 +226,37 @@ public class RecordLoader {
                     new CallerBlocksPolicy());
             pool.prestartCoreThread();
 
-            try {
-                monitor.setPool(pool);
-                if (config.isFirstLoop()) {
-                    monitor.start();
-                }
-                runInputHandler(inputHandlerConstructor);
-                pool.shutdown();
+            monitor.setPool(pool);
+            if (config.isFirstLoop()) {
+                monitor.start();
+            }
+            runInputHandler(inputHandlerConstructor);
+            pool.shutdown();
 
-                while (!pool.isTerminated()) {
-                    Thread.yield();
-                    try {
-                        Thread.sleep(threadCount
-                                * Configuration.SLEEP_TIME);
-                    } catch (InterruptedException e) {
-                        // harmless
-                        logger.fine("interrupted while waiting on pool");
-                    }
-                }
-
+            while (!pool.isTerminated()) {
+                Thread.yield();
                 try {
-                    pool.awaitTermination(60, TimeUnit.SECONDS);
+                    Thread.sleep(threadCount * Configuration.SLEEP_TIME);
                 } catch (InterruptedException e) {
-                    if (null != monitor && monitor.isAlive()) {
-                        logger.logException(e);
-                    }
-                    // harmless - this means the monitor wants to exit
-                    // if anything went wrong, the monitor will log it
-                    logger
-                            .warning("interrupted while waiting for pool termination");
-                }
-            } finally {
-                if (null != pool) {
-                    pool.shutdownNow();
-                }
-                if (!config.isLoopForever()) {
-                    if (null != monitor && monitor.isAlive()) {
-                        monitor.halt();
-                    }
+                    // reset interrupted status
+                    Thread.interrupted();
                 }
             }
+
+            try {
+                pool.awaitTermination(60, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // reset interrupted status
+                Thread.interrupted();
+                if (null != monitor && monitor.isAlive()) {
+                    logger.logException(e);
+                }
+                // harmless - this means the monitor wants to exit
+                // if anything went wrong, the monitor will log it
+                logger
+                        .warning("interrupted while waiting for pool termination");
+            }
+
             if (!config.isLoopForever()) {
                 break;
             }
@@ -268,16 +266,43 @@ public class RecordLoader {
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
-                // ignore
-                logger.fine("interrupted while sleeping");
+                // reset interrupted status and ignore
+                Thread.interrupted();
             }
+        }
+    }
+
+    /**
+     * 
+     */
+    private void halt() {
+        if (null != pool) {
+            pool.shutdownNow();
+        }
+
+        if (!config.isLoopForever()) {
+            while (null != monitor && monitor.isAlive()) {
+                try {
+                    monitor.halt();
+                    // wait for monitor to exit
+                    monitor.join();
+                } catch (InterruptedException e) {
+                    // reset interrupted status and ignore
+                    Thread.interrupted();
+                }
+            }
+        }
+
+        if (Thread.currentThread().isInterrupted()) {
+            logger.fine("resetting thread status");
+            Thread.interrupted();
         }
     }
 
     /**
      * @param _handlerConstructor
      * @throws LoaderException
-     *
+     * 
      */
     private synchronized void runInputHandler(
             Constructor<? extends InputHandlerInterface> _handlerConstructor)
@@ -357,4 +382,13 @@ public class RecordLoader {
         }
     }
 
+    /**
+     * 
+     */
+    public void close() {
+        halt();
+        if (null != config) {
+            config.close();
+        }
+    }
 }

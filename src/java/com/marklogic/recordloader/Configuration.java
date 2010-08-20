@@ -1110,4 +1110,12 @@ public class Configuration extends AbstractConfiguration {
         return properties.getProperty(OUTPUT_ENCODING_KEY);
     }
 
+    /* (non-Javadoc)
+     * @see com.marklogic.recordloader.AbstractConfiguration#close()
+     */
+    @Override
+    public void close() {
+        // nothing to clean up
+    }
+
 }

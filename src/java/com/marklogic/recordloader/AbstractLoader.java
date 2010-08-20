@@ -121,9 +121,9 @@ public abstract class AbstractLoader implements LoaderInterface {
      * @throws IOException
      */
     private void cleanup() throws IOException {
-        // clean up via monitor
         // TODO test for entryPath isn't useful, since it's always set
         if (null != fileBasename && null != entryPath) {
+            // clean up via monitor
             monitor.cleanup(fileBasename);
             fileBasename = null;
             entryPath = null;
@@ -176,14 +176,6 @@ public abstract class AbstractLoader implements LoaderInterface {
         }
         input = _is;
         decoder = _decoder;
-    }
-
-    /**
-     * @throws LoaderException
-     *
-     */
-    protected void cleanupInput() throws LoaderException {
-        cleanupInput(false);
     }
 
     /**

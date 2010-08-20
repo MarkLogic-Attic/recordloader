@@ -92,6 +92,7 @@ public class XccContentFactory extends XccAbstractContentFactory
      * com.marklogic.recordloader.ContentFactory#newContent(java.lang.String)
      */
     public ContentInterface newContent(String _uri) {
+        // NB - this is closed in XccAbstractContent.close()
         return new XccContent(cs.newSession(), _uri, options);
     }
 
