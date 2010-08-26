@@ -1,0 +1,658 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+          "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<!--
+/*
+ * Copyright (c)2005-2010 Mark Logic Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * The use of the Apache License does not indicate that this project is
+ * affiliated with the Apache Software Foundation.
+ */
+-->
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>XQSync Tutorial</title>
+    <meta name="description" content="tutorial for recordloader, an ingestion tool for MarkLogic Server" />
+    <meta name="keywords" content="xml xquery marklogic ingestion document-loader" />
+    <link rel="stylesheet" type="text/css"
+          href="screen.css" media="screen" />
+  </head>
+  <body class="sub_page layout2">
+
+<h2>RecordLoader: Ingesting XML with Knife, Fork, and Shovel</h2>
+<div class="author">Michael Blakeley</div>
+<div class="date">Last updated 2010-08-25</div>
+<br />
+<p>
+When you first learned to use XQuery and MarkLogic Server,
+you probably brought XML into the database
+using <code>xdmp:load()</code>
+or <code>xdmp:document-load()</code>.
+Or maybe you prefer to use WebDAV - just drag and drop.
+But sometimes those tools aren't enough.
+Sometimes you need RecordLoader.
+</p>
+
+<p>
+Use RecordLoader when...
+</p>
+<ul>
+        <li>You have large XML files,
+  which need to be broken up into smaller documents.</li>
+        <li>Your XML file is too big to fit in main memory.</li>
+        <li>Your XML isn't encoded as UTF-8.</li>
+        <li>You want to load XML directly from a zip archive.</li>
+        <li>You want to redirect standard output into new documents.</li>
+        <li>You want to be able to resume interrupted loads.</li>
+        <li>You need multiple, parallel loads.</li>
+      </ul>
+
+<p>RecordLoader can do all this quickly and easily.
+Along the way, it can...
+</p>
+<ul>
+        <li>Automatically generate document URIs.</li>
+        <li>Read a unique document ID from an attribute or element.</li>
+        <li>Set read permissions on every new document.</li>
+        <li>Set collections on every new document.</li>
+        <li>Add a prefix to every new document URI.</li>
+        <li>Append a suffix to every new document URI.</li>
+        <li>Place new documents in one or more specific Forests.</li>
+        <li>Skip (or overwrite) existing documents.</li>
+        <li>Continue despite errors, or stop at the first problem.</li>
+        <li>Ignore elements that aren't important.</li>
+      </ul>
+
+<a name="setup"></a>
+<h3><a name="n6c6f8bab28498f40"></a>Setting up RecordLoader</h3>
+<p>
+RecordLoader is a Java program, and requires a Java 1.5 environment.
+If you don't have Java 1.5,
+<a href="http://oracle.com/technetwork/java/javase/downloads/">download</a>
+and install it.
+</p>
+<p>First, we'll need RecordLoader itself. So download
+<a href="recordloader.jar">recordloader.jar</a>.
+</p>
+<p>Since RecordLoader works by connecting to a MarkLogic Server,
+you'll need the Mark Logic XCC libraries, too.
+You can download the MarkXCC.Java zip archive
+<a href="http://developer.marklogic.com/products">here</a>.
+Be sure to download the latest XCC for Java release!
+After you download the zip archive, unpack it and find the jar files.
+You can put <code>xcc.jar</code> anywhere on your disk,
+but for this tutorial I'll assume
+that both files are in the current directory.
+</p>
+<p>
+Finally, you'll need a copy of XPP3. You can download it from
+<a href="http://www.extreme.indiana.edu/dist/java-repository/xpp3/jars/">
+this site</a>.
+Again, be sure to get the latest version: right now, that's
+<code>xpp3-1.1.3_8.jar</code>.
+</p>
+
+<a name="running"></a>
+<h3><a name="n6c6f8bab4d356158"></a>Running RecordLoader</h3>
+
+<p>Now that we have a Java environment and all the libraries we need,
+let's try it out with the simplest possible invocation.
+</p>
+
+<pre xml:space="preserve">
+java -cp recordloader.jar:xcc.jar:xpp3.jar \
+  com.marklogic.ps.RecordLoader
+</pre>
+
+<p>Java command lines can get pretty ugly. I'll keep using them
+for this tutorial, but you might want to put all of that into
+a shell script (or a batch file, on Windows).
+Remember, I put all my jar files in the current directory.
+You might have used another location:
+if so, just change the classpath in your command-line to match.
+</p>
+
+<p>OK, so we copied that command-line and pasted it into a shell.
+What happened?
+</p>
+
+<pre xml:space="preserve">
+java -cp recordloader.jar:xcc.jar:xpp3.jar \
+  com.marklogic.ps.RecordLoader
+Exception in thread "main" java.lang.NoClassDefFoundError: com/marklogic/ps/RecordLoader
+</pre>
+
+<p>Oh, that doesn't look good. Hmm... looks like we forgot to put
+recordloader.jar into the current directory. We'll do that,
+and try again...
+</p>
+
+<pre xml:space="preserve">
+java -cp recordloader.jar:xcc.jar:xpp3.jar \
+  com.marklogic.ps.RecordLoader
+Jun 7, 2006 2:06:40 PM com.marklogic.ps.RecordLoader main
+INFO: RecordLoader starting, version 2006-06-07.1
+Exception in thread "main" java.io.IOException: missing required property: ID_NAME
+        at com.marklogic.ps.RecordLoader.main(RecordLoader.java:465)
+</pre>
+
+<p>That looks a little bit better: we see a startup message,
+which incidentally tells us which version of RecordLoader we have.
+That could be important to know.
+</p>
+
+<p>But what about the error? What does
+<code>missing required property: ID_NAME</code> mean?
+ID_NAME is the name of a property. In Java, properties are
+simply name-value pairs, such as <code>SIZE=1</code>
+or <code>PATH=/lib/java</code>.
+RecordLoader uses properties for almost everything:
+let's learn how to configure those properties.
+</p>
+
+<a name="configuration"></a>
+<h3><a name="n6c6f8bab76beadb3"></a>RecordLoader Configuration</h3>
+<p>RecordLoader configures itself by looking at the System properties,
+plus any property files that you supply on the command-line.
+We'll learn about property files in a minute.
+But for now, we just want to load a simple XML file.
+To do this, we only need a couple of properties:
+<code>ID_NAME</code>
+and <code>CONNECTION_STRING</code>.
+</p>
+
+<p>
+<code>ID_NAME</code> is the name of an element or an attribute
+that RecordLoader can use as a unique ID for the input XML.
+RecordLoader will use this unique ID
+as part of the final document URI.
+If you use an attribute, put <code>@</code> in front of its name.
+For example, if you are processing Medline XML,
+you might set <code>ID_NAME=PMID</code>.
+For XML that uses an attribute named 'id',
+you would set <code>ID_NAME=@id</code>.
+</p>
+
+<p>There's also a special value
+<code>ID_NAME=#AUTO</code>,
+tells RecordLoader to make up its own ids for the
+documents it inserts, starting with 1 and counting up.
+This should be used only with caution, since it
+gives you very little control over your final document URIs.
+</p>
+
+<p>Next, RecordLoader needs to know how to connect to MarkLogic Server:
+that's where <code>CONNECTION_STRING</code> comes in.
+The default value is <code>xcc://admin:admin@localhost:9000</code>.
+That will work, as long as you've set up an XDBC server
+that listens on port 9000, points at the right database,
+and has a user named 'admin' (password 'admin')
+with enough privileges to write to the database.
+I'm going to use the default value for this tutorial,
+but if you need to use another username, password, host, or port,
+then you'll have to set <code>CONNECTION_STRING</code>.
+</p>
+
+<p>
+If you're looking at the required properties in the README file,
+you might notice that <code>INPUT_PATH</code> isn't required,
+and defaults to null. If it isn't set, RecordLoader
+looks for XML on the <i>standard input</i> stream. This allows
+you to uncompress a large file and pipe the resulting XML
+directly to RecordLoader. You can pipe the result of
+any command to RecordLoader in this way:
+note that the resulting XML must look like a single document
+to RecordLoader.
+See the "Wikipedia" use-case, below, for an example of this technique.
+</p>
+
+<a name="medline"></a>
+<h3><a name="n6c6f8babab5b85e2"></a>Use Case: Medline</h3>
+
+<p>Now that we have a working configuration,
+let's try it out. We'll use Medline content,
+from the
+<a href="http://www.nlm.nih.gov/">National Library of Medicine</a>.
+You can download a sample file
+<a href="http://www.nlm.nih.gov/databases/dtd/medsamp2006.xml">here</a>.
+The sample file, <code>medsamp2006.xml</code> is about 372KB,
+and contains 87 MedlineCitation elements.
+We want to break it up so that every MedlineCitation is a new document
+- and that's exactly what RecordLoader was designed to do.
+</p>
+
+<p>Looking at the structure of  <code>medsamp2006.xml</code>,
+we decide that the unique element is <code>PMID</code>.
+So here's how we can run RecordLoader:
+</p>
+
+<pre xml:space="preserve">
+java -cp recordloader.jar:xcc.jar:xpp3.jar \
+  -DID_NAME=PMID \
+  com.marklogic.ps.RecordLoader medsamp2006.xml
+Jun 7, 2006 3:06:39 PM com.marklogic.ps.RecordLoader main
+INFO: processing argument: medsamp2006.xml
+Jun 7, 2006 3:06:39 PM com.marklogic.ps.RecordLoader main
+INFO: RecordLoader starting, version 2006-06-07.1
+logging to CONSOLE
+logging to file simplelogger-%u-%g.log
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.SimpleLogger configureLogger
+INFO: setting up logging for: com.marklogic.ps
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader getDecoder
+INFO: using input encoding UTF-8
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader getDecoder
+INFO: using malformed input action REPORT
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader main
+INFO: using output encoding UTF-8
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader main
+INFO: connecting to admin:admin@localhost:9000
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader handleFileInput
+INFO: loading from /tmp/medsamp2006.xml
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader initialize
+INFO: adding extra collection: com.marklogic.ps.RecordLoader.1149718000087
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader setFileBasename
+INFO: using fileBasename = medsamp2006
+Jun 7, 2006 3:06:40 PM com.marklogic.ps.RecordLoader displayProgress
+INFO: inserted record 1 as medsamp2006/10540283 (631 ms, 7874 B, 2 tps, 12 kB/s)
+Jun 7, 2006 3:06:41 PM com.marklogic.ps.RecordLoader handleFileInput
+INFO: no files remaining
+Jun 7, 2006 3:06:41 PM com.marklogic.ps.RecordLoader handleFileInput
+INFO: waiting for thread 0
+Jun 7, 2006 3:06:43 PM com.marklogic.ps.RecordLoader displayProgress
+INFO: inserted record 40 as medsamp2006/14729922 (3634 ms, 174693 B, 11 tps, 47 kB/s)
+Jun 7, 2006 3:06:44 PM com.marklogic.ps.RecordLoader finishMain
+INFO: loaded 88 records ok (4842 ms, 368375 B, 18 tps, 74 kB/s)
+</pre>
+
+<p>That was pretty quick. What happened?
+</p>
+
+<p>First, we saw some messages from RecordLoader,
+telling us that it's using UTF-8
+for both input and output character encoding.
+Next, we see the full path to the Medline XML sample.
+Toward the end, we saw a progress message every 3 seconds
+- and at the very end, we saw confirmation that
+we loaded 88 new documents into the database.
+</p>
+
+<p>RecordLoader looks at its input XML for new "records".
+Each record is simply an XML element that wants to be inserted
+into the MarkLogic database as a new document.
+The default behavior is to break up the input XML
+based on the name of the first element it sees below the root element:
+in our simple test, that was the element named <code>MedlineCitation</code>,
+which was exactly what we wanted.
+</p>
+
+<p>Didn't the NLM say that there were 87 sample records?
+It turns out that they lied: there are 88.
+We can confirm this with a simple XQuery:
+</p>
+
+<pre xml:space="preserve">
+for $i at $x in /MedlineCitation
+return text {{ $x, xdmp:node-uri($i) }}
+
+=&gt;
+1 medsamp2006/12230355
+2 medsamp2006/12230384
+3 medsamp2006/12742516
+4 medsamp2006/12742518
+5 medsamp2006/12742519
+[ ...skipping a few... ]
+84 medsamp2006/15206831
+85 medsamp2006/10389168
+86 medsamp2006/9634358
+87 medsamp2006/11731716
+88 medsamp2006/15278624
+</pre>
+
+<p>That's interesting: the new document URIs all start with 'medsamp2006/'.
+That's because RecordLoader automatically prefixes every document
+with the base name of the input file: in this case, that's medsamp2006.
+If we set <code>OUTPUT_URI_PREFIX=/foo/</code>, all the URIs
+will start will '/foo/medsamp2006/'.
+If we set <code>OUTPUT_URI_SUFFIX=.xml</code>,
+every new URI will end with '.xml'.
+</p>
+
+<p>If we set up a WebDAV server with a root of 'medsamp2006/',
+we can view these documents via any WebDAV client.
+Or we could query by URI. Either way, let's look at the first document:
+</p>
+
+<pre xml:space="preserve">
+&lt;MedlineCitation Owner="NLM" Status="MEDLINE"&gt;
+&lt;PMID&gt;12230355&lt;/PMID&gt;
+&lt;DateCreated&gt;
+&lt;Year&gt;2002&lt;/Year&gt;
+&lt;Month&gt;09&lt;/Month&gt;
+&lt;Day&gt;16&lt;/Day&gt;
+&lt;/DateCreated&gt;
+&lt;DateCompleted&gt;
+&lt;Year&gt;2002&lt;/Year&gt;
+&lt;Month&gt;09&lt;/Month&gt;
+&lt;Day&gt;25&lt;/Day&gt;
+&lt;/DateCompleted&gt;
+&lt;DateRevised&gt;
+&lt;Year&gt;2005&lt;/Year&gt;
+&lt;Month&gt;11&lt;/Month&gt;
+&lt;Day&gt;17&lt;/Day&gt;
+&lt;/DateRevised&gt;
+&lt;Article PubModel="Print"&gt;
+&lt;Journal&gt;
+&lt;ISSN IssnType="Electronic"&gt;1539-3704&lt;/ISSN&gt;
+[ ...etc ]
+</pre>
+
+<p>There's one more wrinkle here:
+if we look at <code>medsamp2006.xml</code>,
+we find that the <code>PMID</code> element appears
+as a child of <code>MedlineCitation</code>,
+but sometimes its also a lower-level descendant,
+two levels underneath <code>MedlineCitation/CommentsCorrections</code>.
+That's ok: the <code>PMID</code> that we want, and that RecordLoader will use,
+always comes immediately after the <code>MedlineCitation</code> element.
+</p>
+
+<p>What if we have more that one XML file?
+The full Medline distribution has hundreds of files,
+each with up to 30,000 MedlineCitation elements.
+Some are 100MB of XML, or more.
+But RecordLoader handles them easily,
+because it uses a pull-based parser to stream through the input.
+Let's tell RecordLoader to load everything in a directory:
+</p>
+
+<pre xml:space="preserve">
+java -cp recordloader.jar:xcc.jar:xpp3.jar \
+  -DID_NAME=PMID \
+  com.marklogic.ps.RecordLoader /tmp/medline/*.xml
+</pre>
+
+<p>If you have too many files, though, shell expansion will fail.
+In that case, we can use another property, <code>INPUT_PATH</code>.
+RecordLoader will find and load every XML file in <code>INPUT_PATH</code>,
+as long as it ends with <code>.xml</code>.
+We can match other filename patterns by setting
+<code>INPUT_PATTERN</code> to a (Java-style) regular expression.
+</p>
+
+<p>Also, we want to skip any existing documents with the same URI,
+in case we're resuming an interrupted load.</p>
+
+<pre xml:space="preserve">
+java -cp recordloader.jar:xcc.jar:xpp3.jar \
+  -DID_NAME=PMID -DINPUT_PATH=/tmp/medline -DSKIP_EXISTING=true \
+  com.marklogic.ps.RecordLoader
+</pre>
+
+<p>Whew - that's getting to be too ugly. Let's clean it up.
+We can put all the properties in a file.
+We'll call it <code>medline.properties</code>:
+we could use pretty much any name, but it should end with ".properties".
+</p>
+
+<pre xml:space="preserve">
+ID_NAME=PMID
+INPUT_PATH=/tmp/medline
+SKIP_EXISTING=true
+THREADS=4
+</pre>
+
+<p>Now we might want to create a shell script to hold the java command
+and that ugly classpath. Let's call it <code>recordloader.sh</code>:
+</p>
+
+<pre xml:space="preserve">
+#!/bin/sh
+#
+
+CP=$HOME/lib/java/recordloader.jar
+CP=$CP:$HOME/lib/java/xcc.jar
+CP=$CP:$HOME/lib/java/xpp3.jar
+
+java -cp $CP com.marklogic.ps.RecordLoader $*
+
+# end recordloader.sh
+</pre>
+
+<p>We can use <code>chmod +x recordloader.sh</code> to make it executable,
+and now our command-line is simple:
+</p>
+
+<pre xml:space="preserve">
+./recordloader.sh medline.properties
+</pre>
+
+<p>Ah, that's better. Now I can move all the jar files into
+a common <code>$HOME/lib/java</code> directory,
+where I keep all my third-party jars.
+</p>
+
+<p>Did you notice the other change?
+We added <code>THREADS=4</code> to the new properties file.
+Now RecordLoader will start a thread for each input file,
+up to 4 threads at a time.
+</p>
+
+<p>But loading all of Medline will still take a little while:
+probably hours, maybe days. What happens if the power goes off?
+We can resume from where we left off!
+</p>
+
+<p>At the most basic level, we can use <code>SKIP_EXISTING=true</code>
+to skip past any existing documents.
+But using SKIP_EXISTING, RecordLoader will query the database
+for every new URI it generates.
+That's better than nothing, but not as fast as we'd like.
+</p>
+
+<p>If we look in the RecordLoader output, though,
+we can find out the last PMID that was successfully loaded.
+Then we set <code>START_ID</code> to that value:
+RecordLoader will process XML until it reaches the supplied value,
+and then it will start inserting documents.
+It's best to resume using both <code>SKIP_EXISTING=true</code>
+and <code>START_ID</code>, so that you minimize
+the amount of work to be done.
+</p>
+
+<p>Note that it isn't safe to use START_ID with multiple threads:
+the threads won't know which file contains the START_ID record,
+which causes problems.
+If you're interested in enhancing RecordLoader to solve this problem,
+patches are welcome.
+</p>
+
+<a name="wikipedia"></a>
+<h3><a name="n6c6f8bac5531e5ea"></a>Use Case: Wikipedia</h3>
+
+<p>Let's look at an uglier case: wikipedia.
+The <a href="http://wikipedia.org/">Wikipedia</a> project
+is one of the largest sources of freely available content on the net,
+and database dumps can be downloaded from
+<a href="http://download.wikimedia.org/">http://download.wikimedia.org/</a>.
+The largest file is <code>pages-meta-history.xml</code>:
+it contains the complete history of every article,
+plus discussion and user pages.
+The bzip2-compressed XML download for enwiki-20060518 is 33 GB,
+and the uncompressed size is over 300 GB.
+That's a lot of XML.
+</p>
+
+<p>Can RecordLoader handle it? Yes, but we need to be careful.
+First, let's take a quick look at the first few lines of the XML:
+</p>
+
+<pre xml:space="preserve">
+$ bunzip2 --stdout enwiki-20060518-pages-meta-history.xml.bz2 | head -40
+&lt;mediawiki xmlns="http://www.mediawiki.org/xml/export-0.3/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.3/ http://www.mediawiki.org/xml/export-0.3.xsd"
+ version="0.3" xml:lang="en"&gt;
+  &lt;siteinfo&gt;
+    &lt;sitename&gt;Wikipedia&lt;/sitename&gt;
+    &lt;base&gt;http://en.wikipedia.org/wiki/Main_Page&lt;/base&gt;
+    &lt;generator&gt;MediaWiki 1.7alpha&lt;/generator&gt;
+    &lt;case&gt;first-letter&lt;/case&gt;
+      &lt;namespaces&gt;
+      &lt;namespace key="-2"&gt;Media&lt;/namespace&gt;
+[ ...etc... ]
+    &lt;/namespaces&gt;
+  &lt;/siteinfo&gt;
+  &lt;page&gt;
+    &lt;title&gt;AaA&lt;/title&gt;
+    &lt;id&gt;1&lt;/id&gt;
+    &lt;revision&gt;
+      &lt;id&gt;233181&lt;/id&gt;
+      &lt;timestamp&gt;2001-02-06T20:07:40Z&lt;/timestamp&gt;
+      &lt;contributor&gt;
+        &lt;username&gt;JimboWales&lt;/username&gt;
+        &lt;id&gt;479&lt;/id&gt;
+      &lt;/contributor&gt;
+      &lt;comment&gt;*&lt;/comment&gt;
+[ ...etc... ]
+</pre>
+
+<p>
+We decide that each <code>page</code> element will become a document,
+and that the URIs will be based on the <code>page/id</code> element.
+But there's also a <code>siteinfo</code> element, which is a sibling
+of <code>page</code>, and appears before it in the document.
+If we don't do something about that,
+RecordLoader will automatically decide to use <code>siteinfo</code>
+as the document root, and then complain when it sees <code>page</code>
+at the same level of the input XML.
+</p>
+
+<p>We can fix this using two new properties:
+<code>RECORD_NAME</code> tells RecordLoader which element to use
+as the output document root element,
+and <code>IGNORE_UNKNOWN</code> tells RecordLoader to ignore
+elements that don't match <code>RECORD_NAME</code>.
+Note that all the wikipedia content is in a special namespace, too,
+so we have to set <code>RECORD_NAMESPACE</code>
+as well as <code>RECORD_NAME</code>.
+So our <code>wikipedia.properties</code> file is:
+</p>
+
+<pre xml:space="preserve">
+#CONNECTION_STRING=xcc://user:password@hostname:portnumber
+ID_NAME=id
+RECORD_NAME=page
+RECORD_NAMESPACE=http://www.mediawiki.org/xml/export-0.3/
+IGNORE_UNKNOWN=true
+OUTPUT_COLLECTIONS=wikipedia
+URI_PREFIX=/wikipedia/
+URI_SUFFIX=.xml
+DEFAULT_NAMESPACE=org.wikipedia.content
+</pre>
+
+<p>
+We added an XCC connection string, but it's commented out because
+we're still using the default value, from before.
+Given this configuration, RecordLoader will insert each new document
+as a member of the collection 'wikipedia', too.
+And did you notice the <code>DEFAULT_NAMESPACE</code>?
+That will actually override the existing namespace in the input XML
+with our own choice of namespace.
+Why would we want to do that? Just to show that we can.
+</p>
+
+<p>But what about <code>INPUT_PATH</code> and <code>INPUT_PATTERN</code>?
+How will RecordLoader find the input XML?
+It turns out that if we omit any input path,
+RecordLoader tries to read from standard input.
+This is especially handy for this giant compressed XML file,
+because I don't want to actually uncompress it onto my disk.
+Instead, I can pipe the output of <code>bunzip2</code>
+directly into RecordLoader.
+</p>
+
+<pre xml:space="preserve">
+bunzip2 --stdout enwiki-20060518-pages-meta-history.xml.bz2 \
+  | ./recordloader.sh wikipedia.properties
+</pre>
+
+<p>
+Don't try to run that command just yet, though: you'll almost certainly
+hit a fatal <code>XDMP-FRAGTOOLARGE</code> error.
+This is because our input <code>page</code> elements are sometimes very large.
+Since the input pages are in alphabetical order, we see the first
+problem when we reach the entry for
+<a href="http://en.wikipedia.org/wiki/Anarchy">Anarchy</a>.
+</p>
+
+<p>It turns out that some pages are very controversial,
+and undergo "revision wars".
+This causes these <code>page</code> elements
+to contain lots of <code>revision</code> children,
+which makes some pages too large to fit into MarkLogic Server's
+default memory limits.
+We could increase those limits, but in cases like this,
+it makes more sense to break up the documents somehow.
+Now, we don't want to create a separate document for every revision:
+that would make it difficult to retain the page-level data.
+</p>
+
+<p>
+Instead, we tell MarkLogic Server to <i>fragment</i> the document.
+We won't go into the details of fragments here:
+just remember to create a fragment root on
+namespace <code>org.wikipedia.content</code>
+and local-name <code>revision</code>,
+before you start RecordLoader.
+</p>
+
+<p>Note that loading all of wikipedia will take a while.
+This time, we can't use <code>THREADS</code> to speed it up,
+either. That's because RecordLoader only knows how to
+spawn threads for input files. This XML is arriving through
+standard input, which is roughly the same thing as having
+just one input file.
+</p>
+
+<a name="conclusion"></a>
+<h3><a name="n6c6f8bacd1cdcafb"></a>Conclusion</h3>
+
+<p>
+We hope this tutorial was useful.
+For more information about RecordLoader,
+see the <a href="index.html">README</a>.
+</p>
+
+<p>
+Now go load some content!
+</p>
+
+<h3><a name="n6c6f8bacddcda276"></a>Troubleshooting</h3>
+
+<p><b><code>NoClassDefFoundError</code></b>:
+Your classpath isn't finding one
+of the jar files. Examine it carefully, and make sure the paths are
+all accurate.
+</p>
+
+<p><b>I'm running Windows, and RecordLoader is ignoring my
+<code>INPUT_PATH</code> property</b>:
+Try escaping all the back-slash characters in your path.
+For example, change <code>c:\foo</code> to <code>c:\\foo</code>
+- alternatively, change back-slashes to forward-slashes.
+</p>
+
+    </body>
+</html>
