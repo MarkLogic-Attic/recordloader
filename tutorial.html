@@ -23,7 +23,7 @@
 -->
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <title>XQSync Tutorial</title>
+    <title>RecordLoader Tutorial</title>
     <meta name="description" content="tutorial for recordloader, an ingestion tool for MarkLogic Server" />
     <meta name="keywords" content="xml xquery marklogic ingestion document-loader" />
     <link rel="stylesheet" type="text/css"
@@ -111,10 +111,10 @@ Again, be sure to get the latest version: right now, that's
 let's try it out with the simplest possible invocation.
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 java -cp recordloader.jar:xcc.jar:xpp3.jar \
   com.marklogic.ps.RecordLoader
-</pre>
+</div>
 
 <p>Java command lines can get pretty ugly. I'll keep using them
 for this tutorial, but you might want to put all of that into
@@ -128,25 +128,25 @@ if so, just change the classpath in your command-line to match.
 What happened?
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 java -cp recordloader.jar:xcc.jar:xpp3.jar \
   com.marklogic.ps.RecordLoader
 Exception in thread "main" java.lang.NoClassDefFoundError: com/marklogic/ps/RecordLoader
-</pre>
+</div>
 
 <p>Oh, that doesn't look good. Hmm... looks like we forgot to put
 recordloader.jar into the current directory. We'll do that,
 and try again...
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 java -cp recordloader.jar:xcc.jar:xpp3.jar \
   com.marklogic.ps.RecordLoader
 Jun 7, 2006 2:06:40 PM com.marklogic.ps.RecordLoader main
 INFO: RecordLoader starting, version 2006-06-07.1
 Exception in thread "main" java.io.IOException: missing required property: ID_NAME
         at com.marklogic.ps.RecordLoader.main(RecordLoader.java:465)
-</pre>
+</div>
 
 <p>That looks a little bit better: we see a startup message,
 which incidentally tells us which version of RecordLoader we have.
@@ -238,7 +238,7 @@ we decide that the unique element is <code>PMID</code>.
 So here's how we can run RecordLoader:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 java -cp recordloader.jar:xcc.jar:xpp3.jar \
   -DID_NAME=PMID \
   com.marklogic.ps.RecordLoader medsamp2006.xml
@@ -274,7 +274,7 @@ Jun 7, 2006 3:06:43 PM com.marklogic.ps.RecordLoader displayProgress
 INFO: inserted record 40 as medsamp2006/14729922 (3634 ms, 174693 B, 11 tps, 47 kB/s)
 Jun 7, 2006 3:06:44 PM com.marklogic.ps.RecordLoader finishMain
 INFO: loaded 88 records ok (4842 ms, 368375 B, 18 tps, 74 kB/s)
-</pre>
+</div>
 
 <p>That was pretty quick. What happened?
 </p>
@@ -302,7 +302,7 @@ It turns out that they lied: there are 88.
 We can confirm this with a simple XQuery:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 for $i at $x in /MedlineCitation
 return text {{ $x, xdmp:node-uri($i) }}
 
@@ -318,7 +318,7 @@ return text {{ $x, xdmp:node-uri($i) }}
 86 medsamp2006/9634358
 87 medsamp2006/11731716
 88 medsamp2006/15278624
-</pre>
+</div>
 
 <p>That's interesting: the new document URIs all start with 'medsamp2006/'.
 That's because RecordLoader automatically prefixes every document
@@ -334,7 +334,7 @@ we can view these documents via any WebDAV client.
 Or we could query by URI. Either way, let's look at the first document:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 &lt;MedlineCitation Owner="NLM" Status="MEDLINE"&gt;
 &lt;PMID&gt;12230355&lt;/PMID&gt;
 &lt;DateCreated&gt;
@@ -356,7 +356,7 @@ Or we could query by URI. Either way, let's look at the first document:
 &lt;Journal&gt;
 &lt;ISSN IssnType="Electronic"&gt;1539-3704&lt;/ISSN&gt;
 [ ...etc ]
-</pre>
+</div>
 
 <p>There's one more wrinkle here:
 if we look at <code>medsamp2006.xml</code>,
@@ -377,11 +377,11 @@ because it uses a pull-based parser to stream through the input.
 Let's tell RecordLoader to load everything in a directory:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 java -cp recordloader.jar:xcc.jar:xpp3.jar \
   -DID_NAME=PMID \
   com.marklogic.ps.RecordLoader /tmp/medline/*.xml
-</pre>
+</div>
 
 <p>If you have too many files, though, shell expansion will fail.
 In that case, we can use another property, <code>INPUT_PATH</code>.
@@ -394,11 +394,11 @@ We can match other filename patterns by setting
 <p>Also, we want to skip any existing documents with the same URI,
 in case we're resuming an interrupted load.</p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 java -cp recordloader.jar:xcc.jar:xpp3.jar \
   -DID_NAME=PMID -DINPUT_PATH=/tmp/medline -DSKIP_EXISTING=true \
   com.marklogic.ps.RecordLoader
-</pre>
+</div>
 
 <p>Whew - that's getting to be too ugly. Let's clean it up.
 We can put all the properties in a file.
@@ -406,18 +406,18 @@ We'll call it <code>medline.properties</code>:
 we could use pretty much any name, but it should end with ".properties".
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 ID_NAME=PMID
 INPUT_PATH=/tmp/medline
 SKIP_EXISTING=true
 THREADS=4
-</pre>
+</div>
 
 <p>Now we might want to create a shell script to hold the java command
 and that ugly classpath. Let's call it <code>recordloader.sh</code>:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 #!/bin/sh
 #
 
@@ -428,15 +428,15 @@ CP=$CP:$HOME/lib/java/xpp3.jar
 java -cp $CP com.marklogic.ps.RecordLoader $*
 
 # end recordloader.sh
-</pre>
+</div>
 
 <p>We can use <code>chmod +x recordloader.sh</code> to make it executable,
 and now our command-line is simple:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 ./recordloader.sh medline.properties
-</pre>
+</div>
 
 <p>Ah, that's better. Now I can move all the jar files into
 a common <code>$HOME/lib/java</code> directory,
@@ -498,7 +498,7 @@ That's a lot of XML.
 First, let's take a quick look at the first few lines of the XML:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 $ bunzip2 --stdout enwiki-20060518-pages-meta-history.xml.bz2 | head -40
 &lt;mediawiki xmlns="http://www.mediawiki.org/xml/export-0.3/"
  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -526,7 +526,7 @@ $ bunzip2 --stdout enwiki-20060518-pages-meta-history.xml.bz2 | head -40
       &lt;/contributor&gt;
       &lt;comment&gt;*&lt;/comment&gt;
 [ ...etc... ]
-</pre>
+</div>
 
 <p>
 We decide that each <code>page</code> element will become a document,
@@ -550,7 +550,7 @@ as well as <code>RECORD_NAME</code>.
 So our <code>wikipedia.properties</code> file is:
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 #CONNECTION_STRING=xcc://user:password@hostname:portnumber
 ID_NAME=id
 RECORD_NAME=page
@@ -560,7 +560,7 @@ OUTPUT_COLLECTIONS=wikipedia
 URI_PREFIX=/wikipedia/
 URI_SUFFIX=.xml
 DEFAULT_NAMESPACE=org.wikipedia.content
-</pre>
+</div>
 
 <p>
 We added an XCC connection string, but it's commented out because
@@ -583,10 +583,10 @@ Instead, I can pipe the output of <code>bunzip2</code>
 directly into RecordLoader.
 </p>
 
-<pre xml:space="preserve">
+<div class="code-block">
 bunzip2 --stdout enwiki-20060518-pages-meta-history.xml.bz2 \
   | ./recordloader.sh wikipedia.properties
-</pre>
+</div>
 
 <p>
 Don't try to run that command just yet, though: you'll almost certainly
