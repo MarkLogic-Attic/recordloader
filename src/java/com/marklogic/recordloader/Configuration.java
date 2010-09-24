@@ -40,7 +40,7 @@ import com.marklogic.recordloader.xcc.XccContentFactory;
 
 /**
  * @author Michael Blakeley, Mark Logic
- *
+ * 
  */
 public class Configuration extends AbstractConfiguration {
 
@@ -409,7 +409,7 @@ public class Configuration extends AbstractConfiguration {
         }
         validateProperties();
 
-        setIdNodeName(properties.getProperty(ID_NAME_KEY));
+        setIdNodeName(getProperty(ID_NAME_KEY));
 
         // some or all of these may be null
         configureOptions();
@@ -435,36 +435,31 @@ public class Configuration extends AbstractConfiguration {
     }
 
     protected void configureOptions() {
-        recordName = properties.getProperty(RECORD_NAME_KEY);
+        recordName = getProperty(RECORD_NAME_KEY, true);
         if (null != recordName) {
-            recordName = recordName.trim();
             if (RECORD_NAME_DOCUMENT_ROOT.equals(recordName)) {
                 // whatever the document root is, we will use it
                 logger.fine("using document root as record name");
                 useDocumentRoot = true;
                 recordName = null;
             }
-            recordNamespace = properties
-                    .getProperty(RECORD_NAMESPACE_KEY);
-            if (null != recordNamespace) {
-                recordNamespace = recordNamespace.trim();
-            }
+            recordNamespace = getProperty(RECORD_NAMESPACE_KEY, true);
         }
 
         ignoreUnknown = Utilities.stringToBoolean(properties
                 .getProperty(IGNORE_UNKNOWN_KEY));
 
         // use prefix to set document-uri patterns
-        uriPrefix = properties.getProperty(OUTPUT_URI_PREFIX_KEY);
+        uriPrefix = getProperty(OUTPUT_URI_PREFIX_KEY);
         if (!OUTPUT_URI_PREFIX_DEFAULT.equals(uriPrefix)
                 && !uriPrefix.endsWith("/")) {
             uriPrefix += "/";
         }
 
-        uriSuffix = properties.getProperty(OUTPUT_URI_SUFFIX_KEY);
+        uriSuffix = getProperty(OUTPUT_URI_SUFFIX_KEY);
 
         // look for startId, to skip records
-        startId = properties.getProperty(START_ID_KEY);
+        startId = getProperty(START_ID_KEY);
 
         // copy SKIP_EXISTING from SKIP_EXISTING_UNTIL_FIRST_MISS, if true
         if (isSkipExistingUntilFirstMiss()) {
@@ -474,9 +469,9 @@ public class Configuration extends AbstractConfiguration {
         copyNamespaceDeclarations = Utilities.stringToBoolean(properties
                 .getProperty(COPY_NAMESPACES_KEY));
 
-        inputEncoding = properties.getProperty(INPUT_ENCODING_KEY);
-        malformedInputAction = properties.getProperty(
-                INPUT_MALFORMED_ACTION_KEY).toUpperCase();
+        inputEncoding = getProperty(INPUT_ENCODING_KEY);
+        malformedInputAction = getProperty(INPUT_MALFORMED_ACTION_KEY)
+                .toUpperCase();
         logger.info("using input encoding " + inputEncoding);
         logger.info("using malformed input action "
                 + malformedInputAction);
@@ -486,13 +481,9 @@ public class Configuration extends AbstractConfiguration {
         capacity = Integer.parseInt(properties.getProperty(
                 QUEUE_CAPACITY_KEY, "" + DEFAULT_CAPACITY * threadCount));
 
-        inputPath = properties.getProperty(INPUT_PATH_KEY);
-        if (null != inputPath) {
-            inputPath = inputPath.trim();
-        }
-
-        inputPattern = properties.getProperty(INPUT_PATTERN_KEY);
-        inputStripPrefix = properties.getProperty(INPUT_STRIP_PREFIX_KEY);
+        inputPath = getProperty(INPUT_PATH_KEY, true);
+        inputPattern = getProperty(INPUT_PATTERN_KEY);
+        inputStripPrefix = getProperty(INPUT_STRIP_PREFIX_KEY);
         inputNormalizePaths = Utilities.stringToBoolean(properties
                 .getProperty(INPUT_NORMALIZE_PATHS_KEY));
 
@@ -623,7 +614,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     /**
-     *
+     * 
      * @throws XmlPullParserException
      * @return
      */
@@ -780,7 +771,7 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getContentFactoryClassName() {
-        return properties.getProperty(CONTENT_FACTORY_CLASSNAME_KEY);
+        return getProperty(CONTENT_FACTORY_CLASSNAME_KEY, true);
     }
 
     /**
@@ -834,21 +825,21 @@ public class Configuration extends AbstractConfiguration {
     public String getConfigurationClassName() {
         // keep the default - used to construct the pre-defaults configuration
         return properties.getProperty(CONFIGURATION_CLASSNAME_KEY,
-                CONFIGURATION_CLASSNAME_DEFAULT);
+                CONFIGURATION_CLASSNAME_DEFAULT).trim();
     }
 
     /**
      * @return
      */
     public String getLoaderClassName() {
-        return properties.getProperty(LOADER_CLASSNAME_KEY);
+        return getProperty(LOADER_CLASSNAME_KEY);
     }
 
     /**
      * @return
      */
     public String getProducerClassName() {
-        return properties.getProperty(PRODUCER_CLASSNAME_KEY);
+        return getProperty(PRODUCER_CLASSNAME_KEY);
     }
 
     /**
@@ -878,7 +869,7 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getInputHandlerClassName() {
-        return properties.getProperty(INPUT_HANDLER_CLASSNAME_KEY);
+        return getProperty(INPUT_HANDLER_CLASSNAME_KEY);
     }
 
     public CharsetDecoder getDecoder() {
@@ -1021,12 +1012,11 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     protected String[] getRoles(String key) {
-        String rolesString = properties.getProperty(key);
+        String rolesString = getProperty(key, true);
         logger.fine(key + " = " + rolesString);
         if (null == rolesString) {
             return null;
         }
-        rolesString = rolesString.trim();
         if (rolesString.length() < 1) {
             return null;
         }
@@ -1065,19 +1055,18 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getLanguage() {
-        return properties.getProperty(LANGUAGE_KEY);
+        return getProperty(LANGUAGE_KEY);
     }
 
     /**
      * @return
      */
     public String[] getOutputForests() {
-        String forestNames = properties.getProperty(OUTPUT_FORESTS_KEY);
+        String forestNames = getProperty(OUTPUT_FORESTS_KEY, true);
         if (null == forestNames) {
             return null;
         }
-        forestNames = forestNames.trim();
-        if (forestNames.equals("")) {
+        if ("".equals(forestNames)) {
             return null;
         }
         logger.info("sending output to forests: " + forestNames);
@@ -1107,10 +1096,12 @@ public class Configuration extends AbstractConfiguration {
      * @return
      */
     public String getOutputEncoding() {
-        return properties.getProperty(OUTPUT_ENCODING_KEY);
+        return getProperty(OUTPUT_ENCODING_KEY);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
+     * 
      * @see com.marklogic.recordloader.AbstractConfiguration#close()
      */
     @Override

@@ -173,4 +173,25 @@ public abstract class AbstractConfiguration {
     
     public abstract void close();
 
+    /**
+     * @param _key
+     * @param _trim
+     * @return
+     */
+    protected String getProperty(String _key, boolean _trim) {
+        String value = properties.getProperty(_key);
+        if (_trim) {
+            return (null != value) ? value.trim() : value;
+        }
+        return value;
+    }
+
+    /**
+     * @param _key
+     * @return
+     */
+    protected String getProperty(String _key) {
+        return getProperty(_key, false);
+    }
+
 }
