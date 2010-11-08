@@ -320,8 +320,6 @@ public class Configuration extends AbstractConfiguration {
 
     protected String idNodeName;
 
-    protected String inputEncoding;
-
     protected String inputPath;
 
     protected String inputStripPrefix;
@@ -469,12 +467,8 @@ public class Configuration extends AbstractConfiguration {
         copyNamespaceDeclarations = Utilities.stringToBoolean(properties
                 .getProperty(COPY_NAMESPACES_KEY));
 
-        inputEncoding = getProperty(INPUT_ENCODING_KEY);
         malformedInputAction = getProperty(INPUT_MALFORMED_ACTION_KEY)
                 .toUpperCase();
-        logger.info("using input encoding " + inputEncoding);
-        logger.info("using malformed input action "
-                + malformedInputAction);
 
         threadCount = Integer.parseInt(properties
                 .getProperty(THREADS_KEY));
@@ -590,7 +584,7 @@ public class Configuration extends AbstractConfiguration {
     }
 
     public String getInputEncoding() {
-        return inputEncoding;
+        return getProperty(INPUT_ENCODING_KEY);
     }
 
     public String getInputPath() {
@@ -699,9 +693,13 @@ public class Configuration extends AbstractConfiguration {
         useAutomaticIds = false;
         useFilenameIds = true;
         if (INPUT_ENCODING_DEFAULT.equals(getInputEncoding())) {
+            logger.info("using FileLoader");
             properties.setProperty(LOADER_CLASSNAME_KEY, FileLoader.class
                     .getName());
         } else {
+            logger.info("using TranscodingFileLoader: "
+                    + INPUT_ENCODING_DEFAULT + " != "
+                    + getInputEncoding());
             properties.setProperty(LOADER_CLASSNAME_KEY,
                     TranscodingFileLoader.class.getName());
         }

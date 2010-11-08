@@ -34,6 +34,7 @@ import javax.net.ssl.X509TrustManager;
 
 import com.marklogic.recordloader.Configuration;
 import com.marklogic.recordloader.FatalException;
+import com.marklogic.recordloader.FileLoader;
 import com.marklogic.xcc.ContentCapability;
 import com.marklogic.xcc.ContentPermission;
 import com.marklogic.xcc.ContentSource;
