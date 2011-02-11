@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <!--
 /*
- * Copyright (c)2005-2010 Mark Logic Corporation
+ * Copyright (c)2005-2011 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,7 +42,13 @@ For the source code, see the
 <h2>Running RecordLoader</h2>
 <p>The entry point is the main method in the
  com.marklogic.ps.RecordLoader class.
-It takes zero or more property files as its arguments.
+The command-line arguments may be any mix of zero or more property files
+and zero or more input files.
+</p>
+
+<p>Any property file names must end in <code>.properties</code>.
+Other file names on the command line
+will be treated as input files, not property files.
 Any specified system properties will override file-based properties,
 and properties found in later files may override properties
 specified in earlier files on the command line.
@@ -52,6 +58,14 @@ See
 for a sample shell script.
 See <code><a href="http://github.com/marklogic/recordloader/tree/master/src/config/">src/config/</a></code>
 for sample property files.
+</p>
+
+<p>
+Input files will be used as input for the loader.
+The input file names must <b>not</b> end in <code>.properties</code>.
+These may be binary, text, or XML (see <code>INPUT_FORMAT</code>, below).
+XML files may be single documents or superfiles containing many documents
+(see <code>RECORD_NAME</code> below).
 </p>
 
 <h2>Required JVM: Sun 1.5 or later</h2>
