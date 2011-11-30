@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2005-2010 Mark Logic Corporation
+ * Copyright (c)2005-2011 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2011-09-28.1";
+    public static final String VERSION = "2011-11-30.1";
 
     public static final String NAME = RecordLoader.class.getName();
 
