@@ -432,8 +432,8 @@ public class Configuration extends AbstractConfiguration {
         
         String encrypted = properties.getProperty(ENCRYPTED_FLAG_KEY);
         boolean runEncrypted = false;
-        
-        if(encrypted != null) {
+
+        if ((encrypted != null) && encrypted.toLowerCase().equals("true")) {
         	runEncrypted = true;
     	}
         
