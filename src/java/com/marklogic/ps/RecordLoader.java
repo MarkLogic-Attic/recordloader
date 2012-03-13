@@ -55,7 +55,7 @@ public class RecordLoader {
     private static final String SIMPLE_NAME = RecordLoader.class
             .getSimpleName();
 
-    public static final String VERSION = "2011-11-30.1";
+    public static final String VERSION = "2012-03-01.1";
 
     public static final String NAME = RecordLoader.class.getName();
 

@@ -7,3 +7,9 @@ publish.sh
 src/*.sh
 src/simplelogger*
 src/test*
+src/junit.jar
+src/xcc.jar
+src/xpp3.jar
+src/svnkit.jar
+src/build.properties
+.gitignore

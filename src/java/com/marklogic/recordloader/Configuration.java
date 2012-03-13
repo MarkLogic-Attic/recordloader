@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CodingErrorAction;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -38,6 +39,9 @@ import com.marklogic.ps.Utilities;
 import com.marklogic.recordloader.xcc.XccConfiguration;
 import com.marklogic.recordloader.xcc.XccContentFactory;
 
+import com.marklogic.ps.Crypto;
+
+
 /**
  * @author Michael Blakeley, Mark Logic
  * 
@@ -49,6 +53,11 @@ public class Configuration extends AbstractConfiguration {
     */
     public static final String CONNECTION_STRING_KEY = "CONNECTION_STRING";
 
+    /**
+     *
+     */
+    public static final String ENCRYPTED_FLAG_KEY = "ENCRYPTED_PASSWORD";
+    
     /**
      *
      */
@@ -420,15 +429,39 @@ public class Configuration extends AbstractConfiguration {
                     + CONNECTION_STRING_KEY);
         }
         String[] connectionStrings = rawConnectionString.split("[,\\s]+");
+        
+        String encrypted = properties.getProperty(ENCRYPTED_FLAG_KEY);
+        boolean runEncrypted = false;
+
+        if ((encrypted != null) && encrypted.toLowerCase().equals("true")) {
+        	runEncrypted = true;
+    	}
+        
+        if(!runEncrypted) {
         logger.info("connecting to "
                 + Utilities.join(connectionStrings, " "));
+        }else {
+           logger.info("Running encrypted.");
+       }
+	    
         uris = new URI[connectionStrings.length];
         try {
             for (int i = 0; i < uris.length; i++) {
-                uris[i] = new URI(connectionStrings[i]);
+            	String connectionString = null;
+            	if(runEncrypted){
+	            	String[] firstParse = connectionStrings[i].split("@");
+	            	String[] secondParse = firstParse[0].split(":");
+	            	String[] firstPart = {secondParse[0], secondParse[1], Crypto.decryptPassword()};
+	            	connectionString = Utilities.join(firstPart, ":") + "@" + firstParse[1];
+            	} else {
+            		connectionString = connectionStrings[i];
+            	}
+                uris[i] = new URI(connectionString);
             }
         } catch (URISyntaxException e) {
             throw new FatalException(e);
+        } catch (Exception e){
+            e.printStackTrace();
         }
     }
 
