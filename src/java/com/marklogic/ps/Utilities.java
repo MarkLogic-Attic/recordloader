@@ -1,5 +1,5 @@
 /*
- * Copyright (c)2004-2010 Mark Logic Corporation
+ * Copyright (c)2004-2011 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,8 @@ public class Utilities {
 
     protected static Pattern[] patterns = new Pattern[] {
             Pattern.compile("&"), Pattern.compile("<"),
-            Pattern.compile(">") };
+            Pattern.compile(">"),
+            Pattern.compile("\"") };
 
     public static String escapeXml(String _in) {
         if (null == _in)
@@ -46,6 +47,12 @@ public class Utilities {
                 patterns[1].matcher(
                         patterns[0].matcher(_in).replaceAll("&amp;"))
                         .replaceAll("&lt;")).replaceAll("&gt;");
+    }
+
+    public static String escapeXml(String _in, boolean _attribute) {
+        if (!_attribute) return escapeXml(_in);
+
+        return patterns[3].matcher(escapeXml(_in)).replaceAll("&quot;");
     }
 
     public static String join(Collection<String> thisPath, String _delim) {
