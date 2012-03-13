@@ -62,12 +62,12 @@ public class Crypto {
     int last;
     Point point;
     Random random;
-    Set set;
+    Set<Point> set;
     ObjectInputStream ois;
     
     public Crypto(String passPhrase) throws Exception {
         
-        set = new HashSet();
+        set = new HashSet<Point>();
         random = new Random();
         for (int i = 0; i < 10; i++) {
             point = new Point(random.nextInt(1000), random.nextInt(2000));
