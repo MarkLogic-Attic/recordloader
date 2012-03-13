@@ -155,13 +155,14 @@ public class Utilities {
      * @throws IOException
      */
     public static byte[] read(InputStream _is) throws IOException {
+
         if (null == _is) {
             throw new IOException("null InputStream");
         }
         ByteArrayOutputStream os = new ByteArrayOutputStream(_is
                 .available());
         byte[] buf = new byte[BUFFER_SIZE];
-        int len = 0;
+	int len = 0;
         while ((len = _is.read(buf)) != -1) {
             os.write(buf, 0, len);
         }
