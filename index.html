@@ -349,6 +349,27 @@ password files can be kept seperate, securely and non-human readable.
 </td>
 </tr>
 
+<tr><td>ENCRYPTED_PASSWORD</td><td>false</td>
+<td>
+<p>
+Not everyone wants to include their password in the properties file. A
+"little" bit of security was added by adding the ENCRYPTED_PASSWORD
+Flag.  When this flag is enabled the recordloader process will look
+for the "ciphertext" and "keyfile" files that contain the encrypted
+password to be used.  To create the two encrypted password files,
+execute:
+</p>
+<pre>
+java -cp recordloader.jar com.marklogic.ps.PasswordEncrypter PASSWORD
+</pre>
+</p>
+Change PASSWORD to be the password that becomes encrypted
+Now the properties file does not contain a password, and the encrypted
+password files can be kept seperate, securely and non-human readable.
+</p>
+</td>
+</tr>
+
 <tr><td>ERROR_EXISTING</td><td>false</td>
 <td>
   If true, RecordLoader will throw an error
