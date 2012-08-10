@@ -17,6 +17,24 @@
     <url>http://www.marklogic.com/</url>
   </organization>
 
+  <repositories>
+    <repository>
+      <id>com.marklogic</id>
+      <name>MarkLogic</name>
+      <releases>
+          <enabled>true</enabled>
+          <updatePolicy>always</updatePolicy>
+          <checksumPolicy>warn</checksumPolicy>
+      </releases>
+      <snapshots>
+          <enabled>true</enabled>
+          <updatePolicy>never</updatePolicy>
+          <checksumPolicy>fail</checksumPolicy>
+      </snapshots>
+      <url>http://developer.marklogic.com/maven2</url>
+      <layout>default</layout>
+    </repository>
+  </repositories>
   <distributionManagement>
     <repository>
       <id>helmstetter-maven</id>
