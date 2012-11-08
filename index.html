@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <!--
 /*
- * Copyright (c)2005-2011 Mark Logic Corporation
+ * Copyright (c)2005-2012 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -207,13 +207,13 @@ else xdmp:document-insert(
   )),
   (
     for $r in tokenize($ROLES-EXECUTE, ',')[. ne '']
-    return xdmp:permission('execute', $r),
+    return xdmp:permission($r, 'execute'),
     for $r in tokenize($ROLES-INSERT, ',')[. ne '']
-    return xdmp:permission('insert', $r),
+    return xdmp:permission($r, 'insert'),
     for $r in tokenize($ROLES-READ, ',')[. ne '']
-    return xdmp:permission('read', $r),
+    return xdmp:permission($r, 'read'),
     for $r in tokenize($ROLES-UPDATE, ',')[. ne '']
-    return xdmp:permission('update', $r)
+    return xdmp:permission($r, 'update')
   ),
   tokenize($COLLECTIONS, ',')[. ne ''],
   0,
@@ -278,13 +278,13 @@ else xdmp:document-insert(
   ),
   (
     for $r in tokenize($ROLES-EXECUTE, ',')[. ne '']
-    return xdmp:permission('execute', $r),
+    return xdmp:permission($r, 'execute'),
     for $r in tokenize($ROLES-INSERT, ',')[. ne '']
-    return xdmp:permission('insert', $r),
+    return xdmp:permission($r, 'insert'),
     for $r in tokenize($ROLES-READ, ',')[. ne '']
-    return xdmp:permission('read', $r),
+    return xdmp:permission($r, 'read'),
     for $r in tokenize($ROLES-UPDATE, ',')[. ne '']
-    return xdmp:permission('update', $r)
+    return xdmp:permission($r, 'update')
   ),
   $COLLECTIONS,
   0,
