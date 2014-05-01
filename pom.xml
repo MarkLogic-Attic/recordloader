@@ -17,6 +17,24 @@
     <url>http://www.marklogic.com/</url>
   </organization>
 
+  <repositories>
+    <repository>
+      <id>com.marklogic</id>
+      <name>MarkLogic</name>
+      <releases>
+          <enabled>true</enabled>
+          <updatePolicy>always</updatePolicy>
+          <checksumPolicy>warn</checksumPolicy>
+      </releases>
+      <snapshots>
+          <enabled>true</enabled>
+          <updatePolicy>never</updatePolicy>
+          <checksumPolicy>fail</checksumPolicy>
+      </snapshots>
+      <url>http://developer.marklogic.com/maven2</url>
+      <layout>default</layout>
+    </repository>
+  </repositories>
   <distributionManagement>
     <repository>
       <id>helmstetter-maven</id>
@@ -30,12 +48,11 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <version>3.8.1</version>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.marklogic</groupId>
-      <artifactId>xcc</artifactId>
-      <version>4.1-4</version>
+      <artifactId>marklogic-xcc</artifactId>
+      <version>4.1.4</version>
     </dependency>
     <dependency>
       <groupId>xpp3</groupId>
@@ -54,11 +71,33 @@
     <plugins>
       <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.3.2</version>
          <configuration>
           <source>1.5</source>
           <target>1.5</target>
          </configuration>
       </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <configuration>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+          <archive>
+            <manifest>
+              <mainClass>com.marklogic.ps.RecordLoader</mainClass>
+            </manifest>
+          </archive>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
-  </build>	
+  </build>
 </project>
