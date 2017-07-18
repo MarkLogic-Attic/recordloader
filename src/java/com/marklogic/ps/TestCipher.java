@@ -45,7 +45,7 @@ public class TestCipher {
     private static final String password = "zukowski";
 
     public static void main(String args[]) throws Exception {
-        Set set = new HashSet();
+        Set<Point> set = new HashSet<Point>();
         Random random = new Random();
         for (int i = 0; i < 10; i++) {
             Point point = new Point(random.nextInt(1000), random.nextInt(2000));

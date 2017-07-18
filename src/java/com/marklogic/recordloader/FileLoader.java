@@ -1,4 +1,4 @@
-/**
+/** -*- mode: java; indent-tabs-mode: nil; c-basic-offset: 4; -*-
  * Copyright (c) 2008-2010 Mark Logic Corporation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -45,22 +45,27 @@ public class FileLoader extends AbstractLoader {
             content = contentFactory.newContent(currentUri);
             boolean skippingRecord = checkIdAndUri(currentRecordPath);
 
-            // grab the entire document, as bytes to support binaries
-            // do not pass the stream directly, so that content can retry
-            byte[] bytes = Utilities.read(input);
-            if (null == bytes) {
-                throw new LoaderException("null document: "
-                        + currentRecordPath);
-            }
-            size = bytes.length;
-            if (0 == size) {
-                throw new LoaderException("empty document: "
-                        + currentRecordPath);
-            }
-
             if (!skippingRecord) {
-                logger.finest("bytes = " + size);
-                content.setBytes(bytes);
+
+                if (config.isInputStreaming()) {
+                    content.setInputStream(input);
+                } else {
+                    // grab the entire document, as bytes to support binaries
+                    // do not pass the stream directly, so that content can retry
+                    byte[] bytes = Utilities.read(input);
+                    if (null == bytes) {
+                        throw new LoaderException("null document: "
+                                                  + currentRecordPath);
+                    }
+                    size = bytes.length;
+                    if (0 == size) {
+                        throw new LoaderException("empty document: "
+                                                  + currentRecordPath);
+                    }
+
+                    logger.finest("bytes = " + size);
+                    content.setBytes(bytes);
+                }
                 insert();
             }
         } catch (Exception e) {

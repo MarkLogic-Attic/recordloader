@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 /*
- * Copyright (c)2007-2011 Mark Logic Corporation
+ * Copyright (c)2007-2012 Mark Logic Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
  */
 -->
 <project name="recordloader" basedir="." default="jar">
+    <property environment="env"/>
     <property name="name" value="recordloader"/>
     <property file="build.properties"/>
 
@@ -43,22 +44,28 @@
         <pathelement path="${build.dir}"/>
     </path>
 
-	<target name="build"
-			description="Compile main source tree java files">
-	  <mkdir dir="${build.dir}"/>
-	  <javac destdir="${build.dir}" debug="on" target="1.5">
-      <compilerarg value="-Xlint"/>
-      <src path="${src.dir}"/>
-      <classpath refid="master-classpath"/>
-	  </javac>
+    <target name="build"
+	    description="Compile main source tree java files">
+      <mkdir dir="${build.dir}"/>
+      <javac destdir="${build.dir}" debug="true" target="1.5" source="1.5">
+	<compilerarg value="-Xlint"/>
+	<src path="${src.dir}"/>
+	<classpath refid="master-classpath"/>
+      </javac>
     </target>
 
-	<target name="jar" depends="build"
-			description="generate the jarfile" >
-	  <mkdir dir="${dist.dir}"/>
-	  <jar jarfile="${dist.dir}/${name}.jar" basedir="${build.dir}"
-		   compress="true" index="true"
-		   excludes="*.java,*.class,**/.*,**/*~"/>
-	</target>
+    <target name="jar" depends="build"
+	    description="generate the jarfile" >
+      <mkdir dir="${dist.dir}"/>
+      <jar jarfile="${dist.dir}/${name}.jar" basedir="${build.dir}"
+	   compress="true" index="true"
+	   excludes="**/*.java"/>
+    </target>
 
+  <target name="clean"
+	  description="clean up all generated files">
+    <delete file="${dist.dir}/${name}.jar">
+      <fileset dir="${build.dir}" includes="**/*.class"/>
+    </delete>
+  </target>
 </project>
