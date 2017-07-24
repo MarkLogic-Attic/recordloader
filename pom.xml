@@ -8,12 +8,12 @@
 	<groupId>com.marklogic.ps</groupId>
 	<artifactId>recordloader</artifactId>
 	<packaging>jar</packaging>
-	<version>2010-03-01.1</version>
+	<version>2017-07-31.1</version>
 	<name>RecordLoader</name>
-	<url>http://developer.marklogic.com</url>
+	<url>https://developer.marklogic.com/code/recordloader</url>
 	<description>RecordLoader</description>
   <organization>
-    <name>Mark Logic</name>
+    <name>MarkLogic</name>
     <url>http://www.marklogic.com/</url>
   </organization>
 
@@ -35,36 +35,36 @@
       <layout>default</layout>
     </repository>
   </repositories>
-  <distributionManagement>
-    <repository>
-      <id>helmstetter-maven</id>
-      <name>helmstetter-maven</name>
-      <url>scp://helmstetter.com/var/www/helmstetter.com/maven</url>
-    </repository>
-  </distributionManagement>
-  
+
   <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.1</version>
-    </dependency>
     <dependency>
       <groupId>com.marklogic</groupId>
       <artifactId>marklogic-xcc</artifactId>
-      <version>4.1.4</version>
+      <version>8.0.6.4</version>
     </dependency>
+    <!-- Add junit and xpp3 to your local maven repo
+       # JUnit
+       mvn deploy:deploy-file -DgroupId=junit -DartifactId=junit -Dversion=4.12 \
+       -Durl=file:${HOME}/lib/java/ -DrepositoryId=local-maven-repo \
+       -DupdateReleaseInfo=true -Dfile=${HOME}/lib/java/junit-4.12.jar
+
+       #XPP3
+       mvn deploy:deploy-file -DgroupId=xpp3 -DartifactId=xpp3 -Dversion=4.12 \
+       -Durl=file:${HOME}/lib/java/ -DrepositoryId=local-maven-repo \
+       -DupdateReleaseInfo=true -Dfile=${HOME}/lib/java/xpp3-1.1.4c.jar
+       -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+    </dependency>
+
     <dependency>
       <groupId>xpp3</groupId>
       <artifactId>xpp3</artifactId>
       <version>1.1.4c</version>
     </dependency>
-    <dependency>
-      <groupId>org.tmatesoft</groupId>
-      <artifactId>svn</artifactId>
-      <version>1.1.0</version>
-    </dependency>    
-        
+
   </dependencies>
   <build>
     <sourceDirectory>${basedir}/src/java</sourceDirectory>

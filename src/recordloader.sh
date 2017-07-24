@@ -46,7 +46,6 @@ if [ -z "$BASE" ]; then
 fi
 
 CP=$BASE/../lib/recordloader.jar
-CP=$CP:$HOME/lib/java/svnkit.jar
 CP=$CP:$HOME/lib/java/xcc.jar
 CP=$CP:$HOME/lib/java/xpp3.jar
 
