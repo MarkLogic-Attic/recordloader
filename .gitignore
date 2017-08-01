@@ -12,4 +12,5 @@ src/xcc.jar
 src/xpp3.jar
 src/svnkit.jar
 src/build.properties
+target/
 .gitignore

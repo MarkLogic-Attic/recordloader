@@ -31,13 +31,11 @@
     <path id="master-classpath">
         <fileset dir="${java.library.user}">
             <include name="junit.jar"/>
-            <include name="svnkit.jar"/>
             <include name="xcc.jar"/>
             <include name="xpp3.jar"/>
         </fileset>
         <fileset dir="${java.library.system}">
             <include name="junit.jar"/>
-            <include name="svnkit.jar"/>
             <include name="xcc.jar"/>
             <include name="xpp3.jar"/>
         </fileset>

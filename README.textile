@@ -1,1 +1,9 @@
 For more information see "http://marklogic.github.com/recordloader/":http://marklogic.github.com/recordloader/
+
+Required JAR files for building:
+* JUnit -http://junit.org/junit4/
+* XCC - http://developer.marklogic.com/products/xcc
+* XPP - http://www.extreme.indiana.edu/dist/java-repository/xpp3/jars/
+
+Build the recordloader-YYYY-MM-DD.jar into the target directory
+* mvn package
